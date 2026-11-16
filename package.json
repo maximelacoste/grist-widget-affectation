@@ -1,0 +1,15 @@
+{
+  "name": "grist-widget-affectation",
+  "version": "0.1.0",
+  "description": "Widget Grist « Affectation » : recherche ou création d'un élève dans Individus, puis saisie de sa scolarité (DSFR).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "vendor": "sh scripts/vendor-dsfr.sh",
+    "serve": "python3 -m http.server 8080"
+  },
+  "devDependencies": {
+    "@gouvfr/dsfr": "1.14.4"
+  }
+}

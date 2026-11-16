@@ -1,0 +1,85 @@
+// Fonctions pures du widget : aucune dépendance à Grist ni au DOM, donc testables sous Node.
+
+/**
+ * Reproduit la normalisation de la formule `Cle` d'Individus :
+ *   unicodedata.normalize("NFKD", s).encode("ascii", "ignore") puis minuscules,
+ *   puis suppression de tout ce qui n'est pas a-z.
+ */
+export function norm(s) {
+  return String(s ?? '')
+    .normalize('NFKD')
+    .replace(/[^\x00-\x7F]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+}
+
+/** Clé nom|prénom|AAAA-MM-JJ, identique à la colonne formule `Cle` d'Individus. */
+export function cle(nom, prenom, iso) {
+  return `${norm(nom)}|${norm(prenom)}|${iso || ''}`;
+}
+
+/** Date Grist (secondes depuis l'epoch, UTC) -> 'AAAA-MM-JJ' ; '' si ce n'est pas une date. */
+export function secToIso(v) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '';
+  return new Date(v * 1000).toISOString().slice(0, 10);
+}
+
+/** 'AAAA-MM-JJ' -> secondes UTC (valeur attendue par Grist pour une colonne Date) ; null si invalide. */
+export function isoToSec(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return null;
+  const sec = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 1000;
+  // Date.UTC « déborde » (30 février -> 2 mars) : on refuse les dates qui ne font pas l'aller-retour.
+  return Number.isNaN(sec) || secToIso(sec) !== iso ? null : sec;
+}
+
+/** 'AAAA-MM-JJ' -> 'JJ/MM/AAAA' ; '' si vide. */
+export function formatDateFr(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+
+/** Format colonnes de docApi.fetchTable ({id:[..], Col:[..]}) -> tableau de lignes. */
+export function tableToRows(t, cols) {
+  return t.id.map((id, i) => {
+    const row = { id };
+    for (const c of cols) row[c] = t[c] ? t[c][i] : undefined;
+    return row;
+  });
+}
+
+/** Lignes brutes de la table Individus -> lignes prêtes pour la recherche. */
+export function toIndividus(t) {
+  return tableToRows(t, ['Nom', 'Prenom', 'Date_de_naissance', 'Cle', 'Id_app']).map((r) => ({
+    id: r.id,
+    nom: String(r.Nom ?? ''),
+    prenom: String(r.Prenom ?? ''),
+    ddn: secToIso(r.Date_de_naissance),
+    cle: String(r.Cle ?? ''),
+    idApp: r.Id_app,
+  }));
+}
+
+/**
+ * Recherche tolérante (sans accents, casse, espaces ni tirets) :
+ * `nom` et `prenom` sont cherchés comme sous-chaînes, `iso` doit être égale si renseignée.
+ */
+export function searchIndividus(rows, { nom = '', prenom = '', iso = '' }, limit = 50) {
+  const n = norm(nom);
+  const p = norm(prenom);
+  const out = rows.filter(
+    (r) => (!n || norm(r.nom).includes(n)) && (!p || norm(r.prenom).includes(p)) && (!iso || r.ddn === iso),
+  );
+  out.sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr'));
+  return { total: out.length, rows: out.slice(0, limit) };
+}
+
+/** Ligne « en cours » : la plus récente dont Date_effet <= aujourd'hui (à date égale, la plus grande id). */
+export function ligneEnCours(lignes, todayIso) {
+  let best = null;
+  for (const l of lignes) {
+    if (!l.date || l.date > todayIso) continue;
+    if (!best || l.date > best.date || (l.date === best.date && l.id > best.id)) best = l;
+  }
+  return best;
+}

@@ -1,0 +1,5 @@
+/* Seuls les ajustements strictement nécessaires : le reste vient du DSFR. */
+body { background: transparent; }
+.fr-stepper { margin-bottom: 1.5rem; }
+
+[hidden] { display: none !important; }
