@@ -13,6 +13,30 @@ export function norm(s) {
     .replace(/[^a-z]/g, '');
 }
 
+/** Normalisation de recherche : comme norm() mais en conservant les chiffres (UAI, numéros). */
+export function normSearch(s) {
+  return String(s ?? '')
+    .normalize('NFKD')
+    .replace(/[^\x00-\x7F]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Filtre pour les listes de choix : chaque mot saisi doit se retrouver dans le libellé
+ * (sans accents, casse, ponctuation ; ordre indifférent). Renvoie { total, rows }.
+ */
+export function filterOptions(options, query, limit = 50) {
+  const tokens = String(query ?? '').split(/\s+/).map(normSearch).filter(Boolean);
+  const rows = tokens.length
+    ? options.filter((o) => {
+        const k = normSearch(o.label);
+        return tokens.every((t) => k.includes(t));
+      })
+    : options;
+  return { total: rows.length, rows: rows.slice(0, limit) };
+}
+
 /** Clé nom|prénom|AAAA-MM-JJ, identique à la colonne formule `Cle` d'Individus. */
 export function cle(nom, prenom, iso) {
   return `${norm(nom)}|${norm(prenom)}|${iso || ''}`;

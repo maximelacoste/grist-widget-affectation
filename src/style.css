@@ -3,3 +3,28 @@ body { background: transparent; }
 .fr-stepper { margin-bottom: 1.5rem; }
 
 [hidden] { display: none !important; }
+
+/* Liste de choix avec recherche (combobox) */
+.combo { position: relative; }
+.combo-list {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--background-overlap-grey);
+  border: 1px solid var(--border-default-grey);
+  box-shadow: 0 6px 18px rgba(0, 0, 18, 0.16);
+}
+.combo-list [role='option'] { padding: 0.5rem 0.75rem; cursor: pointer; }
+.combo-list [role='option']:hover { background: var(--background-open-blue-france); }
+.combo-list [role='option'][aria-selected='true'] {
+  background: var(--background-open-blue-france);
+  outline: 2px solid var(--border-active-blue-france);
+  outline-offset: -2px;
+}
+.combo-more { padding: 0.5rem 0.75rem; font-style: italic; }

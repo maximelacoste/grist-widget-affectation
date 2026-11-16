@@ -1,5 +1,10 @@
 # Changelog
 
+## [Non publié]
+
+### Modifié
+- `Affectation` : la liste déroulante devient un champ de recherche avec loupe (mots dans le désordre, sans accents, flèches/Entrée/Échap au clavier), plus adapté aux longues listes d'établissements.
+
 ## [0.1.0] - à publier
 
 ### Ajouté

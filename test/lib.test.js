@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -60,6 +60,21 @@ test('searchIndividus : limite et total', () => {
   const r = searchIndividus(beaucoup, { nom: 'nom' }, 50);
   assert.equal(r.total, 80);
   assert.equal(r.rows.length, 50);
+});
+
+test('filterOptions : mots dans le désordre, sans accents, chiffres conservés', () => {
+  const opts = [
+    { value: 1, label: 'Collège Jean Jaurès (Albi)' },
+    { value: 2, label: 'École élémentaire Jules Ferry (Gaillac)' },
+    { value: 3, label: 'Collège Lapérouse 2 (Albi)' },
+  ];
+  assert.deepEqual(filterOptions(opts, 'albi college').rows.map((o) => o.value), [1, 3]);
+  assert.deepEqual(filterOptions(opts, 'JAURES').rows.map((o) => o.value), [1]);
+  assert.deepEqual(filterOptions(opts, 'laperouse 2').rows.map((o) => o.value), [3]);
+  assert.deepEqual(filterOptions(opts, '').rows.map((o) => o.value), [1, 2, 3]);
+  assert.equal(filterOptions(opts, 'zzz').total, 0);
+  assert.equal(filterOptions(opts, '', 2).rows.length, 2);
+  assert.equal(filterOptions(opts, '', 2).total, 3);
 });
 
 test('ligneEnCours : dernière ligne datée <= aujourd\'hui, départage par id', () => {

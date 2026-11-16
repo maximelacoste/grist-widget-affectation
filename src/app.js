@@ -1,5 +1,6 @@
 import {
   cle,
+  filterOptions,
   formatDateFr,
   isoToSec,
   ligneEnCours,
@@ -467,6 +468,122 @@ function select(id, label, options, value, { hint = '' } = {}) {
   );
 }
 
+/**
+ * Liste de choix avec recherche (« loupe »), motif ARIA 1.2 « combobox + listbox » :
+ * on tape des mots (sans accents, dans le désordre), on choisit à la souris ou au clavier
+ * (flèches, Entrée, Échap). La valeur choisie est portée par `input.dataset.value`.
+ */
+function combobox({ id, label, options, value, hint = '', placeholder = 'Rechercher…' }) {
+  const selected = options.find((o) => String(o.value) === String(value));
+  const listId = `${id}-list`;
+  const input = h('input', {
+    class: 'fr-input',
+    id,
+    type: 'text',
+    role: 'combobox',
+    autocomplete: 'off',
+    placeholder,
+    'aria-autocomplete': 'list',
+    'aria-expanded': 'false',
+    'aria-controls': listId,
+  });
+  input.value = selected ? selected.label : '';
+  input.dataset.value = selected ? String(selected.value) : '';
+  const list = h('ul', { class: 'combo-list', id: listId, role: 'listbox', 'aria-label': label, hidden: true });
+  const status = h('p', { class: 'fr-sr-only', role: 'status' });
+  let shown = [];
+  let active = -1;
+
+  const isOpen = () => !list.hidden;
+  const close = () => {
+    list.hidden = true;
+    active = -1;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  };
+  const setActive = (i) => {
+    active = i;
+    list.querySelectorAll('[role="option"]').forEach((li, k) => li.setAttribute('aria-selected', String(k === i)));
+    if (i >= 0) {
+      input.setAttribute('aria-activedescendant', `${id}-opt-${i}`);
+      list.querySelector(`#${id}-opt-${i}`)?.scrollIntoView({ block: 'nearest' });
+    } else {
+      input.removeAttribute('aria-activedescendant');
+    }
+  };
+  const choose = (o) => {
+    input.value = o.label;
+    input.dataset.value = String(o.value);
+    close();
+  };
+  const open = (query) => {
+    const { total, rows } = filterOptions(options, query);
+    shown = rows;
+    list.replaceChildren(
+      ...rows.map((o, i) =>
+        h(
+          'li',
+          {
+            id: `${id}-opt-${i}`,
+            role: 'option',
+            'aria-selected': 'false',
+            // mousedown (et non click) : le champ ne perd pas le focus avant le choix
+            onmousedown: (e) => {
+              e.preventDefault();
+              choose(o);
+            },
+          },
+          o.label,
+        ),
+      ),
+      total > rows.length ? h('li', { role: 'presentation', class: 'combo-more' }, `${total - rows.length} autres résultats : précise la recherche.`) : null,
+      total === 0 ? h('li', { role: 'presentation', class: 'combo-more' }, 'Aucun résultat.') : null,
+    );
+    list.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    setActive(-1);
+    status.textContent = total === 0 ? 'Aucun résultat' : `${total} résultat${total > 1 ? 's' : ''}`;
+  };
+
+  input.addEventListener('input', () => {
+    input.dataset.value = ''; // la saisie invalide le choix précédent
+    open(input.value);
+  });
+  input.addEventListener('focus', () => open(input.dataset.value ? '' : input.value));
+  input.addEventListener('click', () => {
+    if (!isOpen()) open(input.dataset.value ? '' : input.value);
+  });
+  input.addEventListener('blur', () => {
+    close();
+    if (!input.value.trim()) input.dataset.value = '';
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen()) open(input.dataset.value ? '' : input.value);
+      else if (shown.length) setActive(Math.min(active + 1, shown.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (isOpen() && shown.length) setActive(Math.max(active - 1, 0));
+    } else if (e.key === 'Enter' && isOpen() && active >= 0) {
+      e.preventDefault(); // choisir, sans soumettre le formulaire
+      choose(shown[active]);
+    } else if (e.key === 'Escape' && isOpen()) {
+      e.preventDefault();
+      close();
+    }
+  });
+
+  return h(
+    'div',
+    { class: 'fr-input-group combo fr-mb-2w' },
+    h('label', { class: 'fr-label', for: id }, label, hint ? h('span', { class: 'fr-hint-text' }, hint) : null),
+    h('div', { class: 'fr-input-wrap fr-icon-search-line' }, input),
+    list,
+    status,
+  );
+}
+
 $('#btn-new-scol').addEventListener('click', () => openScolForm(null));
 $('#btn-back-1b').addEventListener('click', backToSearch);
 
@@ -483,7 +600,14 @@ function openScolForm(ligne) {
       h('label', { class: 'fr-label', for: 's-date' }, "Date d'effet", h('span', { class: 'fr-hint-text' }, "Jour de la saisie en cours d'année, ou 1er jour de l'année scolaire pour préparer la rentrée.")),
       h('input', { class: 'fr-input', id: 's-date', type: 'date', required: true, value: ligne ? ligne.date : '' }),
     ),
-    select('s-aff', 'Affectation', state.etabs.map((e) => ({ value: e.id, label: e.label })), ligne ? ligne.affectation : ''),
+    combobox({
+      id: 's-aff',
+      label: 'Affectation',
+      hint: 'Tape quelques mots du nom ou de la commune.',
+      placeholder: 'Rechercher un établissement…',
+      options: state.etabs.map((e) => ({ value: e.id, label: e.label })),
+      value: ligne ? ligne.affectation : '',
+    }),
     select('s-niveau', 'Niveau', state.niveaux.map((n) => ({ value: n, label: n })), ligne ? ligne.niveau : ''),
     select('s-situation', 'Situation', state.situations.map((s) => ({ value: s, label: s })), defSituation),
     h(
@@ -509,14 +633,23 @@ $('#form-scol').addEventListener('submit', async (e) => {
   const form = $('#form-scol');
   clearFieldErrors(form);
   const iso = $('#s-date').value;
+  const affInput = $('#s-aff');
+  let ok = true;
   if (!iso || isoToSec(iso) === null) {
     setFieldError('s-date', "La date d'effet est obligatoire.");
-    $('#s-date').focus();
+    ok = false;
+  }
+  if (affInput.value.trim() && !affInput.dataset.value) {
+    setFieldError('s-aff', 'Choisis un établissement dans la liste, ou vide le champ.');
+    ok = false;
+  }
+  if (!ok) {
+    form.querySelector('[aria-invalid]')?.focus();
     return;
   }
   const fields = {
     [COL.dateEffet]: isoToSec(iso),
-    [COL.affectation]: Number($('#s-aff').value) || 0,
+    [COL.affectation]: Number(affInput.dataset.value) || 0,
     [COL.niveau]: $('#s-niveau').value,
     [COL.situation]: $('#s-situation').value,
     [COL.attente]: $('#s-attente').checked,
