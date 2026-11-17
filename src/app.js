@@ -1169,6 +1169,63 @@ async function supprimerLigne(ligne) {
   }
 }
 
+/** Fenêtre de confirmation d'une modification : liste « avant → après » des seuls champs changés. */
+function confirmerModification(modifs, onOui) {
+  const dlg = h(
+    'dialog',
+    { class: 'modale-confirm', 'aria-labelledby': 'dlg-titre', 'aria-describedby': 'dlg-texte' },
+    h(
+      'div',
+      { class: 'fr-p-3w' },
+      h('h4', { class: 'fr-h5', id: 'dlg-titre' }, 'Enregistrer ces modifications ?'),
+      h(
+        'ul',
+        { id: 'dlg-texte' },
+        modifs.map(([champ, avant, apres]) => h('li', {}, h('strong', {}, `${champ} : `), `${avant} → ${apres}`)),
+      ),
+      h(
+        'div',
+        { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--right' },
+        h('button', { class: 'fr-btn fr-btn--secondary', type: 'button', id: 'dlg-non', onclick: () => dlg.close() }, 'Revenir au formulaire'),
+        h(
+          'button',
+          {
+            class: 'fr-btn',
+            type: 'button',
+            id: 'dlg-oui',
+            onclick: () => {
+              dlg.close();
+              onOui();
+            },
+          },
+          'Oui, enregistrer',
+        ),
+      ),
+    ),
+  );
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+  $('#dlg-oui').focus();
+}
+
+async function ecrireAffectation(fields) {
+  const form = $('#form-scol');
+  try {
+    const action = state.editingId
+      ? ['UpdateRecord', T_SCOLARITE, state.editingId, fields]
+      : ['AddRecord', T_SCOLARITE, null, { ...fields, [COL.eleve]: state.eleve.id }];
+    viderCache();
+    await grist.docApi.applyUserActions([action]);
+    await refreshScolarite();
+    form.hidden = true;
+    renderScolList();
+    notify('success', state.editingId ? 'Affectation modifiée.' : 'Affectation enregistrée.');
+  } catch (err) {
+    notify('error', `Enregistrement impossible : ${err.message}`);
+  }
+}
+
 $('#form-scol').addEventListener('submit', async (e) => {
   e.preventDefault();
   clearNotice();
@@ -1198,19 +1255,23 @@ $('#form-scol').addEventListener('submit', async (e) => {
   // Affectation : écrite seulement si elle change (une valeur non reconnue n'est pas effacée par un simple enregistrement).
   const aff = Number(affInput.dataset.value) || 0;
   if (!state.editingLigne || aff !== (state.editingLigne.affectation || 0)) fields[COL.affectation] = aff;
-  try {
-    const action = state.editingId
-      ? ['UpdateRecord', T_SCOLARITE, state.editingId, fields]
-      : ['AddRecord', T_SCOLARITE, null, { ...fields, [COL.eleve]: state.eleve.id }];
-    viderCache();
-    await grist.docApi.applyUserActions([action]);
-    await refreshScolarite();
-    form.hidden = true;
-    renderScolList();
-    notify('success', state.editingId ? 'Affectation modifiée.' : 'Affectation enregistrée.');
-  } catch (err) {
-    notify('error', `Enregistrement impossible : ${err.message}`);
+  if (state.editingLigne) {
+    const avant = state.editingLigne;
+    const dessus = (v) => v || '—';
+    const modifs = [];
+    if (iso !== (avant.date || '')) modifs.push(["Date d'effet", dateLabel(avant), formatDateFr(iso)]);
+    if (aff !== (avant.affectation || 0)) modifs.push(['Affectation', affectationCell(avant) === '—' ? '—' : typeof affectationCell(avant) === 'string' ? affectationCell(avant) : avant.affectationInvalide, aff ? state.etabLabel.get(aff) || `#${aff}` : '—']);
+    if ($('#s-niveau').value !== (avant.niveau || '')) modifs.push(['Niveau', dessus(avant.niveau), dessus($('#s-niveau').value)]);
+    if ($('#s-situation').value !== (avant.situation || '')) modifs.push(['Situation', dessus(avant.situation), dessus($('#s-situation').value)]);
+    if ($('#s-attente').checked !== avant.attente) modifs.push(["Liste d'attente", avant.attente ? 'Oui' : 'Non', $('#s-attente').checked ? 'Oui' : 'Non']);
+    if (modifs.length === 0) {
+      notify('info', 'Aucune modification à enregistrer.');
+      return;
+    }
+    confirmerModification(modifs, () => ecrireAffectation(fields));
+    return;
   }
+  await ecrireAffectation(fields);
 });
 
 /* ------------------------------------------------------------------ */
