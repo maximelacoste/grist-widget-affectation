@@ -7,6 +7,7 @@ import {
   isInvalidCell,
   isoToSec,
   ligneEnCours,
+  niveauxPour,
   norm,
   normSearch,
   parseBan,
@@ -32,6 +33,16 @@ const COL = {
   attente: 'Liste_d_attente', // Bascule
 };
 const SITUATION_PAR_DEFAUT = 'En ULIS';
+// Niveaux proposés selon le type de l'établissement choisi (colonne `Type` de Etablissements_avec_ULIS :
+// ECO, CLG, LYC ou Autre). Un type absent de cette table (« Autre », vide) laisse tous les niveaux.
+// Seuls les niveaux qui existent dans les choix de `Niveau_saisi` sont proposés.
+const COL_TYPE_ETAB = 'Type';
+const NIVEAUX_PAR_TYPE = {
+  ECO: ['GS', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'],
+  CLG: ['6G', '5G', '4G', '3G'],
+  LYC: ['Lycée', '2GT', '2G', '2PRO', '1PRO', 'TPRO', '3PM', 'CAP1', 'CAP2', 'CAP3', 'BTS-SE-1', 'A2D'],
+};
+const LIBELLE_TYPE = { ECO: 'une école', CLG: 'un collège', LYC: 'un lycée' };
 const MANUEL_TYPES = ['Text', 'Date', 'Int', 'Numeric', 'Bool', 'Choice']; // types de colonnes `*_manuel` gérés
 // Ordre d'affichage des champs facultatifs (les autres colonnes `*_manuel` suivent, dans l'ordre du tableau).
 const MANUEL_ORDRE = [/debut/i, /fin/i, /repr|legal/i, /adresse/i, /^cp|postal/i, /commune/i];
@@ -58,7 +69,8 @@ const state = {
   champsManuels: [], // colonnes `*_manuel` d'Individus proposées à la création
   searched: false, // une recherche a été faite : l'étape 2 est atteignable
   individus: [],
-  etabs: [], // [{id, label}]
+  etabs: [], // [{id, label, type}]
+  etabType: new Map(), // id d'établissement -> type (ECO, CLG, LYC…)
   etabLabel: new Map(),
   niveaux: [],
   situations: [],
@@ -227,11 +239,13 @@ async function loadMeta() {
     const base = visible && t[visible] ? cellText(t[visible][i]) : `#${id}`;
     const commune = t.Commune ? cellText(t.Commune[i]) : '';
     // la commune n'est ajoutée que si le libellé ne la contient pas déjà (« (FROUZINS) » vs « Frouzins »)
-    return { id, label: commune && !normSearch(base).includes(normSearch(commune)) ? `${base} (${commune})` : base };
+    const type = t[COL_TYPE_ETAB] ? cellText(t[COL_TYPE_ETAB][i]).trim() : '';
+    return { id, type, label: commune && !normSearch(base).includes(normSearch(commune)) ? `${base} (${commune})` : base };
   });
   etabs.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
   state.etabs = etabs;
   state.etabLabel = new Map(etabs.map((e) => [e.id, e.label]));
+  state.etabType = new Map(etabs.map((e) => [e.id, e.type]));
 }
 
 async function refreshIndividus() {
@@ -668,7 +682,7 @@ function select(id, label, options, value, { hint = '' } = {}) {
  * on tape des mots (sans accents, dans le désordre), on choisit à la souris ou au clavier
  * (flèches, Entrée, Échap). La valeur choisie est portée par `input.dataset.value`.
  */
-function combobox({ id, label, options, value, hint = '', placeholder = 'Rechercher…' }) {
+function combobox({ id, label, options, value, hint = '', placeholder = 'Rechercher…', onChange = null }) {
   const selected = options.find((o) => String(o.value) === String(value));
   const listId = `${id}-list`;
   const input = h('input', {
@@ -710,6 +724,7 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
     input.value = o.label;
     input.dataset.value = String(o.value);
     close();
+    onChange?.(o.value);
   };
   const open = (query) => {
     const { total, rows } = filterOptions(options, query);
@@ -744,6 +759,7 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
 
   input.addEventListener('input', () => {
     input.dataset.value = ''; // la saisie invalide le choix précédent
+    onChange?.('');
     open(input.value);
   });
   input.addEventListener('focus', () => open(input.dataset.value ? '' : input.value));
@@ -752,7 +768,10 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
   });
   input.addEventListener('blur', () => {
     close();
-    if (!input.value.trim()) input.dataset.value = '';
+    if (!input.value.trim()) {
+      input.dataset.value = '';
+      onChange?.('');
+    }
   });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') {
@@ -784,6 +803,46 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
 $('#btn-new-scol').addEventListener('click', () => openScolForm(null));
 $('#btn-back-1b').addEventListener('click', backToSearch);
 
+/** Niveaux proposés pour l'établissement `etabId` (tous si aucun établissement ou type inconnu). */
+function niveauxDe(etabId) {
+  return niveauxPour(state.etabType.get(Number(etabId)) || '', state.niveaux, NIVEAUX_PAR_TYPE);
+}
+
+/** Champ « Niveau » : liste filtrée selon l'établissement de la ligne ; une valeur hors liste est conservée. */
+function niveauField(ligne) {
+  const options = niveauxDe(ligne ? ligne.affectation : '').map((n) => ({ value: n, label: n }));
+  const groupe = select('s-niveau', 'Niveau', options, ligne ? ligne.niveau : '');
+  groupe.append(h('p', { class: 'fr-hint-text', id: 's-niveau-note', role: 'status' }));
+  return groupe;
+}
+
+/**
+ * L'utilisateur change d'établissement : la liste des niveaux suit. Si le niveau déjà choisi ne convient pas
+ * au nouveau type, il est retiré avec une explication (le garder en silence enregistrerait une incohérence).
+ * Quand l'établissement est effacé ou en cours de saisie (`etabId` vide), la liste complète revient et le choix est gardé.
+ */
+function majNiveaux(etabId) {
+  const sel = $('#s-niveau');
+  const note = $('#s-niveau-note');
+  if (!sel || !note) return;
+  const actuel = sel.value;
+  const type = etabId ? state.etabType.get(Number(etabId)) || '' : '';
+  const liste = niveauxDe(etabId);
+  const restreint = liste.length < state.niveaux.length;
+  const retire = restreint && actuel && !liste.includes(actuel);
+  const conserve = !retire && actuel && !liste.includes(actuel); // valeur hors liste d'une ligne existante
+  sel.replaceChildren(
+    h('option', { value: '' }, '— aucune —'),
+    ...liste.map((n) => h('option', { value: n, selected: n === actuel && !retire }, n)),
+    conserve ? h('option', { value: actuel, selected: true }, `${actuel} (hors liste)`) : null,
+  );
+  if (retire) sel.value = '';
+  const phrases = [];
+  if (restreint && LIBELLE_TYPE[type]) phrases.push(`Niveaux proposés pour ${LIBELLE_TYPE[type]}.`);
+  if (retire) phrases.push(`Le niveau « ${actuel} » a été retiré : il ne correspond pas à ${LIBELLE_TYPE[type] || 'cet établissement'}.`);
+  note.textContent = phrases.join(' ');
+}
+
 function openScolForm(ligne) {
   clearNotice();
   state.editingId = ligne ? ligne.id : null;
@@ -807,8 +866,9 @@ function openScolForm(ligne) {
       placeholder: 'Rechercher un établissement…',
       options: state.etabs.map((e) => ({ value: e.id, label: e.label })),
       value: ligne ? ligne.affectation : '',
+      onChange: (id) => majNiveaux(id),
     }),
-    select('s-niveau', 'Niveau', state.niveaux.map((n) => ({ value: n, label: n })), ligne ? ligne.niveau : ''),
+    niveauField(ligne),
     select('s-situation', 'Situation', state.situations.map((s) => ({ value: s, label: s })), defSituation),
     h(
       'div',

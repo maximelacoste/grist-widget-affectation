@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -141,4 +141,15 @@ test('parseBan() : sépare voie, code postal et commune ; écarte les communes s
   ]);
   assert.deepEqual(parseBan(null), []);
   assert.deepEqual(parseBan({}), []);
+});
+
+test('niveauxPour() : filtre par type en gardant l\'ordre des choix, sans jamais renvoyer une liste vide', () => {
+  const tous = ['GS', 'CP', 'CM2', '6G', '3G', 'Lycée', '2PRO'];
+  const parType = { ECO: ['GS', 'CP', 'CM2', 'CE1'], CLG: ['3G', '6G'], VIDE: ['inconnu'] };
+  assert.deepEqual(niveauxPour('ECO', tous, parType), ['GS', 'CP', 'CM2']); // CE1 absent des choix : ignoré
+  assert.deepEqual(niveauxPour('CLG', tous, parType), ['6G', '3G']); // ordre des choix Grist, pas celui de la config
+  assert.deepEqual(niveauxPour('Autre', tous, parType), tous);
+  assert.deepEqual(niveauxPour('', tous, parType), tous);
+  assert.deepEqual(niveauxPour(undefined, tous, parType), tous);
+  assert.deepEqual(niveauxPour('VIDE', tous, parType), tous); // aucun niveau en commun : pas de liste vide
 });

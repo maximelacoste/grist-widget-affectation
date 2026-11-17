@@ -171,3 +171,17 @@ export function parseBan(json) {
     .filter((p) => p.name && p.postcode && p.city && p.type !== 'municipality') // une commune seule n'est pas une adresse
     .map((p) => ({ label: p.label || `${p.name} ${p.postcode} ${p.city}`, adresse: p.name, cp: String(p.postcode), commune: p.city }));
 }
+
+/**
+ * Niveaux proposés pour un type d'établissement. `parType` associe un type (ex. « CLG ») à la liste de
+ * ses niveaux ; l'ordre de `tous` (celui des choix de la colonne Grist) est conservé. Un type absent de
+ * `parType` (« Autre », vide, inconnu) ne restreint rien, et une liste qui n'aurait aucun niveau en
+ * commun avec `tous` est ignorée : on ne propose jamais une liste vide.
+ */
+export function niveauxPour(type, tous, parType) {
+  const liste = parType?.[type];
+  if (!Array.isArray(liste)) return tous;
+  const autorises = new Set(liste);
+  const restreints = tous.filter((n) => autorises.has(n));
+  return restreints.length > 0 ? restreints : tous;
+}
