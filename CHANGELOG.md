@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Étape 3 : bouton « Dossier » sous le nom de l'élève (ouvre ou referme le dossier). Libellés d'établissement : une parenthèse répétée en fin de nom (« (TOULOUSE) (Toulouse) ») est réduite à une seule.
+
 - Dossier : notes de l'élève (`Notes_sur_l_eleve`) sous l'historique des affectations (la case NB n'est pas affichée : elle ne servait qu'à signaler une note dans la table).
 
 - Recherche : un seul champ (nom, prénom, date de naissance, dans n'importe quel ordre) ; suggestions « NOM Prénom, né(e) le … » dès 2 caractères ; un clic mène à la page des résultats avec cette fiche et les boutons Affecter / Dossier ; création pré-remplie si rien ne correspond.

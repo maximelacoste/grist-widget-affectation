@@ -510,9 +510,9 @@ function listeInfos(infos) {
   );
 }
 
-async function openDossier(row) {
+async function openDossier(row, boxId = 'dossier') {
   clearNotice();
-  const box = $('#dossier');
+  const box = $(`#${boxId}`);
   let ind;
   let scol;
   let notes = [];
@@ -539,7 +539,7 @@ async function openDossier(row) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const enCours = ligneEnCours(scol, todayIso);
   box.replaceChildren(
-    h('h3', { class: 'fr-h5', id: 'h-dossier', tabindex: '-1' }, `Dossier de ${row.nom} ${row.prenom}`),
+    h('h3', { class: 'fr-h5', id: `h-${boxId}`, tabindex: '-1' }, `Dossier de ${row.nom} ${row.prenom}`),
     h('p', { class: 'fr-hint-text' }, 'Lecture seule. Les données personnelles ne s\'affichent qu\'à l\'écran et ne quittent pas Grist.'),
     h('h4', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
@@ -588,13 +588,22 @@ async function openDossier(row) {
     h(
       'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
-      h('button', { class: 'fr-btn', type: 'button', onclick: () => chooseEleve(row) }, 'Affecter'),
+      boxId === 'dossier' ? h('button', { class: 'fr-btn', type: 'button', onclick: () => chooseEleve(row) }, 'Affecter') : null,
       h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', onclick: () => { box.hidden = true; } }, 'Fermer le dossier'),
     ),
   );
   box.hidden = false;
-  $('#h-dossier').focus();
+  box.querySelector('h3').focus();
 }
+
+$('#btn-dossier-3').addEventListener('click', () => {
+  const box = $('#dossier-3');
+  if (!box.hidden) {
+    box.hidden = true;
+    return;
+  }
+  openDossier(state.eleve, 'dossier-3');
+});
 
 function backToSearch() {
   clearNotice();
@@ -769,6 +778,7 @@ async function chooseEleve(row, { keepNotice = false } = {}) {
   }
   $('#eleve-resume').textContent = `${row.nom} ${row.prenom}, né(e) le ${formatDateFr(row.ddn) || '(date non renseignée)'}`;
   $('#form-scol').hidden = true;
+  $('#dossier-3').hidden = true;
   renderScolList();
   goto(3);
 }

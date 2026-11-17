@@ -162,6 +162,7 @@ test('typeEtab et libelleEtab', () => {
   assert.equal(typeEtab('', 'Truc'), '');
   assert.equal(libelleEtab('E.E.PU HENRI PUIS (ST ORENS DE GAMEVILLE)', 'Saint-Orens-de-Gameville'), 'E.E.PU HENRI PUIS (ST ORENS DE GAMEVILLE)');
   assert.equal(libelleEtab('COLLEGE X ()', ''), 'COLLEGE X');
+  assert.equal(libelleEtab('0311584D COLLEGE MARENGO (TOULOUSE) (Toulouse)', 'Toulouse'), '0311584D COLLEGE MARENGO (TOULOUSE)');
   assert.equal(libelleEtab('COLLEGE X', 'Muret'), 'COLLEGE X (Muret)');
 });
 

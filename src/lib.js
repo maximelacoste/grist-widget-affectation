@@ -205,7 +205,10 @@ export function typeEtab(brut, libelle = '') {
 
 /** Libellé d'établissement : n'ajoute la commune que si le libellé ne contient ni elle, ni déjà une parenthèse. */
 export function libelleEtab(base, commune) {
-  const b = String(base || '').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim();
+  let b = String(base || '').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim();
+  // « NOM (TOULOUSE) (Toulouse) » : la dernière parenthèse répète la précédente -> une seule
+  const dbl = /\(([^()]*)\)\s*\(([^()]*)\)$/.exec(b);
+  if (dbl && normSearch(dbl[1]) === normSearch(dbl[2])) b = b.slice(0, dbl.index + dbl[1].length + 2);
   const c = String(commune || '').trim();
   if (!c || b.includes('(') || normSearch(b).includes(normSearch(c))) return b;
   return `${b} (${c})`;
