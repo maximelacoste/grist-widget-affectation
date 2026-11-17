@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Navigation : le bouton qui ramène à la liste des résultats s'appelle « Revenir à la page de résultats » (étape 3 et page de création) au lieu de « Précédent : Choisir ou créer la fiche de l'élève ».
+
 - Création d'une fiche : page dédiée (hors étapes), avec affichage des fiches proches pendant la saisie et blocage du bouton Créer si la fiche existe déjà (même clé).
 - Résultats : colonne « Affectation en cours » (établissement, niveau, situation) entre la date de naissance et les actions.
 - Infobulles au survol de tous les boutons d'action et champs de saisie.

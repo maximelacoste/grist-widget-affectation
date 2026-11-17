@@ -163,13 +163,13 @@ function navButton(target, direction) {
       type: 'button',
       class: `fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-${prev ? 'left' : 'right'} fr-icon-arrow-${prev ? 'left' : 'right'}-s-line`,
       disabled: !reachable(target),
-      title: prev ? 'Revenir à l\'étape précédente' : 'Passer à l\'étape suivante',
+      title: prev ? (target === 2 ? 'Revenir à la liste des fiches trouvées par la dernière recherche' : 'Revenir à l\'étape précédente') : 'Passer à l\'étape suivante',
       onclick: () => {
         clearNotice();
         goto(target);
       },
     },
-    `${prev ? 'Précédent' : 'Suivant'} : ${STEPS[target - 1].title}`,
+    prev && target === 2 ? 'Revenir à la page de résultats' : `${prev ? 'Précédent' : 'Suivant'} : ${STEPS[target - 1].title}`,
   );
 }
 
@@ -503,7 +503,7 @@ function gotoCreate() {
       h(
         'button',
         { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter la création sans rien enregistrer', onclick: () => { clearNotice(); goto(state.searched ? 2 : 1); } },
-        `Précédent : ${STEPS[state.searched ? 1 : 0].title}`,
+        state.searched ? 'Revenir à la page de résultats' : `Précédent : ${STEPS[0].title}`,
       ),
     ),
   );
