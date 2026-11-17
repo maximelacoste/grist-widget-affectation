@@ -37,6 +37,7 @@ const STEPS = [
 /* ------------------------------------------------------------------ */
 const state = {
   step: 1,
+  searched: false, // une recherche a été faite : l'étape 2 est atteignable
   individus: [],
   etabs: [], // [{id, label}]
   etabLabel: new Map(),
@@ -98,6 +99,30 @@ function clearFieldErrors(root) {
   });
 }
 
+/** Une étape est atteignable si ce qu'elle suppose existe : une recherche faite (2), un élève choisi (3). */
+function reachable(step) {
+  if (step === 1) return true;
+  if (step === 2) return state.searched;
+  return Boolean(state.eleve);
+}
+
+function navButton(target, direction) {
+  const prev = direction === 'prev';
+  return h(
+    'button',
+    {
+      type: 'button',
+      class: `fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-${prev ? 'left' : 'right'} fr-icon-arrow-${prev ? 'left' : 'right'}-s-line`,
+      disabled: !reachable(target),
+      onclick: () => {
+        clearNotice();
+        goto(target);
+      },
+    },
+    `${prev ? 'Précédent' : 'Suivant'} : ${STEPS[target - 1].title}`,
+  );
+}
+
 function renderStepper() {
   const n = state.step;
   const s = STEPS[n - 1];
@@ -108,6 +133,12 @@ function renderStepper() {
       h('h1', { class: 'fr-stepper__title' }, h('span', { class: 'fr-stepper__state' }, `Étape ${n} sur ${STEPS.length}`), s.title),
       h('div', { class: 'fr-stepper__steps', 'data-fr-current-step': n, 'data-fr-steps': STEPS.length }),
       s.next ? h('p', { class: 'fr-stepper__details' }, h('span', { class: 'fr-text--bold' }, 'Étape suivante : '), s.next) : null,
+    ),
+    h(
+      'nav',
+      { 'aria-label': 'Navigation entre les étapes', class: 'fr-btns-group fr-btns-group--inline fr-btns-group--sm fr-mb-2w' },
+      n > 1 ? navButton(n - 1, 'prev') : null,
+      n < STEPS.length ? navButton(n + 1, 'next') : null,
     ),
   );
 }
@@ -213,6 +244,9 @@ $('#form-search').addEventListener('submit', async (e) => {
     return;
   }
   state.query = { nom, prenom, iso };
+  state.searched = true;
+  state.eleve = null; // nouvelle recherche : l'élève précédent n'est plus sélectionné
+  $('#form-scol').hidden = true;
   state.results = searchIndividus(state.individus, state.query);
   renderResults();
   $('#form-create').hidden = state.results.total > 0;
