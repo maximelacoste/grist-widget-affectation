@@ -41,6 +41,21 @@ body { background: transparent; }
 /* Étape 3 : identité et bouton Dossier sur la même ligne */
 .eleve-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
 
-/* Fenêtre de confirmation (suppression) */
-.modale-confirm { border: 0; padding: 0; max-width: 32rem; width: calc(100% - 2rem); box-shadow: 0 6px 18px rgba(0,0,18,.25); }
-.modale-confirm::backdrop { background: rgba(22,22,22,.64); }
+/* Fenêtre de confirmation (suppression, modification) */
+.modale-confirm { border: 0; padding: 0; max-width: 36rem; width: calc(100% - 2rem); background: var(--background-default-grey, #fff); box-shadow: 0 6px 18px rgba(0, 0, 18, .25); border-top: 4px solid var(--border-action-high-blue-france, #000091); }
+.modale-confirm::backdrop { background: rgba(22, 22, 22, .64); }
+.modale-entete { padding: 1.5rem 1.5rem 0.5rem; }
+.modale-titre::before { margin-right: 0.5rem; color: var(--text-action-high-blue-france, #000091); }
+.modale-corps { padding: 0.5rem 1.5rem 1rem; }
+.modale-pied { padding: 1rem 1.5rem; border-top: 1px solid var(--border-default-grey, #ddd); background: var(--background-alt-grey, #f6f6f6); }
+.modale-pied ul { margin: 0; }
+.modale-diff { width: 100%; border-collapse: collapse; }
+.modale-diff th, .modale-diff td { padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border-default-grey, #ddd); }
+.modale-diff thead th { font-size: 0.875rem; color: var(--text-mention-grey, #666); font-weight: 400; }
+.modale-diff tbody th { font-weight: 700; white-space: nowrap; }
+.diff-avant { color: var(--text-mention-grey, #666); text-decoration: line-through; }
+.diff-apres { font-weight: 700; color: var(--text-default-success, #18753c); }
+
+/* Boutons d'action d'une ligne de tableau : côte à côte, sans retour à la ligne */
+.actions-ligne { display: flex; flex-wrap: nowrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.actions-ligne > li { padding: 0; margin: 0; }

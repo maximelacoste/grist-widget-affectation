@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Affectations : corbeille à la fin de chaque ligne, après « Modifier » (même fenêtre de confirmation) ; fenêtres de confirmation redessinées (entête, tableau avant → après, pied de page) ; boutons d'action de ligne côte à côte.
+
 - Modification d'une affectation : fenêtre de confirmation listant seulement les champs changés (« avant → après ») ; aucune écriture si rien n'a changé. Les nouvelles affectations s'enregistrent sans fenêtre.
 
 - Modification d'une affectation : bouton « Supprimer cette affectation », avec fenêtre de confirmation (la ligne visée est rappelée, Échap ou « Non, garder » annulent) ; l'annulation reste possible via le panneau Activité de Grist.

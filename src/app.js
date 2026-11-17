@@ -403,7 +403,7 @@ function renderResults() {
                       {},
                       h(
                         'ul',
-                        { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--sm' },
+                        { class: 'actions-ligne' },
                         h(
                           'li',
                           {},
@@ -870,14 +870,37 @@ function renderScolList() {
                       'td',
                       {},
                       h(
-                        'button',
-                        {
-                          class: 'fr-btn fr-btn--sm fr-btn--secondary',
-                          type: 'button',
-                          onclick: () => openScolForm(l),
-                          'aria-label': `Modifier l'affectation du ${dateLabel(l)}`,
-                        },
-                        'Modifier',
+                        'ul',
+                        { class: 'actions-ligne' },
+                        h(
+                          'li',
+                          {},
+                          h(
+                            'button',
+                            {
+                              class: 'fr-btn fr-btn--sm fr-btn--secondary',
+                              type: 'button',
+                              onclick: () => openScolForm(l),
+                              'aria-label': `Modifier l'affectation du ${dateLabel(l)}`,
+                            },
+                            'Modifier',
+                          ),
+                        ),
+                        h(
+                          'li',
+                          {},
+                          h(
+                            'button',
+                            {
+                              class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-delete-line',
+                              type: 'button',
+                              onclick: () => demanderSuppression(l),
+                              title: 'Supprimer',
+                              'aria-label': `Supprimer l'affectation du ${dateLabel(l)}`,
+                            },
+                            'Supprimer',
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1119,33 +1142,40 @@ function openScolForm(ligne) {
   $('#h-scol-form').focus();
 }
 
-/** Suppression : fenêtre modale de confirmation (<dialog> natif : focus piégé, Échap pour fermer) avant toute écriture. */
-function demanderSuppression(ligne) {
-  const cible = typeof affectationCell(ligne) === 'string' ? affectationCell(ligne) : ligne.affectationInvalide || 'sans établissement';
+/**
+ * Fenêtre modale commune (<dialog> natif : focus piégé, Échap pour fermer).
+ * `actions` : [{ id, libelle, secondaire, onClick }] ; le bouton `focus` reçoit le focus à l'ouverture.
+ */
+function ouvrirModale({ titre, icone = 'fr-icon-warning-line', corps, actions, focus }) {
   const dlg = h(
     'dialog',
-    { class: 'modale-confirm', 'aria-labelledby': 'dlg-titre', 'aria-describedby': 'dlg-texte' },
+    { class: 'modale-confirm', 'aria-labelledby': 'dlg-titre' },
+    h('div', { class: 'modale-entete' }, h('h4', { class: `fr-h5 fr-mb-0 ${icone} fr-icon--lg modale-titre`, id: 'dlg-titre' }, titre)),
+    h('div', { class: 'modale-corps' }, corps),
     h(
       'div',
-      { class: 'fr-p-3w' },
-      h('h4', { class: 'fr-h5', id: 'dlg-titre' }, 'Supprimer cette affectation ?'),
-      h('p', { id: 'dlg-texte' }, `Ligne du ${dateLabel(ligne)} (${cible}). Dans Grist, le panneau Activité permet de l'annuler.`),
+      { class: 'modale-pied' },
       h(
-        'div',
-        { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--right' },
-        h('button', { class: 'fr-btn fr-btn--secondary', type: 'button', id: 'dlg-non', onclick: () => dlg.close() }, 'Non, garder'),
-        h(
-          'button',
-          {
-            class: 'fr-btn',
-            type: 'button',
-            id: 'dlg-oui',
-            onclick: () => {
-              dlg.close();
-              supprimerLigne(ligne);
-            },
-          },
-          'Oui, supprimer',
+        'ul',
+        { class: 'fr-btns-group fr-btns-group--inline-md fr-btns-group--right fr-btns-group--inline-reverse' },
+        actions.map((a) =>
+          h(
+            'li',
+            {},
+            h(
+              'button',
+              {
+                class: `fr-btn${a.secondaire ? ' fr-btn--secondary' : ''}`,
+                type: 'button',
+                id: a.id,
+                onclick: () => {
+                  dlg.close();
+                  a.onClick?.();
+                },
+              },
+              a.libelle,
+            ),
+          ),
         ),
       ),
     ),
@@ -1153,7 +1183,27 @@ function demanderSuppression(ligne) {
   dlg.addEventListener('close', () => dlg.remove());
   document.body.append(dlg);
   dlg.showModal();
-  $('#dlg-non').focus(); // le choix par défaut est de ne rien supprimer
+  $(`#${focus}`).focus();
+}
+
+function demanderSuppression(ligne) {
+  const cible = typeof affectationCell(ligne) === 'string' ? affectationCell(ligne) : ligne.affectationInvalide || 'sans établissement';
+  ouvrirModale({
+    titre: 'Supprimer cette affectation ?',
+    corps: [
+      h(
+        'div',
+        { class: 'fr-callout fr-callout--sm fr-mb-2w' },
+        h('p', { class: 'fr-callout__text' }, h('strong', {}, dateLabel(ligne)), ` — ${cible}`, ligne.niveau ? ` — ${ligne.niveau}` : '', ligne.situation ? ` — ${ligne.situation}` : ''),
+      ),
+      h('p', { class: 'fr-text--sm fr-mb-0' }, "Dans Grist, le panneau Activité permet d'annuler la suppression."),
+    ],
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, supprimer', onClick: () => supprimerLigne(ligne) },
+      { id: 'dlg-non', libelle: 'Non, garder', secondaire: true },
+    ],
+    focus: 'dlg-non', // le choix par défaut est de ne rien supprimer
+  });
 }
 
 async function supprimerLigne(ligne) {
@@ -1169,44 +1219,30 @@ async function supprimerLigne(ligne) {
   }
 }
 
-/** Fenêtre de confirmation d'une modification : liste « avant → après » des seuls champs changés. */
+/** Confirmation d'une modification : tableau « avant → après » des seuls champs changés. */
 function confirmerModification(modifs, onOui) {
-  const dlg = h(
-    'dialog',
-    { class: 'modale-confirm', 'aria-labelledby': 'dlg-titre', 'aria-describedby': 'dlg-texte' },
-    h(
-      'div',
-      { class: 'fr-p-3w' },
-      h('h4', { class: 'fr-h5', id: 'dlg-titre' }, 'Enregistrer ces modifications ?'),
+  ouvrirModale({
+    titre: 'Enregistrer ces modifications ?',
+    icone: 'fr-icon-check-line',
+    corps: h(
+      'table',
+      { class: 'modale-diff' },
+      h('caption', { class: 'fr-sr-only' }, 'Modifications à enregistrer'),
+      h('thead', {}, h('tr', {}, ['Champ', 'Avant', 'Après'].map((t) => h('th', { scope: 'col' }, t)))),
       h(
-        'ul',
-        { id: 'dlg-texte' },
-        modifs.map(([champ, avant, apres]) => h('li', {}, h('strong', {}, `${champ} : `), `${avant} → ${apres}`)),
-      ),
-      h(
-        'div',
-        { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--right' },
-        h('button', { class: 'fr-btn fr-btn--secondary', type: 'button', id: 'dlg-non', onclick: () => dlg.close() }, 'Revenir au formulaire'),
-        h(
-          'button',
-          {
-            class: 'fr-btn',
-            type: 'button',
-            id: 'dlg-oui',
-            onclick: () => {
-              dlg.close();
-              onOui();
-            },
-          },
-          'Oui, enregistrer',
+        'tbody',
+        {},
+        modifs.map(([champ, avant, apres]) =>
+          h('tr', {}, h('th', { scope: 'row' }, champ), h('td', { class: 'diff-avant' }, avant), h('td', { class: 'diff-apres' }, apres)),
         ),
       ),
     ),
-  );
-  dlg.addEventListener('close', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-  $('#dlg-oui').focus();
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, enregistrer', onClick: onOui },
+      { id: 'dlg-non', libelle: 'Revenir au formulaire', secondaire: true },
+    ],
+    focus: 'dlg-oui',
+  });
 }
 
 async function ecrireAffectation(fields) {
