@@ -1114,30 +1114,46 @@ function openScolForm(ligne) {
       h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', onclick: () => { form.hidden = true; } }, 'Annuler'),
       ligne ? h('button', { class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line fr-btn--icon-left', type: 'button', id: 's-suppr', onclick: () => demanderSuppression(ligne) }, 'Supprimer cette affectation') : null,
     ),
-    h('div', { id: 's-suppr-confirm', role: 'alert' }),
   );
   form.hidden = false;
   $('#h-scol-form').focus();
 }
 
-/** Suppression en deux temps : un message de confirmation précise la ligne visée avant d'écrire quoi que ce soit. */
+/** Suppression : fenêtre modale de confirmation (<dialog> natif : focus piégé, Échap pour fermer) avant toute écriture. */
 function demanderSuppression(ligne) {
-  const zone = $('#s-suppr-confirm');
-  zone.replaceChildren(
+  const cible = typeof affectationCell(ligne) === 'string' ? affectationCell(ligne) : ligne.affectationInvalide || 'sans établissement';
+  const dlg = h(
+    'dialog',
+    { class: 'modale-confirm', 'aria-labelledby': 'dlg-titre', 'aria-describedby': 'dlg-texte' },
     h(
       'div',
-      { class: 'fr-alert fr-alert--warning fr-mt-2w' },
-      h('h4', { class: 'fr-alert__title' }, 'Supprimer cette affectation ?'),
-      h('p', {}, `Ligne du ${dateLabel(ligne)} (${typeof affectationCell(ligne) === 'string' ? affectationCell(ligne) : ligne.affectationInvalide || 'sans établissement'}). Dans Grist, le panneau Activité permet de l'annuler.`),
+      { class: 'fr-p-3w' },
+      h('h4', { class: 'fr-h5', id: 'dlg-titre' }, 'Supprimer cette affectation ?'),
+      h('p', { id: 'dlg-texte' }, `Ligne du ${dateLabel(ligne)} (${cible}). Dans Grist, le panneau Activité permet de l'annuler.`),
       h(
         'div',
-        { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
-        h('button', { class: 'fr-btn fr-btn--sm', type: 'button', id: 's-suppr-oui', onclick: () => supprimerLigne(ligne) }, 'Oui, supprimer'),
-        h('button', { class: 'fr-btn fr-btn--sm fr-btn--secondary', type: 'button', onclick: () => zone.replaceChildren() }, 'Non, garder'),
+        { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--right' },
+        h('button', { class: 'fr-btn fr-btn--secondary', type: 'button', id: 'dlg-non', onclick: () => dlg.close() }, 'Non, garder'),
+        h(
+          'button',
+          {
+            class: 'fr-btn',
+            type: 'button',
+            id: 'dlg-oui',
+            onclick: () => {
+              dlg.close();
+              supprimerLigne(ligne);
+            },
+          },
+          'Oui, supprimer',
+        ),
       ),
     ),
   );
-  $('#s-suppr-oui').focus();
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+  $('#dlg-non').focus(); // le choix par défaut est de ne rien supprimer
 }
 
 async function supprimerLigne(ligne) {

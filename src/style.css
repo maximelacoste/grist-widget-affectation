@@ -40,3 +40,7 @@ body { background: transparent; }
 
 /* Étape 3 : identité et bouton Dossier sur la même ligne */
 .eleve-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+
+/* Fenêtre de confirmation (suppression) */
+.modale-confirm { border: 0; padding: 0; max-width: 32rem; width: calc(100% - 2rem); box-shadow: 0 6px 18px rgba(0,0,18,.25); }
+.modale-confirm::backdrop { background: rgba(22,22,22,.64); }
