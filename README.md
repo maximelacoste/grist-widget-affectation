@@ -15,6 +15,8 @@ Parcours en trois étapes :
 | `Individus` | `Nom`, `Prenom`, `Date_de_naissance` (écrites à la création) ; `Cle` (lue) ; `Id_app` (lue) |
 | `Scolarite` | `Eleve_Identite_` (réf. vers `Individus`), `Affectation` (réf. vers `Etablissements_avec_ULIS`), `Date_effet`, `Niveau_saisi` (Choice), `Situation` (Choice), `Liste_d_attente` (Bascule) |
 
+À la création d'une fiche, le formulaire propose aussi, en facultatif, toutes les colonnes de données d'`Individus` dont l'identifiant finit par `_manuel` (début/fin de notification, représentants légaux, adresse, code postal, commune…). Elles sont découvertes dans les métadonnées Grist : ajouter une colonne `*_manuel` suffit à la voir apparaître.
+
 Le widget **n'écrit jamais** `Cle`, `Annee_scolaire` ni `Cree_le` : ils restent calculés par Grist. Les choix de `Niveau_saisi` et `Situation`, ainsi que le libellé affiché de `Affectation`, sont lus dans les métadonnées Grist : rien n'est codé en dur. Les noms de tables et de colonnes sont regroupés en tête de `src/app.js`.
 
 La `Date_effet` est saisie volontairement, sans valeur par défaut.

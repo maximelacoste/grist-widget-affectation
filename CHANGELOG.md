@@ -2,6 +2,13 @@
 
 ## [Non publié]
 
+### Modifié
+- La recherche ne porte plus que sur le nom et le prénom (la date de naissance reste affichée dans les résultats pour départager les homonymes).
+- Création d'une fiche : nom, prénom et date de naissance sont tous obligatoires (la case « date inconnue » disparaît ; une date future est refusée).
+
+### Ajouté
+- Création d'une fiche : champs facultatifs construits à partir des colonnes de données d'`Individus` dont l'identifiant finit par `_manuel` (types Texte, Date, Entier, Numérique, Bascule, Choix), dans l'ordre des colonnes ; seuls les champs renseignés sont écrits.
+
 ### Corrigé
 - Les boutons « Précédent » / « Suivant » s'affichaient comme des carrés : `fr-btns-group` impose des règles d'icônes de groupe ; remplacé par un bloc flexible (`.step-nav`).
 - Le texte « null » apparaissait sous la liste de recherche des établissements.

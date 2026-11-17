@@ -25,24 +25,16 @@
       <h2 id="h-step-1" class="fr-sr-only" tabindex="-1">Rechercher l'élève</h2>
       <form id="form-search" novalidate>
         <div class="fr-grid-row fr-grid-row--gutters">
-          <div class="fr-col-12 fr-col-md-4">
+          <div class="fr-col-12 fr-col-md-6">
             <div class="fr-input-group">
               <label class="fr-label" for="q-nom">Nom</label>
               <input class="fr-input" id="q-nom" name="nom" type="text" autocomplete="off">
             </div>
           </div>
-          <div class="fr-col-12 fr-col-md-4">
+          <div class="fr-col-12 fr-col-md-6">
             <div class="fr-input-group">
               <label class="fr-label" for="q-prenom">Prénom</label>
               <input class="fr-input" id="q-prenom" name="prenom" type="text" autocomplete="off">
-            </div>
-          </div>
-          <div class="fr-col-12 fr-col-md-4">
-            <div class="fr-input-group">
-              <label class="fr-label" for="q-ddn">Date de naissance
-                <span class="fr-hint-text">Facultative pour chercher</span>
-              </label>
-              <input class="fr-input" id="q-ddn" name="ddn" type="date">
             </div>
           </div>
         </div>
@@ -60,34 +52,27 @@
       </div>
       <form id="form-create" class="fr-mt-3w" novalidate hidden>
         <fieldset class="fr-fieldset" aria-labelledby="legend-create">
-          <legend class="fr-fieldset__legend" id="legend-create"><h3 class="fr-h5">Nouvelle fiche dans Individus</h3></legend>
+          <legend class="fr-fieldset__legend" id="legend-create"><h3 class="fr-h5">Nouvelle fiche dans Individus</h3><span class="fr-hint-text">Les champs marqués d'un astérisque (*) sont obligatoires.</span></legend>
           <div class="fr-fieldset__element">
             <div class="fr-input-group">
-              <label class="fr-label" for="c-nom">Nom</label>
-              <input class="fr-input" id="c-nom" type="text" autocomplete="off">
+              <label class="fr-label" for="c-nom">Nom *</label>
+              <input class="fr-input" id="c-nom" type="text" autocomplete="off" required>
             </div>
           </div>
           <div class="fr-fieldset__element">
             <div class="fr-input-group">
-              <label class="fr-label" for="c-prenom">Prénom</label>
-              <input class="fr-input" id="c-prenom" type="text" autocomplete="off">
+              <label class="fr-label" for="c-prenom">Prénom *</label>
+              <input class="fr-input" id="c-prenom" type="text" autocomplete="off" required>
             </div>
           </div>
           <div class="fr-fieldset__element">
             <div class="fr-input-group">
-              <label class="fr-label" for="c-ddn">Date de naissance</label>
-              <input class="fr-input" id="c-ddn" type="date">
-            </div>
-          </div>
-          <div class="fr-fieldset__element">
-            <div class="fr-checkbox-group">
-              <input type="checkbox" id="c-ddn-inconnue">
-              <label class="fr-label" for="c-ddn-inconnue">Date de naissance inconnue
-                <span class="fr-hint-text">Sans date, deux homonymes ne peuvent pas être distingués.</span>
-              </label>
+              <label class="fr-label" for="c-ddn">Date de naissance *</label>
+              <input class="fr-input" id="c-ddn" type="date" required>
             </div>
           </div>
         </fieldset>
+        <div id="c-manuel" class="fr-mb-2w"></div>
         <button class="fr-btn" type="submit">Créer la fiche et continuer</button>
       </form>
     </section>

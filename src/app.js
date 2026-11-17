@@ -25,6 +25,8 @@ const COL = {
   attente: 'Liste_d_attente', // Bascule
 };
 const SITUATION_PAR_DEFAUT = 'En ULIS';
+const MANUEL_TYPES = ['Text', 'Date', 'Int', 'Numeric', 'Bool', 'Choice']; // types de colonnes `*_manuel` gérés
+const MANUEL_MULTILIGNE = /adresse|repr|legal/i; // champs texte affichés sur plusieurs lignes
 
 const STEPS = [
   { title: "Rechercher l'élève", next: "Choisir ou créer la fiche de l'élève" },
@@ -37,6 +39,7 @@ const STEPS = [
 /* ------------------------------------------------------------------ */
 const state = {
   step: 1,
+  champsManuels: [], // colonnes `*_manuel` d'Individus proposées à la création
   searched: false, // une recherche a été faite : l'étape 2 est atteignable
   individus: [],
   etabs: [], // [{id, label}]
@@ -44,7 +47,7 @@ const state = {
   niveaux: [],
   situations: [],
   results: { total: 0, rows: [] },
-  query: { nom: '', prenom: '', iso: '' },
+  query: { nom: '', prenom: '' },
   eleve: null,
   scol: [],
   editingId: null, // null = création
@@ -167,6 +170,9 @@ async function loadMeta() {
       type: cols.type[i],
       visibleCol: cols.visibleCol[i],
       widgetOptions: cols.widgetOptions[i],
+      label: cols.label ? cols.label[i] : '',
+      isFormula: Boolean(cols.isFormula && cols.isFormula[i]),
+      pos: cols.parentPos ? cols.parentPos[i] : i,
     });
   });
   const need = (tableId, colId) => {
@@ -184,6 +190,13 @@ async function loadMeta() {
 
   for (const col of ['Nom', 'Prenom', 'Date_de_naissance', 'Cle']) need(T_INDIVIDUS, col);
   for (const col of Object.values(COL)) need(T_SCOLARITE, col);
+
+  // Champs facultatifs de la création d'un élève : colonnes de données d'Individus finissant par `_manuel`.
+  state.champsManuels = [...colById.values()]
+    .filter((c) => c.tableId === T_INDIVIDUS && /_manuel$/i.test(c.colId) && !c.isFormula && MANUEL_TYPES.includes(c.type))
+    .sort((a, b) => a.pos - b.pos)
+    .map((c) => ({ colId: c.colId, type: c.type, label: prettyLabel(c), choices: choicesOf(c) }));
+  renderManualFields();
 
   state.niveaux = choicesOf(need(T_SCOLARITE, COL.niveau));
   state.situations = choicesOf(need(T_SCOLARITE, COL.situation));
@@ -231,7 +244,6 @@ $('#form-search').addEventListener('submit', async (e) => {
   clearFieldErrors($('#form-search'));
   const nom = $('#q-nom').value.trim();
   const prenom = $('#q-prenom').value.trim();
-  const iso = $('#q-ddn').value;
   if (norm(nom).length < 2 && norm(prenom).length < 2) {
     setFieldError('q-nom', 'Saisissez au moins 2 lettres du nom ou du prénom.');
     $('#q-nom').focus();
@@ -243,7 +255,7 @@ $('#form-search').addEventListener('submit', async (e) => {
     notify('error', `Lecture d'Individus impossible : ${err.message}`);
     return;
   }
-  state.query = { nom, prenom, iso };
+  state.query = { nom, prenom };
   state.searched = true;
   state.eleve = null; // nouvelle recherche : l'élève précédent n'est plus sélectionné
   $('#form-scol').hidden = true;
@@ -322,8 +334,12 @@ function renderResults() {
 function prefillCreate() {
   $('#c-nom').value = state.query.nom;
   $('#c-prenom').value = state.query.prenom;
-  $('#c-ddn').value = state.query.iso;
-  $('#c-ddn-inconnue').checked = false;
+  $('#c-ddn').value = '';
+  state.champsManuels.forEach((f, i) => {
+    const el = $(`#c-m-${i}`);
+    if (f.type === 'Bool') el.checked = false;
+    else el.value = '';
+  });
 }
 
 $('#btn-show-create').addEventListener('click', () => {
@@ -342,6 +358,74 @@ function backToSearch() {
   $('#q-nom').focus();
 }
 
+/** « Début notification (manuel) » -> « Début notification » ; « Cp_manuel » -> « Cp ». */
+function prettyLabel(c) {
+  const base = (c.label || c.colId).replace(/_/g, ' ');
+  return base.replace(/\s*\(?\bmanuel\)?\s*$/i, '').trim() || base;
+}
+
+/** Construit les champs facultatifs (colonnes `*_manuel`) dans le formulaire de création. */
+function renderManualFields() {
+  const box = $('#c-manuel');
+  if (state.champsManuels.length === 0) {
+    box.replaceChildren();
+    return;
+  }
+  const control = (f, i) => {
+    const id = `c-m-${i}`;
+    if (f.type === 'Bool') {
+      return h('div', { class: 'fr-checkbox-group' }, h('input', { type: 'checkbox', id }), h('label', { class: 'fr-label', for: id }, f.label));
+    }
+    let el;
+    if (f.type === 'Choice') {
+      el = h('select', { class: 'fr-select', id }, h('option', { value: '' }, '— aucun —'), f.choices.map((c) => h('option', { value: c }, c)));
+      return h('div', { class: 'fr-select-group' }, h('label', { class: 'fr-label', for: id }, f.label), el);
+    }
+    if (f.type === 'Text' && MANUEL_MULTILIGNE.test(f.colId)) el = h('textarea', { class: 'fr-input', id, rows: 2 });
+    else if (f.type === 'Date') el = h('input', { class: 'fr-input', id, type: 'date' });
+    else if (f.type === 'Int' || f.type === 'Numeric') el = h('input', { class: 'fr-input', id, type: 'number', step: f.type === 'Int' ? '1' : 'any' });
+    else el = h('input', { class: 'fr-input', id, type: 'text', autocomplete: 'off' });
+    return h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: id }, f.label), el);
+  };
+  box.replaceChildren(
+    h(
+      'fieldset',
+      { class: 'fr-fieldset', 'aria-labelledby': 'legend-manuel' },
+      h('legend', { class: 'fr-fieldset__legend', id: 'legend-manuel' }, h('span', { class: 'fr-h6' }, 'Informations complémentaires'), h('span', { class: 'fr-hint-text' }, 'Facultatif : à renseigner si tu les connais.')),
+      state.champsManuels.map((f, i) => h('div', { class: 'fr-fieldset__element' }, control(f, i))),
+    ),
+  );
+}
+
+/** Lit les champs facultatifs non vides ; renvoie null (et signale l'erreur) si l'un est invalide. */
+function collectManual() {
+  const out = {};
+  let ok = true;
+  state.champsManuels.forEach((f, i) => {
+    const el = $(`#c-m-${i}`);
+    if (f.type === 'Bool') {
+      if (el.checked) out[f.colId] = true;
+      return;
+    }
+    const v = el.value.trim();
+    if (!v) return;
+    if (f.type === 'Date') {
+      const sec = isoToSec(v);
+      if (sec === null) {
+        setFieldError(el.id, 'Cette date est invalide.');
+        ok = false;
+      } else out[f.colId] = sec;
+    } else if (f.type === 'Int' || f.type === 'Numeric') {
+      const n = Number(v);
+      if (!Number.isFinite(n)) {
+        setFieldError(el.id, 'Saisis un nombre.');
+        ok = false;
+      } else out[f.colId] = n;
+    } else out[f.colId] = v;
+  });
+  return ok ? out : null;
+}
+
 $('#form-create').addEventListener('submit', async (e) => {
   e.preventDefault();
   clearNotice();
@@ -350,7 +434,6 @@ $('#form-create').addEventListener('submit', async (e) => {
   const nom = $('#c-nom').value.trim();
   const prenom = $('#c-prenom').value.trim();
   const iso = $('#c-ddn').value;
-  const inconnue = $('#c-ddn-inconnue').checked;
 
   let ok = true;
   if (!norm(nom)) {
@@ -361,14 +444,18 @@ $('#form-create').addEventListener('submit', async (e) => {
     setFieldError('c-prenom', 'Le prénom est obligatoire.');
     ok = false;
   }
-  if (!iso && !inconnue) {
-    setFieldError('c-ddn', 'Renseigne la date de naissance, ou coche « date de naissance inconnue ».');
+  if (!iso) {
+    setFieldError('c-ddn', 'La date de naissance est obligatoire.');
     ok = false;
-  }
-  if (iso && isoToSec(iso) === null) {
+  } else if (isoToSec(iso) === null) {
     setFieldError('c-ddn', 'Cette date est invalide.');
     ok = false;
+  } else if (iso > new Date().toISOString().slice(0, 10)) {
+    setFieldError('c-ddn', 'La date de naissance ne peut pas être dans le futur.');
+    ok = false;
   }
+  const manuel = collectManual();
+  if (!manuel) ok = false;
   if (!ok) {
     form.querySelector('[aria-invalid]')?.focus();
     return;
@@ -385,7 +472,7 @@ $('#form-create').addEventListener('submit', async (e) => {
       return;
     }
     const res = await grist.docApi.applyUserActions([
-      ['AddRecord', T_INDIVIDUS, null, { Nom: nom, Prenom: prenom, Date_de_naissance: iso ? isoToSec(iso) : null }],
+      ['AddRecord', T_INDIVIDUS, null, { ...manuel, Nom: nom, Prenom: prenom, Date_de_naissance: isoToSec(iso) }],
     ]);
     const id = res.retValues[0];
     await refreshIndividus();
