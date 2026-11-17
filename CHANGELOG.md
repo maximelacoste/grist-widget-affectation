@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Étape 3 : bouton « Dossier » aligné avec l'identité. Performance : lectures de tables mémorisées 30 s (vidées à chaque écriture), partagées entre recherche, dossier et affectation, et lancées en parallèle pour le dossier.
+
 - Étape 3 : bouton « Dossier » sous le nom de l'élève (ouvre ou referme le dossier). Libellés d'établissement : une parenthèse répétée en fin de nom (« (TOULOUSE) (Toulouse) ») est réduite à une seule.
 
 - Dossier : notes de l'élève (`Notes_sur_l_eleve`) sous l'historique des affectations (la case NB n'est pas affichée : elle ne servait qu'à signaler une note dans la table).

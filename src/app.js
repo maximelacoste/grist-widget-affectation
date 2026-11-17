@@ -266,12 +266,28 @@ async function loadMeta() {
   state.etabTypeBrut = new Map(etabs.map((e) => [e.id, e.typeBrut]));
 }
 
+/**
+ * Lecture d'une table avec mémoire de 30 s : fetchTable ramène TOUTES les colonnes (formules comprises) de TOUTES les
+ * lignes, ce qui est le gros du temps d'attente. Les requêtes identiques en cours sont partagées ; toute écriture vide la mémoire.
+ */
+const CACHE_MS = 30000;
+const cache = new Map();
+function lireTable(tableId) {
+  const hit = cache.get(tableId);
+  if (hit && Date.now() - hit.ts < CACHE_MS) return hit.promise;
+  const promise = grist.docApi.fetchTable(tableId);
+  cache.set(tableId, { ts: Date.now(), promise });
+  promise.catch(() => cache.delete(tableId)); // un échec n'est pas mémorisé
+  return promise;
+}
+const viderCache = () => cache.clear();
+
 async function refreshIndividus() {
-  state.individus = toIndividus(await grist.docApi.fetchTable(T_INDIVIDUS));
+  state.individus = toIndividus(await lireTable(T_INDIVIDUS));
 }
 
 async function refreshScolarite(eleveId = state.eleve.id) {
-  const t = await grist.docApi.fetchTable(T_SCOLARITE);
+  const t = await lireTable(T_SCOLARITE);
   state.scol = tableToRows(t, Object.values(COL))
     .filter((r) => r[COL.eleve] === eleveId)
     .map((r) => ({
@@ -450,14 +466,14 @@ const T_NOTES = 'Notes_sur_l_eleve';
 async function lireNotes(row) {
   let t;
   try {
-    t = await grist.docApi.fetchTable(T_NOTES);
+    t = await lireTable(T_NOTES);
   } catch {
     return [];
   }
   let garde = (i) => t.Individu && t.Individu[i] === row.id;
   if (!t.Individu) {
     // repli : la note pointe vers Eleves_ULIS, rapproché d'Individus par la clé
-    const e = await grist.docApi.fetchTable('Eleves_ULIS');
+    const e = await lireTable('Eleves_ULIS');
     const ids = new Set(e.id.filter((_, i) => e.Cle && e.Cle[i] === row.cle));
     garde = (i) => ids.has(t.Eleve[i]);
   }
@@ -517,7 +533,8 @@ async function openDossier(row, boxId = 'dossier') {
   let scol;
   let notes = [];
   try {
-    const t = await grist.docApi.fetchTable(T_INDIVIDUS);
+    const [t, , lues] = await Promise.all([lireTable(T_INDIVIDUS), lireTable(T_SCOLARITE), lireNotes(row)]);
+    notes = lues;
     const i = t.id.indexOf(row.id);
     if (i < 0) throw new Error('fiche introuvable');
     const get = (c) => (t[c] ? t[c][i] : undefined);
@@ -530,8 +547,8 @@ async function openDossier(row, boxId = 'dossier') {
       premiere: get('Premiere_notif_ULIS'),
       notif: get('Notification_ULIS') === true,
     };
-    scol = await refreshScolarite(row.id).then(() => state.scol);
-    notes = await lireNotes(row);
+    await refreshScolarite(row.id);
+    scol = state.scol;
   } catch (err) {
     notify('error', `Lecture du dossier impossible : ${err.message}`);
     return;
@@ -754,6 +771,7 @@ $('#form-create').addEventListener('submit', async (e) => {
       await chooseEleve(existant, { keepNotice: true });
       return;
     }
+    viderCache();
     const res = await grist.docApi.applyUserActions([
       ['AddRecord', T_INDIVIDUS, null, { ...manuel, Nom: nom, Prenom: prenom, Date_de_naissance: isoToSec(iso) }],
     ]);
@@ -1133,6 +1151,7 @@ $('#form-scol').addEventListener('submit', async (e) => {
     const action = state.editingId
       ? ['UpdateRecord', T_SCOLARITE, state.editingId, fields]
       : ['AddRecord', T_SCOLARITE, null, { ...fields, [COL.eleve]: state.eleve.id }];
+    viderCache();
     await grist.docApi.applyUserActions([action]);
     await refreshScolarite();
     form.hidden = true;
