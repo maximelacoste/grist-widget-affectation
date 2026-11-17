@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Modification d'une affectation : bouton « Supprimer cette affectation », avec confirmation (la ligne visée est rappelée) ; l'annulation reste possible via le panneau Activité de Grist.
+
 - Étape 3 : bouton « Dossier » aligné avec l'identité. Performance : lectures de tables mémorisées 30 s (vidées à chaque écriture), partagées entre recherche, dossier et affectation, et lancées en parallèle pour le dossier.
 
 - Étape 3 : bouton « Dossier » sous le nom de l'élève (ouvre ou referme le dossier). Libellés d'établissement : une parenthèse répétée en fin de nom (« (TOULOUSE) (Toulouse) ») est réduite à une seule.

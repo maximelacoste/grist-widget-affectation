@@ -1112,10 +1112,45 @@ function openScolForm(ligne) {
       { class: 'fr-btns-group fr-btns-group--inline' },
       h('button', { class: 'fr-btn', type: 'submit' }, 'Enregistrer'),
       h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', onclick: () => { form.hidden = true; } }, 'Annuler'),
+      ligne ? h('button', { class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line fr-btn--icon-left', type: 'button', id: 's-suppr', onclick: () => demanderSuppression(ligne) }, 'Supprimer cette affectation') : null,
     ),
+    h('div', { id: 's-suppr-confirm', role: 'alert' }),
   );
   form.hidden = false;
   $('#h-scol-form').focus();
+}
+
+/** Suppression en deux temps : un message de confirmation précise la ligne visée avant d'écrire quoi que ce soit. */
+function demanderSuppression(ligne) {
+  const zone = $('#s-suppr-confirm');
+  zone.replaceChildren(
+    h(
+      'div',
+      { class: 'fr-alert fr-alert--warning fr-mt-2w' },
+      h('h4', { class: 'fr-alert__title' }, 'Supprimer cette affectation ?'),
+      h('p', {}, `Ligne du ${dateLabel(ligne)} (${typeof affectationCell(ligne) === 'string' ? affectationCell(ligne) : ligne.affectationInvalide || 'sans établissement'}). Dans Grist, le panneau Activité permet de l'annuler.`),
+      h(
+        'div',
+        { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
+        h('button', { class: 'fr-btn fr-btn--sm', type: 'button', id: 's-suppr-oui', onclick: () => supprimerLigne(ligne) }, 'Oui, supprimer'),
+        h('button', { class: 'fr-btn fr-btn--sm fr-btn--secondary', type: 'button', onclick: () => zone.replaceChildren() }, 'Non, garder'),
+      ),
+    ),
+  );
+  $('#s-suppr-oui').focus();
+}
+
+async function supprimerLigne(ligne) {
+  try {
+    viderCache();
+    await grist.docApi.applyUserActions([['RemoveRecord', T_SCOLARITE, ligne.id]]);
+    await refreshScolarite();
+    $('#form-scol').hidden = true;
+    renderScolList();
+    notify('success', 'Affectation supprimée.');
+  } catch (err) {
+    notify('error', `Suppression impossible : ${err.message}`);
+  }
 }
 
 $('#form-scol').addEventListener('submit', async (e) => {
