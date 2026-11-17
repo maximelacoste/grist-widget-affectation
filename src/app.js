@@ -499,8 +499,6 @@ async function openDossier(row) {
       fin: get('Fin_droits_ULIS'),
       premiere: get('Premiere_notif_ULIS'),
       notif: get('Notification_ULIS') === true,
-      idApp: cellText(get('Id_app')),
-      nEnr: cellText(get('N_Enr_')),
     };
     scol = await refreshScolarite(row.id).then(() => state.scol);
   } catch (err) {
@@ -517,8 +515,6 @@ async function openDossier(row) {
       ['Nom', row.nom],
       ['Prénom', row.prenom],
       ['Date de naissance', formatDateFr(row.ddn)],
-      ['Identifiant application', ind.idApp],
-      ['N° d\'enregistrement', ind.nEnr],
     ]),
     h('h4', { class: 'fr-h6' }, 'Coordonnées'),
     listeInfos([
