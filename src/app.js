@@ -87,6 +87,20 @@ const state = {
 /* ------------------------------------------------------------------ */
 const $ = (sel) => document.querySelector(sel);
 
+/**
+ * Champ date vide : un clic n'importe où dans le champ ouvre le calendrier (par défaut, seule l'icône le fait).
+ * Champ rempli : comportement natif conservé, pour corriger jour/mois/année au clavier.
+ */
+document.addEventListener('click', (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.type !== 'date' || el.value || el.readOnly || el.disabled) return;
+  try {
+    el.showPicker();
+  } catch {
+    /* navigateur sans showPicker, ou iframe non autorisée : le champ reste saisissable au clavier */
+  }
+});
+
 /** Crée un élément ; les textes passent par textContent / createTextNode (jamais innerHTML). */
 function h(tag, props = {}, ...kids) {
   const el = document.createElement(tag);

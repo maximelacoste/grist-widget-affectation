@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Champs date : un clic sur un champ vide ouvre le calendrier (et plus seulement l'icône).
+
 ### Modifié
 - La recherche ne porte plus que sur le nom et le prénom (la date de naissance reste affichée dans les résultats pour départager les homonymes).
 - Création d'une fiche : nom, prénom et date de naissance sont tous obligatoires (la case « date inconnue » disparaît ; une date future est refusée).
