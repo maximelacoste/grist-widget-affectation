@@ -2,7 +2,10 @@
 
 ## [Non publié]
 
-- Dossier modifiable : un crayon au bout de chaque champ (nom, prénom, date de naissance, adresse, code postal et commune, représentants légaux, début et fin de notification). Validation des saisies, confirmation « avant → après » avant toute écriture, blocage si le changement créerait un doublon de clé, avertissement sur la clé de rapprochement pour l'état civil. Les coordonnées et dates de notification s'écrivent dans les colonnes `*_manuel` (prioritaires sur la MDPH ; champ vidé = retour à la valeur MDPH). Suggestions BAN dans l'édition de l'adresse (voir Confidentialité).
+- Dossier : un seul bouton « Modifier » ouvre tous les champs modifiables à la fois ; une seule barre « Valider / Annuler » (collante, en bas de l'écran) et une seule fenêtre de confirmation « avant → après » listant les seuls champs réellement saisis (un champ laissé tel quel n'est ni normalisé ni écrit) ; une seule écriture dans `Individus`. Remplace les crayons par champ.
+- Dossier : fenêtre « Abandonner les modifications en cours ? » dès qu'on quitte la page (retour, Affecter) ou qu'on annule avec des champs modifiés ; avertissement du navigateur à la fermeture de l'onglet.
+- Documentation : schéma de la navigation complète (`docs/navigation.md`).
+- Dossier modifiable (champs : nom, prénom, date de naissance, adresse, code postal et commune, représentants légaux, début et fin de notification). Validation des saisies, confirmation « avant → après » avant toute écriture, blocage si le changement créerait un doublon de clé, avertissement sur la clé de rapprochement pour l'état civil. Les coordonnées et dates de notification s'écrivent dans les colonnes `*_manuel` (prioritaires sur la MDPH ; champ vidé = retour à la valeur MDPH). Suggestions BAN dans l'édition de l'adresse (voir Confidentialité).
 - Affectations : « Modifier » devient un crayon, à côté de la corbeille.
 
 - Dossier : page dédiée (comme la création), accessible depuis les résultats et depuis l'étape 3, avec retour vers la page d'origine.

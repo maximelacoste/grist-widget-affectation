@@ -190,6 +190,7 @@ function masquerPages() {
 }
 
 function goto(step, { focus = true } = {}) {
+  if (state.edition) return gardeSortie(() => goto(step, { focus }));
   state.step = step;
   masquerPages();
   $(`#step-${step}`).hidden = false;
@@ -480,6 +481,7 @@ function prefillCreate() {
 /* Page dédiée à la création d'une fiche                               */
 /* ------------------------------------------------------------------ */
 function gotoCreate() {
+  if (state.edition) return gardeSortie(() => gotoCreate());
   clearNotice();
   state.step = 0;
   masquerPages();
@@ -627,64 +629,46 @@ function listeInfos(infos) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Dossier : modification d'un champ (crayon) avec confirmation         */
+/* Dossier : modification globale (un bouton Modifier) avec confirmation */
 /* ------------------------------------------------------------------ */
 const colManuelle = (re, types) => state.champsManuels.find((f) => re.test(f.colId) && types.includes(f.type));
 const AVERT_ETAT_CIVIL =
   "Attention : le nom, le prénom et la date de naissance forment la clé de rapprochement de l'élève. Les liens qui passent par cette clé (Eleves_ULIS, notes, notifications) peuvent se rompre.";
+const AIDE_EDITION =
+  'Ce que tu saisis dans les coordonnées et les dates de notification prime sur la valeur qui vient de la MDPH. Champ vidé : retour à la valeur de la MDPH.';
 
-/** Champs modifiables du dossier, regroupés par crayon. `valeur` = ce qui s'affiche aujourd'hui (pré-remplissage). */
-function editeursDossier(row, ind) {
-  const man = (re, types) => {
-    const f = colManuelle(re, types);
-    return f ? { colId: f.colId, colType: f.type } : null;
-  };
+/** Champs modifiables du dossier. `valeur` = ce qui s'affiche aujourd'hui (pré-remplissage) ; null si la colonne manque. */
+function champsDossier(row, ind) {
   const cpVille = /^(\d{5})\s*(.*)$/.exec(ind.cpVille || '') || [];
   const valeurManuelle = (f, repli) => {
     const v = ind.manuel[f.colId];
-    if (f.colType === 'Date') return typeof v === 'number' ? secToIso(v) : repli;
+    if (f.type === 'Date') return typeof v === 'number' ? secToIso(v) : repli;
     return v !== undefined && v !== null && v !== '' ? String(v) : repli;
   };
-  const champManuel = (re, types, label, type, repli, extra = {}) => {
-    const f = man(re, types);
-    return f ? { ...f, label, type, valeur: valeurManuelle(f, repli), ...extra } : null;
+  const manuel = (re, types, label, type, repli, extra = {}) => {
+    const f = colManuelle(re, types);
+    return f ? { colId: f.colId, colType: f.type, label, type, valeur: valeurManuelle(f, repli), ...extra } : null;
   };
-  const aide = 'Ce que tu saisis prime sur la valeur qui vient de la MDPH. Vide : retour à la valeur de la MDPH.';
-  const ed = {};
-  ed.nom = { titre: 'Nom', etatCivil: true, champs: [{ colId: 'Nom', colType: 'Text', label: 'Nom', type: 'text', requis: true, valeur: row.nom, normalise: (v) => v.toUpperCase() }] };
-  ed.prenom = { titre: 'Prénom', etatCivil: true, champs: [{ colId: 'Prenom', colType: 'Text', label: 'Prénom', type: 'text', requis: true, valeur: row.prenom }] };
-  ed.ddn = { titre: 'Date de naissance', etatCivil: true, champs: [{ colId: 'Date_de_naissance', colType: 'Date', label: 'Date de naissance', type: 'date', requis: true, valeur: row.ddn || '', naissance: true }] };
-  const adr = champManuel(/adresse/i, ['Text'], 'Adresse', 'text', ind.adresse, { ban: true });
-  const cp = champManuel(/^cp|postal/i, ['Text', 'Int', 'Numeric'], 'Code postal', 'text', cpVille[1] || '', { cp: true });
-  const commune = champManuel(/commune/i, ['Text'], 'Commune', 'text', (cpVille[2] || '').trim(), { normalise: (v) => v.toUpperCase() });
-  if (adr) ed.adresse = { titre: 'Adresse', aide: aide + ' Suggestions de la Base Adresse Nationale (IGN) : le texte tapé est envoyé à ce service public.', champs: [adr, cp, commune].filter(Boolean) };
-  if (cp && commune) ed.cpVille = { titre: 'Code postal et commune', aide, champs: [cp, commune] };
-  const rep = champManuel(/repr|legal/i, ['Text'], 'Représentant(s) légal(aux)', 'text', ind.representants);
-  if (rep) ed.representants = { titre: 'Représentant(s) légal(aux)', aide, champs: [rep] };
-  const debut = champManuel(/debut/i, ['Date'], 'Début de la dernière notification', 'date', secToIso(ind.debut));
-  if (debut) ed.debut = { titre: 'Début de la dernière notification', aide, champs: [debut] };
-  const fin = champManuel(/^fin/i, ['Date'], 'Fin de droits', 'date', secToIso(ind.fin));
-  if (fin) ed.fin = { titre: 'Fin de droits', aide, champs: [fin] };
-  return ed;
+  return {
+    nom: { colId: 'Nom', colType: 'Text', label: 'Nom', type: 'text', requis: true, valeur: row.nom, normalise: (v) => v.toUpperCase(), etatCivil: true },
+    prenom: { colId: 'Prenom', colType: 'Text', label: 'Prénom', type: 'text', requis: true, valeur: row.prenom, etatCivil: true },
+    ddn: { colId: 'Date_de_naissance', colType: 'Date', label: 'Date de naissance', type: 'date', requis: true, valeur: row.ddn || '', naissance: true, etatCivil: true },
+    adr: manuel(/adresse/i, ['Text'], 'Adresse', 'text', ind.adresse, { ban: true }),
+    cp: manuel(/^cp|postal/i, ['Text', 'Int', 'Numeric'], 'Code postal', 'text', cpVille[1] || '', { cp: true }),
+    commune: manuel(/commune/i, ['Text'], 'Commune', 'text', (cpVille[2] || '').trim(), { commune: true, normalise: (v) => v.toUpperCase() }),
+    rep: manuel(/repr|legal/i, ['Text'], 'Représentant(s) légal(aux)', 'text', ind.representants),
+    debut: manuel(/debut/i, ['Date'], 'Début de la dernière notification', 'date', secToIso(ind.debut)),
+    fin: manuel(/^fin/i, ['Date'], 'Fin de droits', 'date', secToIso(ind.fin)),
+  };
 }
 
-/** Ligne « libellé : valeur » du dossier ; avec crayon si le champ est modifiable. */
-function ligneModifiable(libelle, valeur, editeur, ctx) {
-  return [
-    libelle,
-    [
-      h('span', { class: 'dossier-valeur' }, valeur || '—'),
-      editeur
-        ? h('button', {
-            class: 'fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-pencil-line fr-ml-1w',
-            type: 'button',
-            title: `Modifier : ${libelle}`,
-            'aria-label': `Modifier : ${libelle}`,
-            onclick: (e) => ouvrirEdition(e.currentTarget.closest('dd'), editeur, ctx),
-          }, 'Modifier')
-        : null,
-    ],
-  ];
+/** Ligne « libellé : valeur » du dossier. Les champs listés s'ouvrent quand on clique sur « Modifier ». */
+function ligneModifiable(libelle, valeur, champs, ctx) {
+  const modifiables = (champs || []).filter(Boolean);
+  const span = h('span', { class: 'dossier-valeur' }, valeur || '—');
+  const zone = h('div', { class: 'dossier-champs', hidden: true });
+  if (modifiables.length) ctx.lignes.push({ span, zone, champs: modifiables });
+  return [libelle, [span, zone]];
 }
 
 function afficherValeur(champ, v) {
@@ -692,37 +676,35 @@ function afficherValeur(champ, v) {
   return v || '—';
 }
 
-function ouvrirEdition(dd, editeur, ctx) {
-  // une seule édition à la fois : on referme les autres
-  document.querySelectorAll('#dossier .dossier-edition').forEach((f) => f.dispatchEvent(new Event('annuler')));
-  const valeurAvant = dd.replaceChildren.bind(dd);
-  const contenu = [...dd.childNodes];
-  const champs = editeur.champs;
-  const champsEls = champs.map((c, i) => {
-    const id = `edit-${c.colId}`;
-    const input = h('input', { class: 'fr-input', id, type: c.type === 'date' ? 'date' : 'text', autocomplete: 'off', value: c.valeur || '', inputmode: c.cp ? 'numeric' : null, maxlength: c.cp ? 5 : null, title: `Saisir : ${c.label}` });
-    return { c, id, input, groupe: h('div', { class: 'fr-input-group fr-mb-1w' }, h('label', { class: i === 0 && champs.length === 1 ? 'fr-sr-only fr-label' : 'fr-label', for: id }, c.label), input) };
-  });
-  const form = h(
-    'form',
-    { class: 'dossier-edition', novalidate: true },
-    champsEls.map((x) => x.groupe),
-    editeur.aide ? h('p', { class: 'fr-hint-text fr-mb-1w' }, editeur.aide) : null,
-    h(
-      'ul',
-      { class: 'actions-ligne' },
-      h('li', {}, h('button', { class: 'fr-btn fr-btn--sm fr-icon-check-line fr-btn--icon-left', type: 'submit', title: 'Valider la saisie : une confirmation montrera ce qui change' }, 'Valider')),
-      h('li', {}, h('button', { class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-close-line fr-btn--icon-left', type: 'button', title: 'Abandonner la modification', onclick: () => form.dispatchEvent(new Event('annuler')) }, 'Annuler')),
-    ),
-  );
-  form.addEventListener('annuler', () => {
-    form.replaceWith(); // retire le formulaire
-    valeurAvant(...contenu);
-  });
-  dd.replaceChildren(form);
-  if (editeur.champs[0].ban && ADRESSE_SUGGESTIONS) {
-    const get = (re) => champsEls.find((x) => re.test(x.c.colId));
-    attachSuggest(champsEls[0].input, {
+/** Ouvre tous les champs modifiables en même temps. */
+function entrerEdition(ctx) {
+  if (state.edition) return;
+  clearNotice();
+  const champsEls = [];
+  for (const l of ctx.lignes) {
+    l.zone.replaceChildren(
+      ...l.champs.map((c) => {
+        const id = `edit-${c.colId}`;
+        const input = h('input', {
+          class: 'fr-input',
+          id,
+          type: c.type === 'date' ? 'date' : 'text',
+          autocomplete: 'off',
+          value: c.valeur || '',
+          inputmode: c.cp ? 'numeric' : null,
+          maxlength: c.cp ? 5 : null,
+          title: `Saisir : ${c.label}`,
+        });
+        champsEls.push({ c, id, input });
+        return h('div', { class: 'fr-input-group fr-mb-1w' }, h('label', { class: l.champs.length === 1 ? 'fr-sr-only fr-label' : 'fr-label', for: id }, c.label), input);
+      }),
+    );
+    l.zone.hidden = false;
+    l.span.hidden = true;
+  }
+  const adr = champsEls.find((x) => x.c.ban);
+  if (adr && ADRESSE_SUGGESTIONS) {
+    attachSuggest(adr.input, {
       minChars: 4,
       delay: 350,
       fetchItems: async (query, signal) => {
@@ -731,27 +713,81 @@ function ouvrirEdition(dd, editeur, ctx) {
         return parseBan(await r.json());
       },
       onPick: (a) => {
-        champsEls[0].input.value = a.adresse;
-        const cpEl = get(/^cp|postal/i);
-        const comEl = get(/commune/i);
+        adr.input.value = a.adresse;
+        const cpEl = champsEls.find((x) => x.c.cp);
+        const comEl = champsEls.find((x) => x.c.commune);
         if (cpEl) cpEl.input.value = a.cp;
         if (comEl) comEl.input.value = a.commune;
       },
     });
   }
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    validerEdition(form, editeur, champsEls, ctx);
-  });
+  state.edition = { champsEls, ctx, dirty: () => champsEls.some(({ c, input }) => input.value !== (c.valeur || '')) };
+  ctx.ui.modifier.hidden = true;
+  ctx.ui.aide.hidden = false;
+  ctx.ui.barre.hidden = false;
   champsEls[0].input.focus();
 }
 
-function validerEdition(form, editeur, champsEls, ctx) {
-  clearFieldErrors(form);
+/** Referme les champs sans rien écrire. */
+function annulerEdition() {
+  const ed = state.edition;
+  if (!ed) return;
+  state.edition = null;
+  clearFieldErrors($('#dossier'));
+  for (const l of ed.ctx.lignes) {
+    l.zone.replaceChildren();
+    l.zone.hidden = true;
+    l.span.hidden = false;
+  }
+  ed.ctx.ui.modifier.hidden = false;
+  ed.ctx.ui.aide.hidden = true;
+  ed.ctx.ui.barre.hidden = true;
+}
+
+/**
+ * Garde de sortie : s'il y a une modification non validée, une fenêtre demande confirmation avant d'exécuter `suite`.
+ * Sans modification en cours (ou champs inchangés), `suite` s'exécute tout de suite.
+ */
+function gardeSortie(suite) {
+  const ed = state.edition;
+  if (!ed) return suite();
+  if (!ed.dirty()) {
+    annulerEdition();
+    return suite();
+  }
+  ouvrirModale({
+    titre: 'Abandonner les modifications en cours ?',
+    corps: [
+      h('p', { class: 'fr-mb-1w' }, "Tu as modifié des champs du dossier sans les valider : ces changements seront perdus."),
+      h('p', { class: 'fr-text--sm fr-mb-0' }, 'Rien n\'a été écrit dans Grist.'),
+    ],
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, abandonner', info: 'Perdre les modifications non validées et continuer', secondaire: true, onClick: () => { annulerEdition(); suite(); } },
+      { id: 'dlg-non', libelle: 'Non, continuer la modification', info: 'Fermer cette fenêtre et rester sur le dossier', onClick: () => ed.champsEls[0]?.input.focus() },
+    ],
+    focus: 'dlg-non', // le choix par défaut est de ne rien perdre
+  });
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (state.edition && state.edition.dirty()) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+function validerEdition(ctx) {
   const { row } = ctx;
+  const { champsEls } = state.edition;
+  clearFieldErrors($('#dossier'));
   const nouveau = {};
   let ok = true;
   for (const { c, id, input } of champsEls) {
+    // champ non touché : on garde la valeur d'origine telle quelle (pas de normalisation, pas de validation)
+    if (input.value === (c.valeur || '')) {
+      nouveau[c.colId] = c.valeur || '';
+      continue;
+    }
     let v = input.value.trim().replace(/\s+/g, ' ');
     if (c.normalise) v = c.normalise(v);
     if (c.requis && !v) {
@@ -775,32 +811,36 @@ function validerEdition(form, editeur, champsEls, ctx) {
     }
     nouveau[c.colId] = v;
   }
-  if (!ok) return;
-
-  // changements réels uniquement
-  const modifs = champsEls
-    .filter(({ c }) => (nouveau[c.colId] || '') !== (c.valeur || ''))
-    .map(({ c }) => [c.label, afficherValeur(c, c.valeur), afficherValeur(c, nouveau[c.colId])]);
-  if (modifs.length === 0) {
-    form.dispatchEvent(new Event('annuler'));
-    notify('info', 'Aucune modification à enregistrer.');
+  if (!ok) {
+    $('#dossier .fr-input-group--error input')?.focus();
     return;
   }
 
+  // changements réels uniquement
+  const changes = champsEls.filter(({ c }) => (nouveau[c.colId] || '') !== (c.valeur || ''));
+  if (changes.length === 0) {
+    annulerEdition();
+    notify('info', 'Aucune modification à enregistrer.');
+    return;
+  }
+  const modifs = changes.map(({ c }) => [c.label, afficherValeur(c, c.valeur), afficherValeur(c, nouveau[c.colId])]);
+
   // doublon : une autre fiche ne doit pas avoir la même clé nom|prénom|date
-  if (editeur.etatCivil) {
+  const etatCivil = changes.filter(({ c }) => c.etatCivil);
+  if (etatCivil.length) {
     const n = { nom: row.nom, prenom: row.prenom, ddn: row.ddn || '' };
     if ('Nom' in nouveau) n.nom = nouveau.Nom;
     if ('Prenom' in nouveau) n.prenom = nouveau.Prenom;
     if ('Date_de_naissance' in nouveau) n.ddn = nouveau.Date_de_naissance;
     const conflit = state.individus.find((r) => r.id !== row.id && r.cle === cle(n.nom, n.prenom, n.ddn));
     if (conflit) {
-      setFieldError(champsEls[0].id, 'Une autre fiche a déjà ce nom, ce prénom et cette date de naissance : utilise-la plutôt que de créer un doublon.');
+      setFieldError(etatCivil[0].id, 'Une autre fiche a déjà ce nom, ce prénom et cette date de naissance : utilise-la plutôt que de créer un doublon.');
+      etatCivil[0].input.focus();
       return;
     }
   }
 
-  confirmerModification(modifs, () => ecrireIndividu(row, champsEls, nouveau, ctx), editeur.etatCivil ? AVERT_ETAT_CIVIL : '');
+  confirmerModification(modifs, () => ecrireIndividu(row, champsEls, nouveau, ctx), etatCivil.length ? AVERT_ETAT_CIVIL : '');
 }
 
 async function ecrireIndividu(row, champsEls, nouveau, ctx) {
@@ -822,6 +862,7 @@ async function ecrireIndividu(row, champsEls, nouveau, ctx) {
       state.eleve = frais;
       $('#eleve-resume').textContent = `${frais.nom} ${frais.prenom}, né(e) le ${formatDateFr(frais.ddn) || '(date non renseignée)'}`;
     }
+    state.edition = null; // l'écriture a réussi : plus rien à protéger
     await openDossier(frais, ctx.origine);
     notify('success', 'Modification enregistrée.');
   } catch (err) {
@@ -830,6 +871,7 @@ async function ecrireIndividu(row, champsEls, nouveau, ctx) {
 }
 
 async function openDossier(row, origine = 2) {
+  if (state.edition) return gardeSortie(() => openDossier(row, origine));
   clearNotice();
   const box = $('#dossier');
   let ind;
@@ -859,27 +901,45 @@ async function openDossier(row, origine = 2) {
   }
   const todayIso = new Date().toISOString().slice(0, 10);
   const enCours = ligneEnCours(scol, todayIso);
-  const ctx = { row, origine };
-  const ed = editeursDossier(row, ind);
+  const ctx = { row, origine, lignes: [], ui: {} };
+  const ch = champsDossier(row, ind);
+  ctx.ui.modifier = h(
+    'button',
+    { class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-pencil-line', type: 'button', title: "Ouvrir tous les champs modifiables du dossier ; une seule validation, avec confirmation avant écriture", onclick: () => entrerEdition(ctx) },
+    'Modifier',
+  );
+  ctx.ui.aide = h('p', { class: 'fr-hint-text fr-mb-2w', hidden: true }, AIDE_EDITION, ch.adr && ADRESSE_SUGGESTIONS ? " Suggestions d'adresse : Base Adresse Nationale (IGN), le texte tapé est envoyé à ce service public." : '');
+  ctx.ui.barre = h(
+    'div',
+    { class: 'dossier-barre-edition', hidden: true, role: 'group', 'aria-label': 'Valider ou annuler la modification du dossier' },
+    h(
+      'ul',
+      { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--sm fr-btns-group--icon-left' },
+      h('li', {}, h('button', { class: 'fr-btn fr-icon-check-line fr-btn--icon-left', type: 'button', title: 'Valider toutes les modifications : une fenêtre montrera ce qui change avant écriture', onclick: () => validerEdition(ctx) }, 'Valider')),
+      h('li', {}, h('button', { class: 'fr-btn fr-btn--tertiary fr-icon-close-line fr-btn--icon-left', type: 'button', title: 'Abandonner toutes les modifications en cours', onclick: () => gardeSortie(() => {}) }, 'Annuler')),
+    ),
+  );
   box.replaceChildren(
+    h('div', { class: 'fr-mb-2w' }, ctx.ui.modifier),
+    ctx.ui.aide,
     h('h4', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
-      ligneModifiable('Nom', row.nom, ed.nom, ctx),
-      ligneModifiable('Prénom', row.prenom, ed.prenom, ctx),
-      ligneModifiable('Date de naissance', formatDateFr(row.ddn), ed.ddn, ctx),
+      ligneModifiable('Nom', row.nom, [ch.nom], ctx),
+      ligneModifiable('Prénom', row.prenom, [ch.prenom], ctx),
+      ligneModifiable('Date de naissance', formatDateFr(row.ddn), [ch.ddn], ctx),
     ]),
     h('h4', { class: 'fr-h6' }, 'Coordonnées'),
     listeInfos([
-      ligneModifiable('Adresse', ind.adresse, ed.adresse, ctx),
-      ligneModifiable('Code postal et commune', ind.cpVille, ed.cpVille, ctx),
-      ligneModifiable('Représentant(s) légal(aux)', ind.representants, ed.representants, ctx),
+      ligneModifiable('Adresse', ind.adresse, [ch.adr], ctx),
+      ligneModifiable('Code postal et commune', ind.cpVille, ch.cp && ch.commune ? [ch.cp, ch.commune] : [], ctx),
+      ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
     ]),
     h('h4', { class: 'fr-h6' }, 'Notification ULIS'),
     listeInfos([
       ligneModifiable('Notification ULIS', ind.notif ? 'Oui' : 'Non', null, ctx),
       ligneModifiable('Première notification', dateOuTexte(ind.premiere), null, ctx),
-      ligneModifiable('Début de la dernière', dateOuTexte(ind.debut), ed.debut, ctx),
-      ligneModifiable('Fin de droits', dateOuTexte(ind.fin), ed.fin, ctx),
+      ligneModifiable('Début de la dernière', dateOuTexte(ind.debut), [ch.debut], ctx),
+      ligneModifiable('Fin de droits', dateOuTexte(ind.fin), [ch.fin], ctx),
     ]),
     h('h4', { class: 'fr-h6' }, 'Historique des affectations'),
     scol.length === 0
@@ -906,6 +966,7 @@ async function openDossier(row, origine = 2) {
             h('span', { class: 'note-texte' }, n.note),
           ]),
         ),
+    ctx.ui.barre,
     h(
       'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
@@ -921,7 +982,7 @@ async function openDossier(row, origine = 2) {
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title', id: 'h-dossier', tabindex: '-1' }, `Dossier de ${row.nom} ${row.prenom}`),
-      h('p', { class: 'fr-stepper__details' }, "Les données personnelles ne s'affichent qu'à l'écran et ne quittent pas Grist. Le crayon corrige un champ, avec confirmation avant écriture."),
+      h('p', { class: 'fr-stepper__details' }, "Les données personnelles ne s'affichent qu'à l'écran et ne quittent pas Grist. Le bouton Modifier ouvre tous les champs ; une seule validation, avec confirmation avant écriture."),
     ),
     h(
       'nav',
@@ -1115,6 +1176,7 @@ $('#form-create').addEventListener('submit', async (e) => {
 });
 
 async function chooseEleve(row, { keepNotice = false } = {}) {
+  if (state.edition) return gardeSortie(() => chooseEleve(row, { keepNotice }));
   if (!keepNotice) clearNotice();
   state.eleve = row;
   try {
