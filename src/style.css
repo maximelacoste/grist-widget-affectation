@@ -81,3 +81,7 @@ body { background: transparent; }
 .cal-aujourdhui { box-shadow: inset 0 0 0 1px var(--border-action-high-blue-france, #000091); }
 .cal-selection, .cal-selection:hover { background: var(--background-action-high-blue-france, #000091); color: #fff; }
 .cal-pied { display: flex; justify-content: space-between; margin-top: 0.5rem; }
+
+/* Dossier : valeur + crayon, et formulaire d'édition d'un champ */
+.dossier-infos dd { display: flex; flex-wrap: wrap; align-items: center; }
+.dossier-edition { width: 100%; max-width: 28rem; }

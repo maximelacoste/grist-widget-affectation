@@ -2,6 +2,9 @@
 
 ## [Non publié]
 
+- Dossier modifiable : un crayon au bout de chaque champ (nom, prénom, date de naissance, adresse, code postal et commune, représentants légaux, début et fin de notification). Validation des saisies, confirmation « avant → après » avant toute écriture, blocage si le changement créerait un doublon de clé, avertissement sur la clé de rapprochement pour l'état civil. Les coordonnées et dates de notification s'écrivent dans les colonnes `*_manuel` (prioritaires sur la MDPH ; champ vidé = retour à la valeur MDPH). Suggestions BAN dans l'édition de l'adresse (voir Confidentialité).
+- Affectations : « Modifier » devient un crayon, à côté de la corbeille.
+
 - Dossier : page dédiée (comme la création), accessible depuis les résultats et depuis l'étape 3, avec retour vers la page d'origine.
 - Tableaux : retour à la ligne autorisé dans les cellules et remplissage réduit, pour tout afficher sans défilement horizontal, même dans un widget étroit.
 

@@ -626,6 +626,209 @@ function listeInfos(infos) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Dossier : modification d'un champ (crayon) avec confirmation         */
+/* ------------------------------------------------------------------ */
+const colManuelle = (re, types) => state.champsManuels.find((f) => re.test(f.colId) && types.includes(f.type));
+const AVERT_ETAT_CIVIL =
+  "Attention : le nom, le prénom et la date de naissance forment la clé de rapprochement de l'élève. Les liens qui passent par cette clé (Eleves_ULIS, notes, notifications) peuvent se rompre.";
+
+/** Champs modifiables du dossier, regroupés par crayon. `valeur` = ce qui s'affiche aujourd'hui (pré-remplissage). */
+function editeursDossier(row, ind) {
+  const man = (re, types) => {
+    const f = colManuelle(re, types);
+    return f ? { colId: f.colId, colType: f.type } : null;
+  };
+  const cpVille = /^(\d{5})\s*(.*)$/.exec(ind.cpVille || '') || [];
+  const valeurManuelle = (f, repli) => {
+    const v = ind.manuel[f.colId];
+    if (f.colType === 'Date') return typeof v === 'number' ? secToIso(v) : repli;
+    return v !== undefined && v !== null && v !== '' ? String(v) : repli;
+  };
+  const champManuel = (re, types, label, type, repli, extra = {}) => {
+    const f = man(re, types);
+    return f ? { ...f, label, type, valeur: valeurManuelle(f, repli), ...extra } : null;
+  };
+  const aide = 'Ce que tu saisis prime sur la valeur qui vient de la MDPH. Vide : retour à la valeur de la MDPH.';
+  const ed = {};
+  ed.nom = { titre: 'Nom', etatCivil: true, champs: [{ colId: 'Nom', colType: 'Text', label: 'Nom', type: 'text', requis: true, valeur: row.nom, normalise: (v) => v.toUpperCase() }] };
+  ed.prenom = { titre: 'Prénom', etatCivil: true, champs: [{ colId: 'Prenom', colType: 'Text', label: 'Prénom', type: 'text', requis: true, valeur: row.prenom }] };
+  ed.ddn = { titre: 'Date de naissance', etatCivil: true, champs: [{ colId: 'Date_de_naissance', colType: 'Date', label: 'Date de naissance', type: 'date', requis: true, valeur: row.ddn || '', naissance: true }] };
+  const adr = champManuel(/adresse/i, ['Text'], 'Adresse', 'text', ind.adresse, { ban: true });
+  const cp = champManuel(/^cp|postal/i, ['Text', 'Int', 'Numeric'], 'Code postal', 'text', cpVille[1] || '', { cp: true });
+  const commune = champManuel(/commune/i, ['Text'], 'Commune', 'text', (cpVille[2] || '').trim(), { normalise: (v) => v.toUpperCase() });
+  if (adr) ed.adresse = { titre: 'Adresse', aide: aide + ' Suggestions de la Base Adresse Nationale (IGN) : le texte tapé est envoyé à ce service public.', champs: [adr, cp, commune].filter(Boolean) };
+  if (cp && commune) ed.cpVille = { titre: 'Code postal et commune', aide, champs: [cp, commune] };
+  const rep = champManuel(/repr|legal/i, ['Text'], 'Représentant(s) légal(aux)', 'text', ind.representants);
+  if (rep) ed.representants = { titre: 'Représentant(s) légal(aux)', aide, champs: [rep] };
+  const debut = champManuel(/debut/i, ['Date'], 'Début de la dernière notification', 'date', secToIso(ind.debut));
+  if (debut) ed.debut = { titre: 'Début de la dernière notification', aide, champs: [debut] };
+  const fin = champManuel(/^fin/i, ['Date'], 'Fin de droits', 'date', secToIso(ind.fin));
+  if (fin) ed.fin = { titre: 'Fin de droits', aide, champs: [fin] };
+  return ed;
+}
+
+/** Ligne « libellé : valeur » du dossier ; avec crayon si le champ est modifiable. */
+function ligneModifiable(libelle, valeur, editeur, ctx) {
+  return [
+    libelle,
+    [
+      h('span', { class: 'dossier-valeur' }, valeur || '—'),
+      editeur
+        ? h('button', {
+            class: 'fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-pencil-line fr-ml-1w',
+            type: 'button',
+            title: `Modifier : ${libelle}`,
+            'aria-label': `Modifier : ${libelle}`,
+            onclick: (e) => ouvrirEdition(e.currentTarget.closest('dd'), editeur, ctx),
+          }, 'Modifier')
+        : null,
+    ],
+  ];
+}
+
+function afficherValeur(champ, v) {
+  if (champ.type === 'date') return formatDateFr(v) || '—';
+  return v || '—';
+}
+
+function ouvrirEdition(dd, editeur, ctx) {
+  // une seule édition à la fois : on referme les autres
+  document.querySelectorAll('#dossier .dossier-edition').forEach((f) => f.dispatchEvent(new Event('annuler')));
+  const valeurAvant = dd.replaceChildren.bind(dd);
+  const contenu = [...dd.childNodes];
+  const champs = editeur.champs;
+  const champsEls = champs.map((c, i) => {
+    const id = `edit-${c.colId}`;
+    const input = h('input', { class: 'fr-input', id, type: c.type === 'date' ? 'date' : 'text', autocomplete: 'off', value: c.valeur || '', inputmode: c.cp ? 'numeric' : null, maxlength: c.cp ? 5 : null, title: `Saisir : ${c.label}` });
+    return { c, id, input, groupe: h('div', { class: 'fr-input-group fr-mb-1w' }, h('label', { class: i === 0 && champs.length === 1 ? 'fr-sr-only fr-label' : 'fr-label', for: id }, c.label), input) };
+  });
+  const form = h(
+    'form',
+    { class: 'dossier-edition', novalidate: true },
+    champsEls.map((x) => x.groupe),
+    editeur.aide ? h('p', { class: 'fr-hint-text fr-mb-1w' }, editeur.aide) : null,
+    h(
+      'ul',
+      { class: 'actions-ligne' },
+      h('li', {}, h('button', { class: 'fr-btn fr-btn--sm fr-icon-check-line fr-btn--icon-left', type: 'submit', title: 'Valider la saisie : une confirmation montrera ce qui change' }, 'Valider')),
+      h('li', {}, h('button', { class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-close-line fr-btn--icon-left', type: 'button', title: 'Abandonner la modification', onclick: () => form.dispatchEvent(new Event('annuler')) }, 'Annuler')),
+    ),
+  );
+  form.addEventListener('annuler', () => {
+    form.replaceWith(); // retire le formulaire
+    valeurAvant(...contenu);
+  });
+  dd.replaceChildren(form);
+  if (editeur.champs[0].ban && ADRESSE_SUGGESTIONS) {
+    const get = (re) => champsEls.find((x) => re.test(x.c.colId));
+    attachSuggest(champsEls[0].input, {
+      minChars: 4,
+      delay: 350,
+      fetchItems: async (query, signal) => {
+        const r = await fetch(banUrl(query), { signal, credentials: 'omit', referrerPolicy: 'no-referrer', headers: { accept: 'application/json' } });
+        if (!r.ok) throw new Error(`BAN : HTTP ${r.status}`);
+        return parseBan(await r.json());
+      },
+      onPick: (a) => {
+        champsEls[0].input.value = a.adresse;
+        const cpEl = get(/^cp|postal/i);
+        const comEl = get(/commune/i);
+        if (cpEl) cpEl.input.value = a.cp;
+        if (comEl) comEl.input.value = a.commune;
+      },
+    });
+  }
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    validerEdition(form, editeur, champsEls, ctx);
+  });
+  champsEls[0].input.focus();
+}
+
+function validerEdition(form, editeur, champsEls, ctx) {
+  clearFieldErrors(form);
+  const { row } = ctx;
+  const nouveau = {};
+  let ok = true;
+  for (const { c, id, input } of champsEls) {
+    let v = input.value.trim().replace(/\s+/g, ' ');
+    if (c.normalise) v = c.normalise(v);
+    if (c.requis && !v) {
+      setFieldError(id, 'Ce champ est obligatoire.');
+      ok = false;
+    } else if (c.type === 'date' && v) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (isoToSec(v) === null) {
+        setFieldError(id, 'Cette date est invalide.');
+        ok = false;
+      } else if (c.naissance && (v > today || v < '1990-01-01')) {
+        setFieldError(id, v > today ? 'La date de naissance ne peut pas être dans le futur.' : "Cette date de naissance semble erronée (avant 1990).");
+        ok = false;
+      }
+    } else if (c.cp && v && !/^\d{5}$/.test(v)) {
+      setFieldError(id, 'Un code postal compte 5 chiffres.');
+      ok = false;
+    } else if (c.requis && c.type === 'text' && norm(v).length === 0) {
+      setFieldError(id, 'Saisis au moins une lettre.');
+      ok = false;
+    }
+    nouveau[c.colId] = v;
+  }
+  if (!ok) return;
+
+  // changements réels uniquement
+  const modifs = champsEls
+    .filter(({ c }) => (nouveau[c.colId] || '') !== (c.valeur || ''))
+    .map(({ c }) => [c.label, afficherValeur(c, c.valeur), afficherValeur(c, nouveau[c.colId])]);
+  if (modifs.length === 0) {
+    form.dispatchEvent(new Event('annuler'));
+    notify('info', 'Aucune modification à enregistrer.');
+    return;
+  }
+
+  // doublon : une autre fiche ne doit pas avoir la même clé nom|prénom|date
+  if (editeur.etatCivil) {
+    const n = { nom: row.nom, prenom: row.prenom, ddn: row.ddn || '' };
+    if ('Nom' in nouveau) n.nom = nouveau.Nom;
+    if ('Prenom' in nouveau) n.prenom = nouveau.Prenom;
+    if ('Date_de_naissance' in nouveau) n.ddn = nouveau.Date_de_naissance;
+    const conflit = state.individus.find((r) => r.id !== row.id && r.cle === cle(n.nom, n.prenom, n.ddn));
+    if (conflit) {
+      setFieldError(champsEls[0].id, 'Une autre fiche a déjà ce nom, ce prénom et cette date de naissance : utilise-la plutôt que de créer un doublon.');
+      return;
+    }
+  }
+
+  confirmerModification(modifs, () => ecrireIndividu(row, champsEls, nouveau, ctx), editeur.etatCivil ? AVERT_ETAT_CIVIL : '');
+}
+
+async function ecrireIndividu(row, champsEls, nouveau, ctx) {
+  const valeurs = {};
+  for (const { c } of champsEls) {
+    const v = nouveau[c.colId];
+    if ((v || '') === (c.valeur || '')) continue; // inchangé : on n'écrit rien
+    if (c.colType === 'Date') valeurs[c.colId] = v ? isoToSec(v) : null;
+    else if (c.colType === 'Int' || c.colType === 'Numeric') valeurs[c.colId] = v === '' ? null : Number(v);
+    else valeurs[c.colId] = v;
+  }
+  try {
+    viderCache();
+    await grist.docApi.applyUserActions([['UpdateRecord', T_INDIVIDUS, row.id, valeurs]]);
+    await refreshIndividus();
+    const frais = state.individus.find((r) => r.id === row.id) || row;
+    if (state.results) state.results.rows = state.results.rows.map((r) => (r.id === row.id ? frais : r));
+    if (state.eleve && state.eleve.id === row.id) {
+      state.eleve = frais;
+      $('#eleve-resume').textContent = `${frais.nom} ${frais.prenom}, né(e) le ${formatDateFr(frais.ddn) || '(date non renseignée)'}`;
+    }
+    await openDossier(frais, ctx.origine);
+    notify('success', 'Modification enregistrée.');
+  } catch (err) {
+    notify('error', `Enregistrement impossible : ${err.message}`);
+  }
+}
+
 async function openDossier(row, origine = 2) {
   clearNotice();
   const box = $('#dossier');
@@ -646,6 +849,7 @@ async function openDossier(row, origine = 2) {
       fin: get('Fin_droits_ULIS'),
       premiere: get('Premiere_notif_ULIS'),
       notif: get('Notification_ULIS') === true,
+      manuel: Object.fromEntries(state.champsManuels.map((f) => [f.colId, get(f.colId)])),
     };
     await refreshScolarite(row.id);
     scol = state.scol;
@@ -655,25 +859,27 @@ async function openDossier(row, origine = 2) {
   }
   const todayIso = new Date().toISOString().slice(0, 10);
   const enCours = ligneEnCours(scol, todayIso);
+  const ctx = { row, origine };
+  const ed = editeursDossier(row, ind);
   box.replaceChildren(
     h('h4', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
-      ['Nom', row.nom],
-      ['Prénom', row.prenom],
-      ['Date de naissance', formatDateFr(row.ddn)],
+      ligneModifiable('Nom', row.nom, ed.nom, ctx),
+      ligneModifiable('Prénom', row.prenom, ed.prenom, ctx),
+      ligneModifiable('Date de naissance', formatDateFr(row.ddn), ed.ddn, ctx),
     ]),
     h('h4', { class: 'fr-h6' }, 'Coordonnées'),
     listeInfos([
-      ['Adresse', ind.adresse],
-      ['Code postal et commune', ind.cpVille],
-      ['Représentant(s) légal(aux)', ind.representants],
+      ligneModifiable('Adresse', ind.adresse, ed.adresse, ctx),
+      ligneModifiable('Code postal et commune', ind.cpVille, ed.cpVille, ctx),
+      ligneModifiable('Représentant(s) légal(aux)', ind.representants, ed.representants, ctx),
     ]),
     h('h4', { class: 'fr-h6' }, 'Notification ULIS'),
     listeInfos([
-      ['Notification ULIS', ind.notif ? 'Oui' : 'Non'],
-      ['Première notification', dateOuTexte(ind.premiere)],
-      ['Début de la dernière', dateOuTexte(ind.debut)],
-      ['Fin de droits', dateOuTexte(ind.fin)],
+      ligneModifiable('Notification ULIS', ind.notif ? 'Oui' : 'Non', null, ctx),
+      ligneModifiable('Première notification', dateOuTexte(ind.premiere), null, ctx),
+      ligneModifiable('Début de la dernière', dateOuTexte(ind.debut), ed.debut, ctx),
+      ligneModifiable('Fin de droits', dateOuTexte(ind.fin), ed.fin, ctx),
     ]),
     h('h4', { class: 'fr-h6' }, 'Historique des affectations'),
     scol.length === 0
@@ -715,7 +921,7 @@ async function openDossier(row, origine = 2) {
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title', id: 'h-dossier', tabindex: '-1' }, `Dossier de ${row.nom} ${row.prenom}`),
-      h('p', { class: 'fr-stepper__details' }, "Lecture seule. Les données personnelles ne s'affichent qu'à l'écran et ne quittent pas Grist."),
+      h('p', { class: 'fr-stepper__details' }, "Les données personnelles ne s'affichent qu'à l'écran et ne quittent pas Grist. Le crayon corrige un champ, avec confirmation avant écriture."),
     ),
     h(
       'nav',
@@ -1000,7 +1206,7 @@ function renderScolList() {
                           h(
                             'button',
                             {
-                              class: 'fr-btn fr-btn--sm fr-btn--secondary',
+                              class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-pencil-line',
                               type: 'button',
                               onclick: () => openScolForm(l),
                               'aria-label': `Modifier l'affectation du ${dateLabel(l)}`,
@@ -1355,11 +1561,13 @@ async function supprimerLigne(ligne) {
 }
 
 /** Confirmation d'une modification : tableau « avant → après » des seuls champs changés. */
-function confirmerModification(modifs, onOui) {
+function confirmerModification(modifs, onOui, avertissement = '') {
   ouvrirModale({
     titre: 'Enregistrer ces modifications ?',
     icone: 'fr-icon-check-line',
-    corps: h(
+    corps: [
+      avertissement ? h('p', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w' }, avertissement) : null,
+      h(
       'table',
       { class: 'modale-diff' },
       h('caption', { class: 'fr-sr-only' }, 'Modifications à enregistrer'),
@@ -1372,6 +1580,7 @@ function confirmerModification(modifs, onOui) {
         ),
       ),
     ),
+    ],
     actions: [
       { id: 'dlg-oui', libelle: 'Oui, enregistrer', info: 'Écrire ces modifications dans Grist', onClick: onOui },
       { id: 'dlg-non', libelle: 'Revenir au formulaire', info: 'Fermer cette fenêtre et continuer la modification : rien n\'est enregistré', secondaire: true },
