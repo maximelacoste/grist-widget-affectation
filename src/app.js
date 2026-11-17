@@ -136,7 +136,7 @@ function renderStepper() {
     ),
     h(
       'nav',
-      { 'aria-label': 'Navigation entre les étapes', class: 'fr-btns-group fr-btns-group--inline fr-btns-group--sm fr-mb-2w' },
+      { 'aria-label': 'Navigation entre les étapes', class: 'step-nav fr-mb-2w' },
       n > 1 ? navButton(n - 1, 'prev') : null,
       n < STEPS.length ? navButton(n + 1, 'next') : null,
     ),
@@ -554,7 +554,8 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
     const { total, rows } = filterOptions(options, query);
     shown = rows;
     list.replaceChildren(
-      ...rows.map((o, i) =>
+      ...[
+        ...rows.map((o, i) =>
         h(
           'li',
           {
@@ -570,8 +571,9 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
           o.label,
         ),
       ),
-      total > rows.length ? h('li', { role: 'presentation', class: 'combo-more' }, `${total - rows.length} autres résultats : précise la recherche.`) : null,
-      total === 0 ? h('li', { role: 'presentation', class: 'combo-more' }, 'Aucun résultat.') : null,
+        total > rows.length ? h('li', { role: 'presentation', class: 'combo-more' }, `${total - rows.length} autres résultats : précise la recherche.`) : null,
+        total === 0 ? h('li', { role: 'presentation', class: 'combo-more' }, 'Aucun résultat.') : null,
+      ].filter(Boolean), // replaceChildren(null) écrirait le texte « null »
     );
     list.hidden = false;
     input.setAttribute('aria-expanded', 'true');

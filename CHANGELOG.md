@@ -3,6 +3,8 @@
 ## [Non publié]
 
 ### Corrigé
+- Les boutons « Précédent » / « Suivant » s'affichaient comme des carrés : `fr-btns-group` impose des règles d'icônes de groupe ; remplacé par un bloc flexible (`.step-nav`).
+- Le texte « null » apparaissait sous la liste de recherche des établissements.
 - Les icônes (flèches de navigation, loupe) s'affichaient comme des carrés pleins : les feuilles d'icônes du DSFR (`icons-arrows`, `icons-system`) n'étaient pas chargées.
 
 ### Ajouté

@@ -28,3 +28,7 @@ body { background: transparent; }
   outline-offset: -2px;
 }
 .combo-more { padding: 0.5rem 0.75rem; font-style: italic; }
+
+/* Navigation entre les étapes : un simple bloc flexible (fr-btns-group impose des règles d'icônes
+   de groupe, incompatibles avec une icône à gauche et l'autre à droite). */
+.step-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; }
