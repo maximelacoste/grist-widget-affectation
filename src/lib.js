@@ -42,6 +42,25 @@ export function cle(nom, prenom, iso) {
   return `${norm(nom)}|${norm(prenom)}|${iso || ''}`;
 }
 
+/**
+ * Une cellule Grist en erreur ou invalide arrive sous forme de tableau, par exemple
+ * ['E', 'InvalidTypedValue', 'Ref', 'Sortie du département'] : texte saisi dans une colonne
+ * Référence sans correspondance. On le reconnaît pour ne jamais l'afficher tel quel.
+ */
+export function isInvalidCell(v) {
+  return Array.isArray(v) && v[0] === 'E';
+}
+
+/** Texte lisible d'une cellule : texte brut d'une valeur invalide, éléments d'une liste, '' si vide. */
+export function cellText(v) {
+  if (v == null) return '';
+  if (Array.isArray(v)) {
+    if (v[0] === 'E') return v[1] === 'InvalidTypedValue' ? String(v[3] ?? '') : `erreur ${v[1] ?? ''}`.trim();
+    return v.slice(v[0] === 'L' ? 1 : 0).map(cellText).join(', ');
+  }
+  return String(v);
+}
+
 /** Date Grist (secondes depuis l'epoch, UTC) -> 'AAAA-MM-JJ' ; '' si ce n'est pas une date. */
 export function secToIso(v) {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '';
@@ -76,10 +95,10 @@ export function tableToRows(t, cols) {
 export function toIndividus(t) {
   return tableToRows(t, ['Nom', 'Prenom', 'Date_de_naissance', 'Cle', 'Id_app']).map((r) => ({
     id: r.id,
-    nom: String(r.Nom ?? ''),
-    prenom: String(r.Prenom ?? ''),
+    nom: cellText(r.Nom),
+    prenom: cellText(r.Prenom),
     ddn: secToIso(r.Date_de_naissance),
-    cle: String(r.Cle ?? ''),
+    cle: cellText(r.Cle),
     idApp: r.Id_app,
   }));
 }

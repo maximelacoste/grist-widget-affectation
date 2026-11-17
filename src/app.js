@@ -1,10 +1,13 @@
 import {
+  cellText,
   cle,
   filterOptions,
   formatDateFr,
+  isInvalidCell,
   isoToSec,
   ligneEnCours,
   norm,
+  normSearch,
   searchIndividus,
   secToIso,
   tableToRows,
@@ -57,6 +60,7 @@ const state = {
   eleve: null,
   scol: [],
   editingId: null, // null = création
+  editingLigne: null,
 };
 
 /* ------------------------------------------------------------------ */
@@ -213,9 +217,10 @@ async function loadMeta() {
   const visible = colById.get(aff.visibleCol)?.colId;
   const t = await grist.docApi.fetchTable(refTable);
   const etabs = t.id.map((id, i) => {
-    const base = visible && t[visible] ? String(t[visible][i] ?? '') : `#${id}`;
-    const commune = t.Commune ? String(t.Commune[i] ?? '') : '';
-    return { id, label: commune && !base.includes(commune) ? `${base} (${commune})` : base };
+    const base = visible && t[visible] ? cellText(t[visible][i]) : `#${id}`;
+    const commune = t.Commune ? cellText(t.Commune[i]) : '';
+    // la commune n'est ajoutée que si le libellé ne la contient pas déjà (« (FROUZINS) » vs « Frouzins »)
+    return { id, label: commune && !normSearch(base).includes(normSearch(commune)) ? `${base} (${commune})` : base };
   });
   etabs.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
   state.etabs = etabs;
@@ -233,10 +238,12 @@ async function refreshScolarite() {
     .map((r) => ({
       id: r.id,
       date: secToIso(r[COL.dateEffet]),
-      affectation: r[COL.affectation] || 0,
-      niveau: r[COL.niveau] || '',
-      situation: r[COL.situation] || '',
-      attente: Boolean(r[COL.attente]),
+      dateBrute: typeof r[COL.dateEffet] === 'number' ? '' : cellText(r[COL.dateEffet]), // texte non reconnu comme date
+      affectation: typeof r[COL.affectation] === 'number' ? r[COL.affectation] : 0,
+      affectationInvalide: isInvalidCell(r[COL.affectation]) ? cellText(r[COL.affectation]) : '', // texte sans correspondance
+      niveau: cellText(r[COL.niveau]),
+      situation: cellText(r[COL.situation]),
+      attente: r[COL.attente] === true,
     }))
     .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.id - a.id);
 }
@@ -508,6 +515,20 @@ async function chooseEleve(row, { keepNotice = false } = {}) {
 /* ------------------------------------------------------------------ */
 /* Étape 3 : scolarité                                                 */
 /* ------------------------------------------------------------------ */
+/** Date d'effet affichable : la date, ou le texte non reconnu comme date, ou « sans date ». */
+function dateLabel(l) {
+  return formatDateFr(l.date) || (l.dateBrute ? `${l.dateBrute} (date invalide)` : 'sans date');
+}
+
+/** Cellule « Affectation » : libellé de l'établissement, ou texte sans correspondance signalé. */
+function affectationCell(l) {
+  if (l.affectation) return state.etabLabel.get(l.affectation) || `#${l.affectation}`;
+  if (l.affectationInvalide) {
+    return [l.affectationInvalide, ' ', h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon' }, 'Non reconnue')];
+  }
+  return '—';
+}
+
 function renderScolList() {
   const box = $('#scol-list');
   if (state.scol.length === 0) {
@@ -548,11 +569,11 @@ function renderScolList() {
                     h(
                       'td',
                       {},
-                      formatDateFr(l.date) || 'sans date',
+                      dateLabel(l),
                       ' ',
                       enCours && enCours.id === l.id ? h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'En cours') : null,
                     ),
-                    h('td', {}, l.affectation ? state.etabLabel.get(l.affectation) || `#${l.affectation}` : '—'),
+                    h('td', {}, affectationCell(l)),
                     h('td', {}, l.niveau || '—'),
                     h('td', {}, l.situation || '—'),
                     h('td', {}, l.attente ? 'Oui' : 'Non'),
@@ -565,7 +586,7 @@ function renderScolList() {
                           class: 'fr-btn fr-btn--sm fr-btn--secondary',
                           type: 'button',
                           onclick: () => openScolForm(l),
-                          'aria-label': `Modifier l'affectation du ${formatDateFr(l.date) || 'sans date'}`,
+                          'aria-label': `Modifier l'affectation du ${dateLabel(l)}`,
                         },
                         'Modifier',
                       ),
@@ -582,6 +603,8 @@ function renderScolList() {
 }
 
 function select(id, label, options, value, { hint = '' } = {}) {
+  // une valeur actuelle hors liste est ajoutée, sinon l'enregistrement l'effacerait
+  if (value && !options.some((o) => String(o.value) === String(value))) options = [...options, { value, label: `${value} (hors liste)` }];
   return h(
     'div',
     { class: 'fr-select-group fr-mb-2w' },
@@ -719,6 +742,7 @@ $('#btn-back-1b').addEventListener('click', backToSearch);
 function openScolForm(ligne) {
   clearNotice();
   state.editingId = ligne ? ligne.id : null;
+  state.editingLigne = ligne;
   const defSituation = ligne ? ligne.situation : state.situations.includes(SITUATION_PAR_DEFAUT) ? SITUATION_PAR_DEFAUT : '';
   const form = $('#form-scol');
   form.replaceChildren(
@@ -732,7 +756,9 @@ function openScolForm(ligne) {
     combobox({
       id: 's-aff',
       label: 'Affectation',
-      hint: 'Tape quelques mots du nom ou de la commune.',
+      hint: ligne && ligne.affectationInvalide
+        ? `Valeur actuelle non reconnue : « ${ligne.affectationInvalide} ». Elle est conservée tant que tu ne choisis pas d'établissement.`
+        : 'Tape quelques mots du nom ou de la commune.',
       placeholder: 'Rechercher un établissement…',
       options: state.etabs.map((e) => ({ value: e.id, label: e.label })),
       value: ligne ? ligne.affectation : '',
@@ -778,11 +804,13 @@ $('#form-scol').addEventListener('submit', async (e) => {
   }
   const fields = {
     [COL.dateEffet]: isoToSec(iso),
-    [COL.affectation]: Number(affInput.dataset.value) || 0,
     [COL.niveau]: $('#s-niveau').value,
     [COL.situation]: $('#s-situation').value,
     [COL.attente]: $('#s-attente').checked,
   };
+  // Affectation : écrite seulement si elle change (une valeur non reconnue n'est pas effacée par un simple enregistrement).
+  const aff = Number(affInput.dataset.value) || 0;
+  if (!state.editingLigne || aff !== (state.editingLigne.affectation || 0)) fields[COL.affectation] = aff;
   try {
     const action = state.editingId
       ? ['UpdateRecord', T_SCOLARITE, state.editingId, fields]

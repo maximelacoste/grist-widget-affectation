@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -88,4 +88,16 @@ test('ligneEnCours : dernière ligne datée <= aujourd\'hui, départage par id',
   assert.equal(ligneEnCours(l, '2026-11-16').id, 3);
   assert.equal(ligneEnCours(l, '2025-10-01').id, 1);
   assert.equal(ligneEnCours(l, '2024-01-01'), null);
+});
+
+test('cellText / isInvalidCell : cellules invalides de Grist', () => {
+  const invalide = ['E', 'InvalidTypedValue', 'Ref', 'Sortie du département'];
+  assert.equal(isInvalidCell(invalide), true);
+  assert.equal(isInvalidCell(12), false);
+  assert.equal(cellText(invalide), 'Sortie du département');
+  assert.equal(cellText(['E', 'ZeroDivisionError']), 'erreur ZeroDivisionError');
+  assert.equal(cellText(['L', 'a', 'b']), 'a, b');
+  assert.equal(cellText(null), '');
+  assert.equal(cellText(0), '0');
+  assert.equal(cellText('Léa'), 'Léa');
 });

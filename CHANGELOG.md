@@ -10,6 +10,11 @@
 - Création d'une fiche : champs facultatifs construits à partir des colonnes de données d'`Individus` dont l'identifiant finit par `_manuel` ou `_manuelle` (types Texte, Date, Entier, Numérique, Bascule, Choix), affichées dans l'ordre : début, fin, représentants légaux, adresse, code postal, commune, puis les autres ; seuls les champs renseignés sont écrits.
 
 ### Corrigé
+- Une `Affectation` contenant un texte sans correspondance (ex. « Sortie du département ») s'affichait `E,InvalidTypedValue,Ref,…` : le texte est maintenant affiché avec le badge « Non reconnue », et un simple enregistrement de la ligne ne l'efface plus (`Affectation` n'est écrite que si elle change).
+- Une valeur de `Niveau_saisi` ou `Situation` absente de la liste des choix (ex. niveaux de formation pro) est conservée à l'enregistrement, signalée « (hors liste) ».
+- Une `Date_effet` qui n'est pas une date affiche son texte avec « (date invalide) » au lieu de « sans date ».
+- La commune n'est plus répétée dans le libellé d'un établissement quand il la contient déjà, à la casse près : « … (FROUZINS) (Frouzins) ».
+- Les cellules de `Individus` en erreur ne s'affichent plus comme des tableaux.
 - Les boutons « Précédent » / « Suivant » s'affichaient comme des carrés : `fr-btns-group` impose des règles d'icônes de groupe ; remplacé par un bloc flexible (`.step-nav`).
 - Le texte « null » apparaissait sous la liste de recherche des établissements.
 - Les icônes (flèches de navigation, loupe) s'affichaient comme des carrés pleins : les feuilles d'icônes du DSFR (`icons-arrows`, `icons-system`) n'étaient pas chargées.
