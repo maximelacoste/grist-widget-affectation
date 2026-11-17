@@ -326,13 +326,19 @@ attachSuggest($('#q'), {
   minChars: 2,
   fetchItems: (query) =>
     rechercheLibre(state.individus, query, 8).rows.map((r) => ({ value: String(r.id), label: libelleEleve(r), row: r })),
-  onPick: async (item) => {
+  onPick: (item) => {
+    // Un clic sur une suggestion mène à la page des résultats, avec cette seule fiche : Affecter ou Dossier.
     $('#q').value = `${item.row.nom} ${item.row.prenom}`;
+    clearNotice();
+    state.query = { texte: $('#q').value };
     state.searched = true;
+    state.eleve = null;
+    $('#form-scol').hidden = true;
+    $('#dossier').hidden = true;
     state.results = { total: 1, rows: [item.row] };
     renderResults();
     $('#form-create').hidden = true;
-    await chooseEleve(item.row);
+    goto(2);
   },
 });
 
