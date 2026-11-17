@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -100,4 +100,45 @@ test('cellText / isInvalidCell : cellules invalides de Grist', () => {
   assert.equal(cellText(null), '');
   assert.equal(cellText(0), '0');
   assert.equal(cellText('Léa'), 'Léa');
+});
+
+test('suggestNoms() : début de nom, sans accents ni espaces, graphie la plus fréquente, regroupé', () => {
+  const rows = [
+    { nom: 'Martin' }, { nom: 'MARTIN' }, { nom: 'Martin' }, { nom: 'Martinez' },
+    { nom: 'de la Fontaine' }, { nom: 'Muñoz' }, { nom: 'Durand' },
+  ];
+  assert.deepEqual(suggestNoms(rows, 'mar'), [
+    { value: 'Martin', label: 'Martin (3 fiches)' },
+    { value: 'Martinez', label: 'Martinez (1 fiche)' },
+  ]);
+  assert.deepEqual(suggestNoms(rows, 'DE LA F').map((s) => s.value), ['de la Fontaine']);
+  assert.deepEqual(suggestNoms(rows, 'munoz').map((s) => s.value), ['Muñoz']);
+  assert.deepEqual(suggestNoms(rows, 'm'), []); // trop court
+  assert.deepEqual(suggestNoms(rows, 'zzz'), []);
+  assert.equal(suggestNoms(rows, 'ma', 1).length, 1);
+});
+
+test('banUrl() : paramètres encodés, longueur bornée', () => {
+  const u = new URL(banUrl('  8  bd du Port  Amiens '));
+  assert.equal(u.origin + u.pathname, 'https://data.geopf.fr/geocodage/search/');
+  assert.equal(u.searchParams.get('q'), '8 bd du Port Amiens');
+  assert.equal(u.searchParams.get('autocomplete'), '1');
+  assert.equal(new URL(banUrl('x'.repeat(500))).searchParams.get('q').length, 200);
+});
+
+test('parseBan() : sépare voie, code postal et commune ; écarte les communes seules et les réponses incomplètes', () => {
+  const json = {
+    features: [
+      { properties: { label: '8 Boulevard du Port 80000 Amiens', name: '8 Boulevard du Port', postcode: '80000', city: 'Amiens', type: 'housenumber' } },
+      { properties: { label: 'Amiens', name: 'Amiens', postcode: '80000', city: 'Amiens', type: 'municipality' } },
+      { properties: { label: 'Rue sans code', name: 'Rue sans code', city: 'Ailleurs', type: 'street' } },
+      { properties: { name: 'Chemin de Peyre', postcode: '01000', city: 'Bourg', type: 'street' } },
+    ],
+  };
+  assert.deepEqual(parseBan(json), [
+    { label: '8 Boulevard du Port 80000 Amiens', adresse: '8 Boulevard du Port', cp: '80000', commune: 'Amiens' },
+    { label: 'Chemin de Peyre 01000 Bourg', adresse: 'Chemin de Peyre', cp: '01000', commune: 'Bourg' },
+  ]);
+  assert.deepEqual(parseBan(null), []);
+  assert.deepEqual(parseBan({}), []);
 });

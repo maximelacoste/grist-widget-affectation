@@ -7,6 +7,8 @@
 - Création d'une fiche : nom, prénom et date de naissance sont tous obligatoires (la case « date inconnue » disparaît ; une date future est refusée).
 
 ### Ajouté
+- Recherche : le nom de famille est prédictif. Les noms déjà présents dans `Individus` sont proposés dès 2 lettres (sans accents ni tirets, regroupés, avec le nombre de fiches), au clavier ou à la souris ; la saisie libre reste toujours possible.
+- Création d'une fiche : suggestions d'adresses normées de la Base Adresse Nationale (Géoplateforme de l'IGN) dans le champ adresse ; le choix remplit aussi le code postal et la commune. Le texte tapé est envoyé à ce service public (mention affichée sous le champ, voir README) ; désactivable avec `ADRESSE_SUGGESTIONS`, et sans effet bloquant si le service est indisponible.
 - Création d'une fiche : champs facultatifs construits à partir des colonnes de données d'`Individus` dont l'identifiant finit par `_manuel` ou `_manuelle` (types Texte, Date, Entier, Numérique, Bascule, Choix), affichées dans l'ordre : début, fin, représentants légaux, adresse, code postal, commune, puis les autres ; seuls les champs renseignés sont écrits.
 
 ### Corrigé

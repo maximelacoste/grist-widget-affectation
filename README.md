@@ -42,7 +42,9 @@ npm run serve      # http://localhost:8080 (le widget n'a de sens qu'intégré d
 
 ## Confidentialité
 
-Le widget charge `Individus` dans le navigateur de l'utilisateur pour chercher (rechargé à chaque recherche). Aucune donnée n'est envoyée ailleurs que dans le document Grist.
+Le widget charge `Individus` dans le navigateur de l'utilisateur pour chercher (rechargé à chaque recherche). Les noms suggérés viennent de ce chargement local : rien n'est envoyé ailleurs.
+
+**Une exception : les suggestions d'adresse.** Pendant la saisie dans le champ adresse de la création d'une fiche, le texte tapé (4 caractères au moins, après une pause de frappe) est envoyé à la Base Adresse Nationale (service de géocodage de la Géoplateforme de l'IGN, `data.geopf.fr`) : service public, sans clé ni cookie, sans l'identité de l'élève ni le reste de la fiche, mais l'adresse partielle d'un représentant légal circule. Le champ porte une mention qui le dit. Pour désactiver cette fonction, mettre `ADRESSE_SUGGESTIONS = false` dans `src/app.js` ; la saisie libre fonctionne alors seule, comme elle le fait aussi si le service est indisponible.
 
 ## Accessibilité
 

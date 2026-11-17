@@ -1,4 +1,5 @@
 import {
+  banUrl,
   cellText,
   cle,
   filterOptions,
@@ -8,11 +9,14 @@ import {
   ligneEnCours,
   norm,
   normSearch,
+  parseBan,
   searchIndividus,
   secToIso,
+  suggestNoms,
   tableToRows,
   toIndividus,
 } from './lib.js';
+import { attachSuggest } from './suggest.js';
 
 /* ------------------------------------------------------------------ */
 /* Configuration : noms des tables et colonnes du document Grist       */
@@ -36,6 +40,9 @@ const rangManuel = (c) => {
   return i < 0 ? MANUEL_ORDRE.length : i;
 };
 const MANUEL_MULTILIGNE = /adresse|repr|legal/i; // champs texte affichés sur plusieurs lignes
+// Suggestions d'adresses normées (Base Adresse Nationale, Géoplateforme de l'IGN). Le texte tapé dans le champ
+// adresse est envoyé à ce service public : passer à `false` pour désactiver sans toucher au reste.
+const ADRESSE_SUGGESTIONS = true;
 
 const STEPS = [
   { title: "Rechercher l'élève", next: "Choisir ou créer la fiche de l'élève" },
@@ -279,6 +286,16 @@ $('#form-search').addEventListener('submit', async (e) => {
   goto(2);
 });
 
+// Nom de famille prédictif : propose les noms déjà présents dans Individus (liste chargée au démarrage).
+attachSuggest($('#q-nom'), {
+  minChars: 2,
+  fetchItems: (query) => suggestNoms(state.individus, query),
+  onPick: (n) => {
+    $('#q-nom').value = n.value;
+    $('#q-prenom').focus();
+  },
+});
+
 /* ------------------------------------------------------------------ */
 /* Étape 2 : choisir ou créer                                          */
 /* ------------------------------------------------------------------ */
@@ -398,7 +415,8 @@ function renderManualFields() {
     else if (f.type === 'Date') el = h('input', { class: 'fr-input', id, type: 'date' });
     else if (f.type === 'Int' || f.type === 'Numeric') el = h('input', { class: 'fr-input', id, type: 'number', step: f.type === 'Int' ? '1' : 'any' });
     else el = h('input', { class: 'fr-input', id, type: 'text', autocomplete: 'off' });
-    return h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: id }, f.label), el);
+    const hint = ADRESSE_SUGGESTIONS && f.type === 'Text' && /adresse/i.test(f.colId) ? 'Suggestions de la Base Adresse Nationale (IGN) : le texte saisi ici est envoyé à ce service public.' : '';
+    return h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: id }, f.label, hint ? h('span', { class: 'fr-hint-text' }, hint) : null), el);
   };
   box.replaceChildren(
     h(
@@ -408,6 +426,33 @@ function renderManualFields() {
       state.champsManuels.map((f, i) => h('div', { class: 'fr-fieldset__element' }, control(f, i))),
     ),
   );
+  if (ADRESSE_SUGGESTIONS) attachAdresse();
+}
+
+/** Suggestions d'adresses sur le champ adresse ; le choix remplit aussi le code postal et la commune s'ils existent. */
+function attachAdresse() {
+  const idx = (re, types) => state.champsManuels.findIndex((f) => re.test(f.colId) && types.includes(f.type));
+  const iAdresse = idx(/adresse/i, ['Text']);
+  if (iAdresse < 0) return;
+  const iCp = idx(/^cp|postal/i, ['Text', 'Int', 'Numeric']);
+  const iCommune = idx(/commune/i, ['Text']);
+  const set = (i, v) => {
+    if (i >= 0) $(`#c-m-${i}`).value = v;
+  };
+  attachSuggest($(`#c-m-${iAdresse}`), {
+    minChars: 4,
+    delay: 350, // une requête par pause de frappe, pas une par lettre
+    fetchItems: async (query, signal) => {
+      const r = await fetch(banUrl(query), { signal, credentials: 'omit', referrerPolicy: 'no-referrer', headers: { accept: 'application/json' } });
+      if (!r.ok) throw new Error(`BAN : HTTP ${r.status}`);
+      return parseBan(await r.json());
+    },
+    onPick: (a) => {
+      set(iAdresse, a.adresse);
+      set(iCp, a.cp);
+      set(iCommune, a.commune);
+    },
+  });
 }
 
 /** Lit les champs facultatifs non vides ; renvoie null (et signale l'erreur) si l'un est invalide. */

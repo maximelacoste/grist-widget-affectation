@@ -126,3 +126,48 @@ export function ligneEnCours(lignes, todayIso) {
   }
   return best;
 }
+
+/**
+ * Noms de famille déjà présents dans Individus dont le début correspond à la saisie (sans accents,
+ * ni espaces, ni tirets). Un même nom n'apparaît qu'une fois, avec sa graphie la plus fréquente ;
+ * les plus nombreux d'abord. Renvoie `[{ value, label }]`.
+ */
+export function suggestNoms(rows, query, limit = 8) {
+  const q = norm(query);
+  if (q.length < 2) return [];
+  const groupes = new Map(); // nom normalisé -> Map(graphie -> effectif)
+  for (const r of rows) {
+    const k = norm(r.nom);
+    if (!k.startsWith(q)) continue;
+    const graphies = groupes.get(k) ?? new Map();
+    graphies.set(r.nom, (graphies.get(r.nom) ?? 0) + 1);
+    groupes.set(k, graphies);
+  }
+  return [...groupes.values()]
+    .map((graphies) => {
+      const triees = [...graphies].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr'));
+      const total = triees.reduce((s, [, n]) => s + n, 0);
+      return { value: triees[0][0], n: total };
+    })
+    .sort((a, b) => b.n - a.n || a.value.localeCompare(b.value, 'fr'))
+    .slice(0, limit)
+    .map(({ value, n }) => ({ value, label: `${value} (${n} fiche${n > 1 ? 's' : ''})` }));
+}
+
+/** Service de géocodage de la Géoplateforme (IGN) : successeur de api-adresse.data.gouv.fr (Base Adresse Nationale). */
+export const BAN_URL = 'https://data.geopf.fr/geocodage/search/';
+
+/** URL de recherche d'adresse avec autocomplétion. */
+export function banUrl(query, limit = 6) {
+  const q = String(query ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  return `${BAN_URL}?${new URLSearchParams({ q, limit: String(limit), autocomplete: '1' })}`;
+}
+
+/** Réponse GeoJSON de la BAN -> `[{ label, adresse, cp, commune }]` (numéro et voie séparés du code postal et de la commune). */
+export function parseBan(json) {
+  const features = Array.isArray(json?.features) ? json.features : [];
+  return features
+    .map((f) => f?.properties ?? {})
+    .filter((p) => p.name && p.postcode && p.city && p.type !== 'municipality') // une commune seule n'est pas une adresse
+    .map((p) => ({ label: p.label || `${p.name} ${p.postcode} ${p.city}`, adresse: p.name, cp: String(p.postcode), commune: p.city }));
+}
