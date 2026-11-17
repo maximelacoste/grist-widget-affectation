@@ -468,7 +468,6 @@ async function lireNotes(row) {
       date: typeof t.Cree_le?.[i] === 'number' ? secToIso(t.Cree_le[i]) : '',
       type: cellText(t.Type?.[i]),
       note: cellText(t.Note?.[i]),
-      nb: t.NB?.[i] === true,
     }))
     .filter((n) => garde(n.i) && n.note)
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
@@ -582,7 +581,7 @@ async function openDossier(row) {
           ['Date', 'Type', 'Note'],
           notes.map((n) => [
             formatDateFr(n.date) || '—',
-            [n.type || '—', n.nb ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, 'NB')] : null],
+            n.type || '—',
             h('span', { class: 'note-texte' }, n.note),
           ]),
         ),
