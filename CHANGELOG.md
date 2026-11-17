@@ -2,6 +2,9 @@
 
 ## [Non publié]
 
+- Recherche : un seul champ (nom, prénom, date de naissance, dans n'importe quel ordre) ; suggestions « NOM Prénom, né(e) le … » dès 2 caractères ; un clic ouvre l'élève ; création pré-remplie si rien ne correspond.
+- Résultats : boutons « Affecter » et « Dossier » ; le dossier (lecture seule) montre état civil, coordonnées, notification ULIS et historique des affectations. Les données personnelles ne s'affichent qu'à l'écran.
+
 - Établissements : plus de parenthèse en double après le nom (la commune n'est ajoutée que si le libellé n'a pas déjà de parenthèse) ; type déduit du libellé si la colonne `Type` n'est pas reconnue ; message explicite quand le type reste inconnu.
 
 - Champs date : un clic sur un champ vide ouvre le calendrier (et plus seulement l'icône).

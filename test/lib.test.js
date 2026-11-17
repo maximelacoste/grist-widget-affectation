@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -163,4 +163,20 @@ test('typeEtab et libelleEtab', () => {
   assert.equal(libelleEtab('E.E.PU HENRI PUIS (ST ORENS DE GAMEVILLE)', 'Saint-Orens-de-Gameville'), 'E.E.PU HENRI PUIS (ST ORENS DE GAMEVILLE)');
   assert.equal(libelleEtab('COLLEGE X ()', ''), 'COLLEGE X');
   assert.equal(libelleEtab('COLLEGE X', 'Muret'), 'COLLEGE X (Muret)');
+});
+
+test('rechercheLibre : nom, prénom et date dans le désordre', () => {
+  const rows = [
+    { id: 1, nom: 'DUPONT', prenom: 'Léa', ddn: '2015-03-12' },
+    { id: 2, nom: 'DUPONT', prenom: 'Léo', ddn: '2016-05-01' },
+    { id: 3, nom: 'MARTIN', prenom: 'Éloïse', ddn: '' },
+  ];
+  assert.equal(rechercheLibre(rows, 'dupont').total, 2);
+  assert.deepEqual(rechercheLibre(rows, 'léa dupont').rows.map((r) => r.id), [1]);
+  assert.deepEqual(rechercheLibre(rows, 'dupont 2016').rows.map((r) => r.id), [2]);
+  assert.deepEqual(rechercheLibre(rows, '12/03/2015 dupont').rows.map((r) => r.id), [1]);
+  assert.deepEqual(rechercheLibre(rows, 'eloise').rows.map((r) => r.id), [3]);
+  assert.equal(rechercheLibre(rows, 'd').total, 0);
+  assert.equal(libelleEleve(rows[0]), 'DUPONT Léa, né(e) le 12/03/2015');
+  assert.match(libelleEleve(rows[2]), /non renseignée/);
 });

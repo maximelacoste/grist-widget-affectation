@@ -210,3 +210,30 @@ export function libelleEtab(base, commune) {
   if (!c || b.includes('(') || normSearch(b).includes(normSearch(c))) return b;
   return `${b} (${c})`;
 }
+
+/**
+ * Recherche libre : chaque mot saisi doit se retrouver dans le nom, le prénom ou la date de naissance
+ * (jj/mm/aaaa, aaaa-mm-jj ou fragments : « 2015 », « 03/2015 »), dans n'importe quel ordre.
+ * Un mot qui ne contient que des chiffres et des séparateurs est traité comme un fragment de date.
+ */
+export function rechercheLibre(rows, query, limit = 50) {
+  const mots = String(query || '').trim().split(/\s+/).filter(Boolean);
+  const criteres = mots.map((m) => (/^[\d/.\-]+$/.test(m) ? { date: m.replace(/[.\-]/g, '/') } : { texte: norm(m) }));
+  if (criteres.length === 0 || criteres.every((c) => (c.texte ?? '').length < 2 && !c.date)) return { total: 0, rows: [] };
+  const out = rows.filter((r) => {
+    const fr = formatDateFr(r.ddn);
+    const nomNorm = norm(r.nom);
+    const prenomNorm = norm(r.prenom);
+    return criteres.every((c) =>
+      c.date !== undefined ? c.date.length >= 2 && (fr.includes(c.date) || (r.ddn || '').includes(c.date.replace(/\//g, '-'))) : c.texte.length >= 1 && (nomNorm.includes(c.texte) || prenomNorm.includes(c.texte)),
+    );
+  });
+  out.sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr') || (a.ddn || '').localeCompare(b.ddn || ''));
+  return { total: out.length, rows: out.slice(0, limit) };
+}
+
+/** Libellé d'une suggestion : « DUPONT Léa, né(e) le 12/03/2015 ». */
+export function libelleEleve(r) {
+  const d = formatDateFr(r.ddn);
+  return `${r.nom} ${r.prenom}, ${d ? `né(e) le ${d}` : 'date de naissance non renseignée'}`.replace(/\s+,/, ',');
+}

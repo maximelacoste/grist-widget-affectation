@@ -14,8 +14,9 @@ import {
   normSearch,
   parseBan,
   searchIndividus,
+  rechercheLibre,
+  libelleEleve,
   secToIso,
-  suggestNoms,
   tableToRows,
   toIndividus,
 } from './lib.js';
@@ -269,10 +270,10 @@ async function refreshIndividus() {
   state.individus = toIndividus(await grist.docApi.fetchTable(T_INDIVIDUS));
 }
 
-async function refreshScolarite() {
+async function refreshScolarite(eleveId = state.eleve.id) {
   const t = await grist.docApi.fetchTable(T_SCOLARITE);
   state.scol = tableToRows(t, Object.values(COL))
-    .filter((r) => r[COL.eleve] === state.eleve.id)
+    .filter((r) => r[COL.eleve] === eleveId)
     .map((r) => ({
       id: r.id,
       date: secToIso(r[COL.dateEffet]),
@@ -289,15 +290,12 @@ async function refreshScolarite() {
 /* ------------------------------------------------------------------ */
 /* Étape 1 : recherche                                                 */
 /* ------------------------------------------------------------------ */
-$('#form-search').addEventListener('submit', async (e) => {
-  e.preventDefault();
+async function lancerRecherche(query, { ouvrir = null } = {}) {
   clearNotice();
   clearFieldErrors($('#form-search'));
-  const nom = $('#q-nom').value.trim();
-  const prenom = $('#q-prenom').value.trim();
-  if (norm(nom).length < 2 && norm(prenom).length < 2) {
-    setFieldError('q-nom', 'Saisissez au moins 2 lettres du nom ou du prénom.');
-    $('#q-nom').focus();
+  if (norm(query).length < 2 && !/\d{4}/.test(query)) {
+    setFieldError('q', 'Saisis au moins 2 lettres du nom ou du prénom, ou une année de naissance.');
+    $('#q').focus();
     return;
   }
   try {
@@ -306,24 +304,35 @@ $('#form-search').addEventListener('submit', async (e) => {
     notify('error', `Lecture d'Individus impossible : ${err.message}`);
     return;
   }
-  state.query = { nom, prenom };
+  state.query = { texte: query };
   state.searched = true;
   state.eleve = null; // nouvelle recherche : l'élève précédent n'est plus sélectionné
   $('#form-scol').hidden = true;
-  state.results = searchIndividus(state.individus, state.query);
+  $('#dossier').hidden = true;
+  state.results = rechercheLibre(state.individus, query);
   renderResults();
   $('#form-create').hidden = state.results.total > 0;
   if (state.results.total === 0) prefillCreate();
   goto(2);
+}
+
+$('#form-search').addEventListener('submit', (e) => {
+  e.preventDefault();
+  lancerRecherche($('#q').value.trim());
 });
 
-// Nom de famille prédictif : propose les noms déjà présents dans Individus (liste chargée au démarrage).
-attachSuggest($('#q-nom'), {
+// Recherche prédictive : « NOM Prénom, né(e) le … » dès 2 caractères ; un clic ouvre directement l'élève.
+attachSuggest($('#q'), {
   minChars: 2,
-  fetchItems: (query) => suggestNoms(state.individus, query),
-  onPick: (n) => {
-    $('#q-nom').value = n.value;
-    $('#q-prenom').focus();
+  fetchItems: (query) =>
+    rechercheLibre(state.individus, query, 8).rows.map((r) => ({ value: String(r.id), label: libelleEleve(r), row: r })),
+  onPick: async (item) => {
+    $('#q').value = `${item.row.nom} ${item.row.prenom}`;
+    state.searched = true;
+    state.results = { total: 1, rows: [item.row] };
+    renderResults();
+    $('#form-create').hidden = true;
+    await chooseEleve(item.row);
   },
 });
 
@@ -371,14 +380,26 @@ function renderResults() {
                       'td',
                       {},
                       h(
-                        'button',
-                        {
-                          class: 'fr-btn fr-btn--sm',
-                          type: 'button',
-                          onclick: () => chooseEleve(r),
-                          'aria-label': `Choisir ${r.nom} ${r.prenom}`,
-                        },
-                        'Choisir',
+                        'ul',
+                        { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--sm' },
+                        h(
+                          'li',
+                          {},
+                          h(
+                            'button',
+                            { class: 'fr-btn fr-btn--sm', type: 'button', onclick: () => chooseEleve(r), 'aria-label': `Affecter ${r.nom} ${r.prenom}` },
+                            'Affecter',
+                          ),
+                        ),
+                        h(
+                          'li',
+                          {},
+                          h(
+                            'button',
+                            { class: 'fr-btn fr-btn--sm fr-btn--secondary', type: 'button', onclick: () => openDossier(r), 'aria-label': `Dossier de ${r.nom} ${r.prenom}` },
+                            'Dossier',
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -393,9 +414,12 @@ function renderResults() {
 }
 
 function prefillCreate() {
-  $('#c-nom').value = state.query.nom;
-  $('#c-prenom').value = state.query.prenom;
-  $('#c-ddn').value = '';
+  const mots = String(state.query.texte || '').split(/\s+/).filter(Boolean);
+  const dm = mots.map((m) => /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(m)).find(Boolean);
+  const txt = mots.filter((m) => !/^[\d/.\-]+$/.test(m));
+  $('#c-nom').value = txt[0] || '';
+  $('#c-prenom').value = txt.slice(1).join(' ');
+  $('#c-ddn').value = dm ? `${dm[3]}-${dm[2]}-${dm[1]}` : '';
   state.champsManuels.forEach((f, i) => {
     const el = $(`#c-m-${i}`);
     if (f.type === 'Bool') el.checked = false;
@@ -411,12 +435,128 @@ $('#btn-show-create').addEventListener('click', () => {
 $('#btn-back-1').addEventListener('click', backToSearch);
 $('#btn-back-1b').addEventListener('click', backToSearch);
 
+/* ------------------------------------------------------------------ */
+/* Dossier : vue simplifiée en lecture seule                           */
+/* ------------------------------------------------------------------ */
+const dateOuTexte = (v) => formatDateFr(secToIso(v)) || cellText(v) || '—';
+
+function tableSimple(legende, entetes, lignes) {
+  return h(
+    'div',
+    { class: 'fr-table fr-table--no-caption' },
+    h(
+      'div',
+      { class: 'fr-table__wrapper' },
+      h(
+        'div',
+        { class: 'fr-table__container' },
+        h(
+          'div',
+          { class: 'fr-table__content' },
+          h(
+            'table',
+            {},
+            h('caption', {}, legende),
+            h('thead', {}, h('tr', {}, entetes.map((t) => h('th', { scope: 'col' }, t)))),
+            h('tbody', {}, lignes.map((l) => h('tr', {}, l.map((c) => h('td', {}, c))))),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/** Liste « libellé : valeur » (état civil, coordonnées, notification). */
+function listeInfos(infos) {
+  return h(
+    'dl',
+    { class: 'dossier-infos' },
+    infos.flatMap(([k, v]) => [h('dt', { class: 'fr-text--bold' }, k), h('dd', {}, v || '—')]),
+  );
+}
+
+async function openDossier(row) {
+  clearNotice();
+  const box = $('#dossier');
+  let ind;
+  let scol;
+  try {
+    const t = await grist.docApi.fetchTable(T_INDIVIDUS);
+    const i = t.id.indexOf(row.id);
+    if (i < 0) throw new Error('fiche introuvable');
+    const get = (c) => (t[c] ? t[c][i] : undefined);
+    ind = {
+      adresse: cellText(get('Derniere_notification_ULIS_ADRESSE2')),
+      cpVille: cellText(get('Derniere_notification_ULIS_CP_VILLE')),
+      representants: cellText(get('Derniere_notification_ULIS_REPRESENTANT_LEGAL1')),
+      debut: get('Derniere_notif_ULIS'),
+      fin: get('Fin_droits_ULIS'),
+      premiere: get('Premiere_notif_ULIS'),
+      notif: get('Notification_ULIS') === true,
+      idApp: cellText(get('Id_app')),
+      nEnr: cellText(get('N_Enr_')),
+    };
+    scol = await refreshScolarite(row.id).then(() => state.scol);
+  } catch (err) {
+    notify('error', `Lecture du dossier impossible : ${err.message}`);
+    return;
+  }
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const enCours = ligneEnCours(scol, todayIso);
+  box.replaceChildren(
+    h('h3', { class: 'fr-h5', id: 'h-dossier', tabindex: '-1' }, `Dossier de ${row.nom} ${row.prenom}`),
+    h('p', { class: 'fr-hint-text' }, 'Lecture seule. Les données personnelles ne s\'affichent qu\'à l\'écran et ne quittent pas Grist.'),
+    h('h4', { class: 'fr-h6' }, 'État civil'),
+    listeInfos([
+      ['Nom', row.nom],
+      ['Prénom', row.prenom],
+      ['Date de naissance', formatDateFr(row.ddn)],
+      ['Identifiant application', ind.idApp],
+      ['N° d\'enregistrement', ind.nEnr],
+    ]),
+    h('h4', { class: 'fr-h6' }, 'Coordonnées'),
+    listeInfos([
+      ['Adresse', ind.adresse],
+      ['Code postal et commune', ind.cpVille],
+      ['Représentant(s) légal(aux)', ind.representants],
+    ]),
+    h('h4', { class: 'fr-h6' }, 'Notification ULIS'),
+    listeInfos([
+      ['Notification ULIS', ind.notif ? 'Oui' : 'Non'],
+      ['Première notification', dateOuTexte(ind.premiere)],
+      ['Début de la dernière', dateOuTexte(ind.debut)],
+      ['Fin de droits', dateOuTexte(ind.fin)],
+    ]),
+    h('h4', { class: 'fr-h6' }, 'Historique des affectations'),
+    scol.length === 0
+      ? h('p', {}, 'Aucune affectation enregistrée.')
+      : tableSimple(
+          'Affectations, de la plus récente à la plus ancienne',
+          ["Date d'effet", 'Affectation', 'Niveau', 'Situation'],
+          scol.map((l) => [
+            [dateLabel(l), ' ', enCours && enCours.id === l.id ? h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'En cours') : null],
+            affectationCell(l),
+            l.niveau || '—',
+            l.situation || '—',
+          ]),
+        ),
+    h(
+      'div',
+      { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
+      h('button', { class: 'fr-btn', type: 'button', onclick: () => chooseEleve(row) }, 'Affecter'),
+      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', onclick: () => { box.hidden = true; } }, 'Fermer le dossier'),
+    ),
+  );
+  box.hidden = false;
+  $('#h-dossier').focus();
+}
+
 function backToSearch() {
   clearNotice();
   state.eleve = null;
   $('#form-scol').hidden = true;
   goto(1);
-  $('#q-nom').focus();
+  $('#q').focus();
 }
 
 /** « Début notification (manuel) » -> « Début notification » ; « Cp_manuel » -> « Cp ». */

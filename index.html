@@ -24,19 +24,11 @@
     <section id="step-1" aria-labelledby="h-step-1" hidden>
       <h2 id="h-step-1" class="fr-sr-only" tabindex="-1">Rechercher l'élève</h2>
       <form id="form-search" novalidate>
-        <div class="fr-grid-row fr-grid-row--gutters">
-          <div class="fr-col-12 fr-col-md-6">
-            <div class="fr-input-group">
-              <label class="fr-label" for="q-nom">Nom</label>
-              <input class="fr-input" id="q-nom" name="nom" type="text" autocomplete="off">
-            </div>
-          </div>
-          <div class="fr-col-12 fr-col-md-6">
-            <div class="fr-input-group">
-              <label class="fr-label" for="q-prenom">Prénom</label>
-              <input class="fr-input" id="q-prenom" name="prenom" type="text" autocomplete="off">
-            </div>
-          </div>
+        <div class="fr-input-group">
+          <label class="fr-label" for="q">Rechercher un élève
+            <span class="fr-hint-text">Nom, prénom et date de naissance, dans l'ordre que tu veux (exemples : « dupont léa », « dupont 2015 », « léa 12/03/2015 »).</span>
+          </label>
+          <input class="fr-input" id="q" name="q" type="text" autocomplete="off">
         </div>
         <button class="fr-btn fr-mt-2w" type="submit">Rechercher</button>
       </form>
@@ -46,6 +38,7 @@
     <section id="step-2" aria-labelledby="h-step-2" hidden>
       <h2 id="h-step-2" class="fr-sr-only" tabindex="-1">Choisir ou créer la fiche de l'élève</h2>
       <div id="results"></div>
+      <section id="dossier" class="fr-mt-3w" aria-labelledby="h-dossier" hidden></section>
       <div class="fr-btns-group fr-btns-group--inline fr-mt-2w">
         <button class="fr-btn fr-btn--secondary" type="button" id="btn-show-create">Créer une nouvelle fiche</button>
         <button class="fr-btn fr-btn--tertiary" type="button" id="btn-back-1">Nouvelle recherche</button>
