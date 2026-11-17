@@ -26,6 +26,12 @@ const COL = {
 };
 const SITUATION_PAR_DEFAUT = 'En ULIS';
 const MANUEL_TYPES = ['Text', 'Date', 'Int', 'Numeric', 'Bool', 'Choice']; // types de colonnes `*_manuel` gérés
+// Ordre d'affichage des champs facultatifs (les autres colonnes `*_manuel` suivent, dans l'ordre du tableau).
+const MANUEL_ORDRE = [/debut/i, /fin/i, /repr|legal/i, /adresse/i, /^cp|postal/i, /commune/i];
+const rangManuel = (c) => {
+  const i = MANUEL_ORDRE.findIndex((r) => r.test(c.colId));
+  return i < 0 ? MANUEL_ORDRE.length : i;
+};
 const MANUEL_MULTILIGNE = /adresse|repr|legal/i; // champs texte affichés sur plusieurs lignes
 
 const STEPS = [
@@ -191,10 +197,10 @@ async function loadMeta() {
   for (const col of ['Nom', 'Prenom', 'Date_de_naissance', 'Cle']) need(T_INDIVIDUS, col);
   for (const col of Object.values(COL)) need(T_SCOLARITE, col);
 
-  // Champs facultatifs de la création d'un élève : colonnes de données d'Individus finissant par `_manuel`.
+  // Champs facultatifs de la création d'un élève : colonnes de données d'Individus finissant par `_manuel` ou `_manuelle`.
   state.champsManuels = [...colById.values()]
-    .filter((c) => c.tableId === T_INDIVIDUS && /_manuel$/i.test(c.colId) && !c.isFormula && MANUEL_TYPES.includes(c.type))
-    .sort((a, b) => a.pos - b.pos)
+    .filter((c) => c.tableId === T_INDIVIDUS && /_manuel(le)?$/i.test(c.colId) && !c.isFormula && MANUEL_TYPES.includes(c.type))
+    .sort((a, b) => rangManuel(a) - rangManuel(b) || a.pos - b.pos)
     .map((c) => ({ colId: c.colId, type: c.type, label: prettyLabel(c), choices: choicesOf(c) }));
   renderManualFields();
 
@@ -361,7 +367,7 @@ function backToSearch() {
 /** « Début notification (manuel) » -> « Début notification » ; « Cp_manuel » -> « Cp ». */
 function prettyLabel(c) {
   const base = (c.label || c.colId).replace(/_/g, ' ');
-  return base.replace(/\s*\(?\bmanuel\)?\s*$/i, '').trim() || base;
+  return base.replace(/\s*\(?\bmanuel(?:le)?\)?\s*$/i, '').trim() || base;
 }
 
 /** Construit les champs facultatifs (colonnes `*_manuel`) dans le formulaire de création. */
