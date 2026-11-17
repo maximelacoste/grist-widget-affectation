@@ -59,3 +59,25 @@ body { background: transparent; }
 /* Boutons d'action d'une ligne de tableau : côte à côte, sans retour à la ligne */
 .actions-ligne { display: flex; flex-wrap: nowrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
 .actions-ligne > li { padding: 0; margin: 0; }
+
+/* Widget étroit : le DSFR interdit le retour à la ligne dans les cellules (nowrap), ce qui force un défilement horizontal.
+   On l'autorise pour que toutes les données restent visibles sans faire défiler. */
+.fr-table table { width: 100%; }
+.fr-table th, .fr-table td { white-space: normal; overflow-wrap: break-word; }
+.fr-table td.nowrap, .fr-table th.nowrap { white-space: nowrap; }
+.fr-table td:last-child { min-width: 5.5rem; }
+.actions-ligne { flex-wrap: wrap; }
+.fr-table th, .fr-table td { padding: 0.5rem; }
+
+/* Calendrier intégré (champs date) */
+.calendrier { position: fixed; z-index: 1000; width: 19rem; max-width: calc(100vw - 8px); padding: 0.75rem; background: var(--background-default-grey, #fff); border: 1px solid var(--border-default-grey, #ddd); border-top: 3px solid var(--border-action-high-blue-france, #000091); box-shadow: 0 6px 18px rgba(0, 0, 18, .25); }
+.cal-entete { display: grid; grid-template-columns: 2rem 1fr 5.5rem 2rem; gap: 0.25rem; align-items: center; margin-bottom: 0.5rem; }
+.cal-entete .fr-select { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+.cal-nav { border: 0; background: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: var(--text-action-high-blue-france, #000091); padding: 0.25rem; }
+.cal-grille { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.cal-jsem { font-size: 0.75rem; color: var(--text-mention-grey, #666); padding: 0.25rem 0; }
+.cal-jour { border: 0; background: none; padding: 0.4rem 0; cursor: pointer; font: inherit; font-size: 0.875rem; }
+.cal-jour:hover { background: var(--background-default-grey-hover, #eee); }
+.cal-aujourdhui { box-shadow: inset 0 0 0 1px var(--border-action-high-blue-france, #000091); }
+.cal-selection, .cal-selection:hover { background: var(--background-action-high-blue-france, #000091); color: #fff; }
+.cal-pied { display: flex; justify-content: space-between; margin-top: 0.5rem; }

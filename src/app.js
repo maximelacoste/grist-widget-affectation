@@ -21,6 +21,9 @@ import {
   toIndividus,
 } from './lib.js';
 import { attachSuggest } from './suggest.js';
+import { activerCalendriers } from './calendrier.js';
+
+activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
 
 /* ------------------------------------------------------------------ */
 /* Configuration : noms des tables et colonnes du document Grist       */
@@ -89,20 +92,6 @@ const state = {
 /* Utilitaires DOM                                                     */
 /* ------------------------------------------------------------------ */
 const $ = (sel) => document.querySelector(sel);
-
-/**
- * Champ date vide : un clic n'importe où dans le champ ouvre le calendrier (par défaut, seule l'icône le fait).
- * Champ rempli : comportement natif conservé, pour corriger jour/mois/année au clavier.
- */
-document.addEventListener('click', (e) => {
-  const el = e.target;
-  if (!(el instanceof HTMLInputElement) || el.type !== 'date' || el.value || el.readOnly || el.disabled) return;
-  try {
-    el.showPicker();
-  } catch {
-    /* navigateur sans showPicker, ou iframe non autorisée : le champ reste saisissable au clavier */
-  }
-});
 
 /** Crée un élément ; les textes passent par textContent / createTextNode (jamais innerHTML). */
 function h(tag, props = {}, ...kids) {
@@ -193,10 +182,17 @@ function renderStepper() {
   );
 }
 
+/** Affiche une seule page à la fois (étapes 1 à 3, création, dossier). */
+function masquerPages() {
+  for (let i = 1; i <= STEPS.length; i += 1) $(`#step-${i}`).hidden = true;
+  $('#step-create').hidden = true;
+  $('#step-dossier').hidden = true;
+}
+
 function goto(step, { focus = true } = {}) {
   state.step = step;
-  for (let i = 1; i <= STEPS.length; i += 1) $(`#step-${i}`).hidden = i !== step;
-  $('#step-create').hidden = true;
+  masquerPages();
+  $(`#step-${step}`).hidden = false;
   renderStepper();
   if (focus) $(`#h-step-${step}`).focus();
 }
@@ -346,7 +342,6 @@ async function lancerRecherche(query, { ouvrir = null } = {}) {
   state.searched = true;
   state.eleve = null; // nouvelle recherche : l'élève précédent n'est plus sélectionné
   $('#form-scol').hidden = true;
-  $('#dossier').hidden = true;
   state.results = rechercheLibre(state.individus, query);
   await renderResults();
   goto(2);
@@ -370,8 +365,7 @@ attachSuggest($('#q'), {
     state.searched = true;
     state.eleve = null;
     $('#form-scol').hidden = true;
-    $('#dossier').hidden = true;
-    state.results = { total: 1, rows: [item.row] };
+      state.results = { total: 1, rows: [item.row] };
     await renderResults();
     goto(2);
   },
@@ -429,7 +423,7 @@ async function renderResults() {
                     {},
                     h('td', {}, r.nom),
                     h('td', {}, r.prenom),
-                    h('td', {}, formatDateFr(r.ddn) || 'non renseignée'),
+                    h('td', { class: 'nowrap' }, formatDateFr(r.ddn) || 'non renseignée'),
                     h('td', {}, celluleEnCours(enCours.get(r.id))),
                     h(
                       'td',
@@ -488,7 +482,7 @@ function prefillCreate() {
 function gotoCreate() {
   clearNotice();
   state.step = 0;
-  for (let i = 1; i <= STEPS.length; i += 1) $(`#step-${i}`).hidden = true;
+  masquerPages();
   $('#step-create').hidden = false;
   $('#stepper').replaceChildren(
     h(
@@ -632,9 +626,9 @@ function listeInfos(infos) {
   );
 }
 
-async function openDossier(row, boxId = 'dossier') {
+async function openDossier(row, origine = 2) {
   clearNotice();
-  const box = $(`#${boxId}`);
+  const box = $('#dossier');
   let ind;
   let scol;
   let notes = [];
@@ -662,8 +656,6 @@ async function openDossier(row, boxId = 'dossier') {
   const todayIso = new Date().toISOString().slice(0, 10);
   const enCours = ligneEnCours(scol, todayIso);
   box.replaceChildren(
-    h('h3', { class: 'fr-h5', id: `h-${boxId}`, tabindex: '-1' }, `Dossier de ${row.nom} ${row.prenom}`),
-    h('p', { class: 'fr-hint-text' }, 'Lecture seule. Les données personnelles ne s\'affichent qu\'à l\'écran et ne quittent pas Grist.'),
     h('h4', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
       ['Nom', row.nom],
@@ -711,22 +703,43 @@ async function openDossier(row, boxId = 'dossier') {
     h(
       'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
-      boxId === 'dossier' ? h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève', onclick: () => chooseEleve(row) }, 'Affecter') : null,
-      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Masquer le dossier', onclick: () => { box.hidden = true; } }, 'Fermer le dossier'),
+      origine === 2 ? h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève', onclick: () => chooseEleve(row) }, 'Affecter') : null,
+      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, origine === 3 ? "Revenir aux affectations" : 'Revenir à la page de résultats'),
     ),
   );
-  box.hidden = false;
-  box.querySelector('h3').focus();
+  state.step = 0;
+  masquerPages();
+  $('#step-dossier').hidden = false;
+  $('#stepper').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-stepper' },
+      h('h1', { class: 'fr-stepper__title', id: 'h-dossier', tabindex: '-1' }, `Dossier de ${row.nom} ${row.prenom}`),
+      h('p', { class: 'fr-stepper__details' }, "Lecture seule. Les données personnelles ne s'affichent qu'à l'écran et ne quittent pas Grist."),
+    ),
+    h(
+      'nav',
+      { 'aria-label': 'Navigation', class: 'step-nav fr-mb-2w' },
+      h(
+        'button',
+        { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter le dossier', onclick: () => retourDossier(row, origine) },
+        origine === 3 ? 'Revenir aux affectations' : 'Revenir à la page de résultats',
+      ),
+    ),
+  );
+  $('#h-dossier').focus();
 }
 
-$('#btn-dossier-3').addEventListener('click', () => {
-  const box = $('#dossier-3');
-  if (!box.hidden) {
-    box.hidden = true;
+function retourDossier(row, origine) {
+  clearNotice();
+  if (origine === 3 && state.eleve) {
+    goto(3);
     return;
   }
-  openDossier(state.eleve, 'dossier-3');
-});
+  goto(2);
+}
+
+$('#btn-dossier-3').addEventListener('click', () => openDossier(state.eleve, 3));
 
 function backToSearch() {
   clearNotice();
@@ -906,7 +919,6 @@ async function chooseEleve(row, { keepNotice = false } = {}) {
   }
   $('#eleve-resume').textContent = `${row.nom} ${row.prenom}, né(e) le ${formatDateFr(row.ddn) || '(date non renseignée)'}`;
   $('#form-scol').hidden = true;
-  $('#dossier-3').hidden = true;
   renderScolList();
   goto(3);
 }

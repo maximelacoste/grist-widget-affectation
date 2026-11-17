@@ -2,6 +2,9 @@
 
 ## [Non publié]
 
+- Dossier : page dédiée (comme la création), accessible depuis les résultats et depuis l'étape 3, avec retour vers la page d'origine.
+- Tableaux : retour à la ligne autorisé dans les cellules et remplissage réduit, pour tout afficher sans défilement horizontal, même dans un widget étroit.
+
 - Navigation : le bouton qui ramène à la liste des résultats s'appelle « Revenir à la page de résultats » (étape 3 et page de création) au lieu de « Précédent : Choisir ou créer la fiche de l'élève ».
 
 - Création d'une fiche : page dédiée (hors étapes), avec affichage des fiches proches pendant la saisie et blocage du bouton Créer si la fiche existe déjà (même clé).
@@ -25,7 +28,7 @@
 
 - Établissements : plus de parenthèse en double après le nom (la commune n'est ajoutée que si le libellé n'a pas déjà de parenthèse) ; type déduit du libellé si la colonne `Type` n'est pas reconnue ; message explicite quand le type reste inconnu.
 
-- Champs date : un clic sur un champ vide ouvre le calendrier (et plus seulement l'icône).
+- Champs date : calendrier intégré qui s'ouvre au clic n'importe où dans le champ (le sélecteur natif n'est pas ouvrable par programme dans l'iframe de Grist) ; mois et année au choix, « Aujourd'hui » et « Effacer », Échap pour fermer.
 
 ### Modifié
 - La recherche ne porte plus que sur le nom et le prénom (la date de naissance reste affichée dans les résultats pour départager les homonymes).
