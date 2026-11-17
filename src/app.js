@@ -113,7 +113,7 @@ function h(tag, props = {}, ...kids) {
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else el.setAttribute(k, v === true ? '' : String(v));
   }
-  for (const kid of kids.flat()) {
+  for (const kid of kids.flat(Infinity)) {
     if (kid == null || kid === false) continue;
     el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
   }
@@ -163,6 +163,7 @@ function navButton(target, direction) {
       type: 'button',
       class: `fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-${prev ? 'left' : 'right'} fr-icon-arrow-${prev ? 'left' : 'right'}-s-line`,
       disabled: !reachable(target),
+      title: prev ? 'Revenir à l\'étape précédente' : 'Passer à l\'étape suivante',
       onclick: () => {
         clearNotice();
         goto(target);
@@ -195,6 +196,7 @@ function renderStepper() {
 function goto(step, { focus = true } = {}) {
   state.step = step;
   for (let i = 1; i <= STEPS.length; i += 1) $(`#step-${i}`).hidden = i !== step;
+  $('#step-create').hidden = true;
   renderStepper();
   if (focus) $(`#h-step-${step}`).focus();
 }
@@ -286,21 +288,41 @@ async function refreshIndividus() {
   state.individus = toIndividus(await lireTable(T_INDIVIDUS));
 }
 
+const triScol = (a, b) => (b.date || '').localeCompare(a.date || '') || b.id - a.id;
+
+function mapLigne(r) {
+  return {
+    id: r.id,
+    date: secToIso(r[COL.dateEffet]),
+    dateBrute: typeof r[COL.dateEffet] === 'number' ? '' : cellText(r[COL.dateEffet]), // texte non reconnu comme date
+    affectation: typeof r[COL.affectation] === 'number' ? r[COL.affectation] : 0,
+    affectationInvalide: isInvalidCell(r[COL.affectation]) ? cellText(r[COL.affectation]) : '', // texte sans correspondance
+    niveau: cellText(r[COL.niveau]),
+    situation: cellText(r[COL.situation]),
+    attente: r[COL.attente] === true,
+  };
+}
+
+/** Lignes de Scolarite d'un élève, de la plus récente à la plus ancienne. */
+function lignesScolarite(t, eleveId) {
+  return tableToRows(t, Object.values(COL)).filter((r) => r[COL.eleve] === eleveId).map(mapLigne).sort(triScol);
+}
+
+/** Affectation en cours de plusieurs élèves en une seule passe : Map(id d'élève -> ligne en cours). */
+function enCoursDe(t, ids) {
+  const groupes = new Map();
+  for (const r of tableToRows(t, Object.values(COL))) {
+    const e = r[COL.eleve];
+    if (!ids.has(e)) continue;
+    if (!groupes.has(e)) groupes.set(e, []);
+    groupes.get(e).push(mapLigne(r));
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  return new Map([...groupes].map(([e, l]) => [e, ligneEnCours(l.sort(triScol), today)]));
+}
+
 async function refreshScolarite(eleveId = state.eleve.id) {
-  const t = await lireTable(T_SCOLARITE);
-  state.scol = tableToRows(t, Object.values(COL))
-    .filter((r) => r[COL.eleve] === eleveId)
-    .map((r) => ({
-      id: r.id,
-      date: secToIso(r[COL.dateEffet]),
-      dateBrute: typeof r[COL.dateEffet] === 'number' ? '' : cellText(r[COL.dateEffet]), // texte non reconnu comme date
-      affectation: typeof r[COL.affectation] === 'number' ? r[COL.affectation] : 0,
-      affectationInvalide: isInvalidCell(r[COL.affectation]) ? cellText(r[COL.affectation]) : '', // texte sans correspondance
-      niveau: cellText(r[COL.niveau]),
-      situation: cellText(r[COL.situation]),
-      attente: r[COL.attente] === true,
-    }))
-    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.id - a.id);
+  state.scol = lignesScolarite(await lireTable(T_SCOLARITE), eleveId);
 }
 
 /* ------------------------------------------------------------------ */
@@ -326,9 +348,7 @@ async function lancerRecherche(query, { ouvrir = null } = {}) {
   $('#form-scol').hidden = true;
   $('#dossier').hidden = true;
   state.results = rechercheLibre(state.individus, query);
-  renderResults();
-  $('#form-create').hidden = state.results.total > 0;
-  if (state.results.total === 0) prefillCreate();
+  await renderResults();
   goto(2);
 }
 
@@ -342,7 +362,7 @@ attachSuggest($('#q'), {
   minChars: 2,
   fetchItems: (query) =>
     rechercheLibre(state.individus, query, 8).rows.map((r) => ({ value: String(r.id), label: libelleEleve(r), row: r })),
-  onPick: (item) => {
+  onPick: async (item) => {
     // Un clic sur une suggestion mène à la page des résultats, avec cette seule fiche : Affecter ou Dossier.
     $('#q').value = `${item.row.nom} ${item.row.prenom}`;
     clearNotice();
@@ -352,8 +372,7 @@ attachSuggest($('#q'), {
     $('#form-scol').hidden = true;
     $('#dossier').hidden = true;
     state.results = { total: 1, rows: [item.row] };
-    renderResults();
-    $('#form-create').hidden = true;
+    await renderResults();
     goto(2);
   },
 });
@@ -361,12 +380,25 @@ attachSuggest($('#q'), {
 /* ------------------------------------------------------------------ */
 /* Étape 2 : choisir ou créer                                          */
 /* ------------------------------------------------------------------ */
-function renderResults() {
+/** Cellule « Affectation en cours » : établissement, puis niveau et situation en petit. */
+function celluleEnCours(l) {
+  if (!l) return '—';
+  const detail = [l.niveau, l.situation].filter(Boolean).join(' · ');
+  return [affectationCell(l), detail ? h('br') : null, detail ? h('span', { class: 'fr-text--sm fr-hint-text' }, detail) : null];
+}
+
+async function renderResults() {
   const { total, rows } = state.results;
   const box = $('#results');
   if (total === 0) {
     box.replaceChildren(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucune fiche ne correspond : tu peux la créer.')));
     return;
+  }
+  let enCours = new Map();
+  try {
+    enCours = enCoursDe(await lireTable(T_SCOLARITE), new Set(rows.map((r) => r.id)));
+  } catch {
+    /* l'affectation en cours est un confort : la liste reste utilisable sans elle */
   }
   const more = total > rows.length ? `${total} fiches correspondent, les ${rows.length} premières sont affichées : précise la recherche.` : '';
   box.replaceChildren(
@@ -387,7 +419,7 @@ function renderResults() {
               'table',
               {},
               h('caption', {}, 'Fiches trouvées dans Individus'),
-              h('thead', {}, h('tr', {}, ['Nom', 'Prénom', 'Date de naissance', 'Action'].map((t) => h('th', { scope: 'col' }, t)))),
+              h('thead', {}, h('tr', {}, ['Nom', 'Prénom', 'Date de naissance', 'Affectation en cours', 'Action'].map((t) => h('th', { scope: 'col' }, t)))),
               h(
                 'tbody',
                 {},
@@ -398,6 +430,7 @@ function renderResults() {
                     h('td', {}, r.nom),
                     h('td', {}, r.prenom),
                     h('td', {}, formatDateFr(r.ddn) || 'non renseignée'),
+                    h('td', {}, celluleEnCours(enCours.get(r.id))),
                     h(
                       'td',
                       {},
@@ -409,7 +442,7 @@ function renderResults() {
                           {},
                           h(
                             'button',
-                            { class: 'fr-btn fr-btn--sm', type: 'button', onclick: () => chooseEleve(r), 'aria-label': `Affecter ${r.nom} ${r.prenom}` },
+                            { class: 'fr-btn fr-btn--sm', type: 'button', onclick: () => chooseEleve(r), 'aria-label': `Affecter ${r.nom} ${r.prenom}`, title: "Ouvrir les affectations de cet élève pour en ajouter ou en modifier une" },
                             'Affecter',
                           ),
                         ),
@@ -418,7 +451,7 @@ function renderResults() {
                           {},
                           h(
                             'button',
-                            { class: 'fr-btn fr-btn--sm fr-btn--secondary', type: 'button', onclick: () => openDossier(r), 'aria-label': `Dossier de ${r.nom} ${r.prenom}` },
+                            { class: 'fr-btn fr-btn--sm fr-btn--secondary', type: 'button', onclick: () => openDossier(r), 'aria-label': `Dossier de ${r.nom} ${r.prenom}`, title: "Consulter le dossier de cet élève (lecture seule) sans changer de page" },
                             'Dossier',
                           ),
                         ),
@@ -449,11 +482,84 @@ function prefillCreate() {
   });
 }
 
-$('#btn-show-create').addEventListener('click', () => {
+/* ------------------------------------------------------------------ */
+/* Page dédiée à la création d'une fiche                               */
+/* ------------------------------------------------------------------ */
+function gotoCreate() {
+  clearNotice();
+  state.step = 0;
+  for (let i = 1; i <= STEPS.length; i += 1) $(`#step-${i}`).hidden = true;
+  $('#step-create').hidden = false;
+  $('#stepper').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-stepper' },
+      h('h1', { class: 'fr-stepper__title' }, 'Créer une fiche élève'),
+      h('p', { class: 'fr-stepper__details' }, "Vérifie d'abord qu'elle n'existe pas déjà : les fiches proches s'affichent pendant la saisie."),
+    ),
+    h(
+      'nav',
+      { 'aria-label': 'Navigation', class: 'step-nav fr-mb-2w' },
+      h(
+        'button',
+        { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter la création sans rien enregistrer', onclick: () => { clearNotice(); goto(state.searched ? 2 : 1); } },
+        `Précédent : ${STEPS[state.searched ? 1 : 0].title}`,
+      ),
+    ),
+  );
   prefillCreate();
-  $('#form-create').hidden = false;
+  majProches();
   $('#c-nom').focus();
+}
+
+/** Fiches déjà présentes ressemblant à la saisie : évite de créer un doublon par inattention. */
+function majProches() {
+  const nom = $('#c-nom').value.trim();
+  const prenom = $('#c-prenom').value.trim();
+  const iso = $('#c-ddn').value;
+  const zone = $('#create-proches');
+  const envoyer = $('#form-create button[type="submit"]');
+  const exact = nom && prenom && iso ? state.individus.find((r) => r.cle === cle(nom, prenom, iso)) : null;
+  envoyer.disabled = Boolean(exact);
+  if (norm(nom).length < 2) {
+    zone.replaceChildren();
+    return;
+  }
+  const { total, rows } = rechercheLibre(state.individus, `${nom} ${prenom}`.trim(), 5);
+  if (total === 0) {
+    zone.replaceChildren();
+    return;
+  }
+  zone.replaceChildren(
+    h(
+      'div',
+      { class: `fr-alert fr-alert--${exact ? 'error' : 'warning'} fr-mb-2w` },
+      h('h3', { class: 'fr-alert__title' }, exact ? 'Cette fiche existe déjà' : `${total} fiche${total > 1 ? 's' : ''} proche${total > 1 ? 's' : ''} déjà dans Individus`),
+      h('p', {}, exact ? 'Utilise la fiche existante plutôt que d\'en créer une seconde.' : "Si c'est le même élève, utilise sa fiche. Sinon, continue la saisie."),
+      h(
+        'ul',
+        { class: 'fr-mt-1w' },
+        rows.map((r) =>
+          h(
+            'li',
+            {},
+            libelleEleve(r),
+            ' ',
+            h('button', { class: 'fr-btn fr-btn--sm fr-btn--secondary fr-ml-1w', type: 'button', title: "C'est le même élève : utiliser cette fiche existante au lieu d'en créer une", onclick: () => chooseEleve(r) }, 'Affecter'),
+          ),
+        ),
+      ),
+      total > rows.length ? h('p', { class: 'fr-text--sm' }, `Les ${rows.length} premières sont affichées : précise le nom ou le prénom.`) : null,
+    ),
+  );
+}
+for (const id of ['c-nom', 'c-prenom', 'c-ddn']) $(`#${id}`).addEventListener('input', majProches);
+$('#btn-cancel-create').addEventListener('click', () => {
+  clearNotice();
+  goto(state.searched ? 2 : 1);
 });
+
+$('#btn-show-create').addEventListener('click', gotoCreate);
 $('#btn-back-1').addEventListener('click', backToSearch);
 $('#btn-back-1b').addEventListener('click', backToSearch);
 
@@ -605,8 +711,8 @@ async function openDossier(row, boxId = 'dossier') {
     h(
       'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
-      boxId === 'dossier' ? h('button', { class: 'fr-btn', type: 'button', onclick: () => chooseEleve(row) }, 'Affecter') : null,
-      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', onclick: () => { box.hidden = true; } }, 'Fermer le dossier'),
+      boxId === 'dossier' ? h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève', onclick: () => chooseEleve(row) }, 'Affecter') : null,
+      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Masquer le dossier', onclick: () => { box.hidden = true; } }, 'Fermer le dossier'),
     ),
   );
   box.hidden = false;
@@ -668,6 +774,10 @@ function renderManualFields() {
       state.champsManuels.map((f, i) => h('div', { class: 'fr-fieldset__element' }, control(f, i))),
     ),
   );
+  state.champsManuels.forEach((f, i) => {
+    const el = $(`#c-m-${i}`);
+    if (el) el.title = `Facultatif : ${f.label}. Valeur saisie à la main, prioritaire sur celle qui vient de la MDPH.`;
+  });
   if (ADRESSE_SUGGESTIONS) attachAdresse();
 }
 
@@ -882,6 +992,7 @@ function renderScolList() {
                               type: 'button',
                               onclick: () => openScolForm(l),
                               'aria-label': `Modifier l'affectation du ${dateLabel(l)}`,
+                              title: "Modifier cette ligne d'affectation (date, établissement, niveau, situation, liste d'attente)",
                             },
                             'Modifier',
                           ),
@@ -1133,11 +1244,22 @@ function openScolForm(ligne) {
     h(
       'div',
       { class: 'fr-btns-group fr-btns-group--inline' },
-      h('button', { class: 'fr-btn', type: 'submit' }, 'Enregistrer'),
-      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', onclick: () => { form.hidden = true; } }, 'Annuler'),
-      ligne ? h('button', { class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line fr-btn--icon-left', type: 'button', id: 's-suppr', onclick: () => demanderSuppression(ligne) }, 'Supprimer cette affectation') : null,
+      h('button', { class: 'fr-btn', type: 'submit', title: ligne ? 'Enregistrer les modifications (une confirmation montrera ce qui change)' : 'Enregistrer cette nouvelle ligne d\'affectation' }, 'Enregistrer'),
+      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer le formulaire sans rien enregistrer', onclick: () => { form.hidden = true; } }, 'Annuler'),
+      ligne ? h('button', { class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line fr-btn--icon-left', type: 'button', id: 's-suppr', title: 'Supprimer cette ligne d\'affectation (une confirmation sera demandée)', onclick: () => demanderSuppression(ligne) }, 'Supprimer cette affectation') : null,
     ),
   );
+  const infos = {
+    's-date': "Date à partir de laquelle l'affectation s'applique : un clic ouvre le calendrier. L'affectation « en cours » est la dernière ligne datée d'aujourd'hui ou avant.",
+    's-aff': "Établissement d'affectation : tape quelques mots du nom ou de la commune, puis choisis dans la liste. Vide, la ligne n'a pas d'établissement (sortie, retour en classe ordinaire…).",
+    's-niveau': "Niveau de l'élève ; la liste dépend du type de l'établissement choisi (école, collège, lycée).",
+    's-situation': "Situation de l'élève à cette date : en ULIS, sortie, exclusion, hors département…",
+    's-attente': "À activer si l'élève est sur liste d'attente pour cet établissement (pas encore affecté)",
+  };
+  for (const [id, texte] of Object.entries(infos)) {
+    const el = $(`#${id}`);
+    if (el) el.title = texte;
+  }
   form.hidden = false;
   $('#h-scol-form').focus();
 }
@@ -1168,6 +1290,7 @@ function ouvrirModale({ titre, icone = 'fr-icon-warning-line', corps, actions, f
                 class: `fr-btn${a.secondaire ? ' fr-btn--secondary' : ''}`,
                 type: 'button',
                 id: a.id,
+                title: a.info,
                 onclick: () => {
                   dlg.close();
                   a.onClick?.();
@@ -1199,8 +1322,8 @@ function demanderSuppression(ligne) {
       h('p', { class: 'fr-text--sm fr-mb-0' }, "Dans Grist, le panneau Activité permet d'annuler la suppression."),
     ],
     actions: [
-      { id: 'dlg-oui', libelle: 'Oui, supprimer', onClick: () => supprimerLigne(ligne) },
-      { id: 'dlg-non', libelle: 'Non, garder', secondaire: true },
+      { id: 'dlg-oui', libelle: 'Oui, supprimer', info: 'Supprimer définitivement cette ligne (annulable dans le panneau Activité de Grist)', onClick: () => supprimerLigne(ligne) },
+      { id: 'dlg-non', libelle: 'Non, garder', info: 'Fermer cette fenêtre : rien n\'est supprimé', secondaire: true },
     ],
     focus: 'dlg-non', // le choix par défaut est de ne rien supprimer
   });
@@ -1238,8 +1361,8 @@ function confirmerModification(modifs, onOui) {
       ),
     ),
     actions: [
-      { id: 'dlg-oui', libelle: 'Oui, enregistrer', onClick: onOui },
-      { id: 'dlg-non', libelle: 'Revenir au formulaire', secondaire: true },
+      { id: 'dlg-oui', libelle: 'Oui, enregistrer', info: 'Écrire ces modifications dans Grist', onClick: onOui },
+      { id: 'dlg-non', libelle: 'Revenir au formulaire', info: 'Fermer cette fenêtre et continuer la modification : rien n\'est enregistré', secondaire: true },
     ],
     focus: 'dlg-oui',
   });

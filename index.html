@@ -28,9 +28,9 @@
           <label class="fr-label" for="q">Rechercher un élève
             <span class="fr-hint-text">Nom, prénom et date de naissance, dans l'ordre que tu veux (exemples : « dupont léa », « dupont 2015 », « léa 12/03/2015 »).</span>
           </label>
-          <input class="fr-input" id="q" name="q" type="text" autocomplete="off">
+          <input class="fr-input" id="q" name="q" title="Tape une partie du nom, du prénom ou de la date de naissance (jj/mm/aaaa ou année), dans l'ordre que tu veux. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off">
         </div>
-        <button class="fr-btn fr-mt-2w" type="submit">Rechercher</button>
+        <button title="Lancer la recherche et afficher toutes les fiches correspondantes" class="fr-btn fr-mt-2w" type="submit">Rechercher</button>
       </form>
     </section>
 
@@ -40,33 +40,42 @@
       <div id="results"></div>
       <section id="dossier" class="fr-mt-3w" aria-labelledby="h-dossier" hidden></section>
       <div class="fr-btns-group fr-btns-group--inline fr-mt-2w">
-        <button class="fr-btn fr-btn--secondary" type="button" id="btn-show-create">Créer une nouvelle fiche</button>
-        <button class="fr-btn fr-btn--tertiary" type="button" id="btn-back-1">Nouvelle recherche</button>
+        <button class="fr-btn fr-btn--secondary" type="button" id="btn-show-create" title="Ouvrir la page de création d'une fiche élève (à utiliser seulement si la fiche n'existe pas déjà)">Créer une nouvelle fiche</button>
+        <button class="fr-btn fr-btn--tertiary" type="button" id="btn-back-1" title="Revenir à la recherche pour saisir un autre nom">Nouvelle recherche</button>
       </div>
-      <form id="form-create" class="fr-mt-3w" novalidate hidden>
+    </section>
+
+    <!-- Page dédiée : créer une fiche (hors étapes numérotées) -->
+    <section id="step-create" aria-labelledby="h-step-create" hidden>
+      <h2 id="h-step-create" class="fr-sr-only" tabindex="-1">Créer une fiche élève</h2>
+      <div id="create-proches" role="status" aria-live="polite"></div>
+      <form id="form-create" novalidate>
         <fieldset class="fr-fieldset" aria-labelledby="legend-create">
           <legend class="fr-fieldset__legend" id="legend-create"><h3 class="fr-h5">Nouvelle fiche dans Individus</h3><span class="fr-hint-text">Les champs marqués d'un astérisque (*) sont obligatoires.</span></legend>
           <div class="fr-fieldset__element">
             <div class="fr-input-group">
               <label class="fr-label" for="c-nom">Nom *</label>
-              <input class="fr-input" id="c-nom" type="text" autocomplete="off" required>
+              <input class="fr-input" id="c-nom" title="Nom de famille de l'élève (enregistré en majuscules)" type="text" autocomplete="off" required>
             </div>
           </div>
           <div class="fr-fieldset__element">
             <div class="fr-input-group">
               <label class="fr-label" for="c-prenom">Prénom *</label>
-              <input class="fr-input" id="c-prenom" type="text" autocomplete="off" required>
+              <input class="fr-input" id="c-prenom" title="Prénom de l'élève" type="text" autocomplete="off" required>
             </div>
           </div>
           <div class="fr-fieldset__element">
             <div class="fr-input-group">
               <label class="fr-label" for="c-ddn">Date de naissance *</label>
-              <input class="fr-input" id="c-ddn" type="date" required>
+              <input class="fr-input" id="c-ddn" title="Date de naissance : un clic ouvre le calendrier ; elle sert aussi à repérer les doublons" type="date" required>
             </div>
           </div>
         </fieldset>
         <div id="c-manuel" class="fr-mb-2w"></div>
-        <button class="fr-btn" type="submit">Créer la fiche et continuer</button>
+        <div class="fr-btns-group fr-btns-group--inline">
+          <button title="Créer la fiche dans Individus, puis passer à l'affectation de cet élève" class="fr-btn" type="submit">Créer la fiche et continuer</button>
+          <button class="fr-btn fr-btn--tertiary" type="button" id="btn-cancel-create" title="Abandonner la création et revenir aux résultats, sans rien enregistrer">Annuler</button>
+        </div>
       </form>
     </section>
 
@@ -75,13 +84,13 @@
       <h2 id="h-step-3" class="fr-h4" tabindex="-1">Affectation</h2>
       <div class="eleve-ligne">
         <p id="eleve-resume" class="fr-text--lg fr-mb-0"></p>
-        <button class="fr-btn fr-btn--secondary fr-btn--sm" type="button" id="btn-dossier-3">Dossier</button>
+        <button class="fr-btn fr-btn--secondary fr-btn--sm" type="button" id="btn-dossier-3" title="Afficher ou masquer le dossier de l'élève : état civil, coordonnées, notification ULIS, affectations, notes (lecture seule)">Dossier</button>
       </div>
       <section id="dossier-3" class="fr-mt-3w" aria-labelledby="h-dossier-3" hidden></section>
       <div id="scol-list"></div>
       <div class="fr-btns-group fr-btns-group--inline fr-mt-2w">
-        <button class="fr-btn" type="button" id="btn-new-scol">Nouvelle affectation</button>
-        <button class="fr-btn fr-btn--tertiary" type="button" id="btn-back-1b">Autre élève</button>
+        <button class="fr-btn" type="button" id="btn-new-scol" title="Ajouter une nouvelle ligne d'affectation datée pour cet élève">Nouvelle affectation</button>
+        <button class="fr-btn fr-btn--tertiary" type="button" id="btn-back-1b" title="Revenir à la recherche pour choisir un autre élève">Autre élève</button>
       </div>
       <form id="form-scol" class="fr-mt-3w" novalidate hidden></form>
     </section>

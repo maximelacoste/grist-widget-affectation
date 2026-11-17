@@ -2,6 +2,10 @@
 
 ## [Non publié]
 
+- Création d'une fiche : page dédiée (hors étapes), avec affichage des fiches proches pendant la saisie et blocage du bouton Créer si la fiche existe déjà (même clé).
+- Résultats : colonne « Affectation en cours » (établissement, niveau, situation) entre la date de naissance et les actions.
+- Infobulles au survol de tous les boutons d'action et champs de saisie.
+
 - Affectations : corbeille à la fin de chaque ligne, après « Modifier » (même fenêtre de confirmation) ; fenêtres de confirmation redessinées (entête, tableau avant → après, pied de page) ; boutons d'action de ligne côte à côte.
 
 - Modification d'une affectation : fenêtre de confirmation listant seulement les champs changés (« avant → après ») ; aucune écriture si rien n'a changé. Les nouvelles affectations s'enregistrent sans fenêtre.
