@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Dossier : notes de l'élève (`Notes_sur_l_eleve`) sous l'historique des affectations.
+
 - Recherche : un seul champ (nom, prénom, date de naissance, dans n'importe quel ordre) ; suggestions « NOM Prénom, né(e) le … » dès 2 caractères ; un clic mène à la page des résultats avec cette fiche et les boutons Affecter / Dossier ; création pré-remplie si rien ne correspond.
 - Résultats : boutons « Affecter » et « Dossier » ; le dossier (lecture seule) montre état civil, coordonnées, notification ULIS et historique des affectations. Les données personnelles ne s'affichent qu'à l'écran.
 

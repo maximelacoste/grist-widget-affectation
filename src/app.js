@@ -444,6 +444,36 @@ $('#btn-back-1b').addEventListener('click', backToSearch);
 /* ------------------------------------------------------------------ */
 /* Dossier : vue simplifiée en lecture seule                           */
 /* ------------------------------------------------------------------ */
+const T_NOTES = 'Notes_sur_l_eleve';
+
+/** Notes de l'élève (Notes_sur_l_eleve), de la plus récente à la plus ancienne ; [] si la table est absente. */
+async function lireNotes(row) {
+  let t;
+  try {
+    t = await grist.docApi.fetchTable(T_NOTES);
+  } catch {
+    return [];
+  }
+  let garde = (i) => t.Individu && t.Individu[i] === row.id;
+  if (!t.Individu) {
+    // repli : la note pointe vers Eleves_ULIS, rapproché d'Individus par la clé
+    const e = await grist.docApi.fetchTable('Eleves_ULIS');
+    const ids = new Set(e.id.filter((_, i) => e.Cle && e.Cle[i] === row.cle));
+    garde = (i) => ids.has(t.Eleve[i]);
+  }
+  return t.id
+    .map((id, i) => ({
+      id,
+      i,
+      date: typeof t.Cree_le?.[i] === 'number' ? secToIso(t.Cree_le[i]) : '',
+      type: cellText(t.Type?.[i]),
+      note: cellText(t.Note?.[i]),
+      nb: t.NB?.[i] === true,
+    }))
+    .filter((n) => garde(n.i) && n.note)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+}
+
 const dateOuTexte = (v) => formatDateFr(secToIso(v)) || cellText(v) || '—';
 
 function tableSimple(legende, entetes, lignes) {
@@ -486,6 +516,7 @@ async function openDossier(row) {
   const box = $('#dossier');
   let ind;
   let scol;
+  let notes = [];
   try {
     const t = await grist.docApi.fetchTable(T_INDIVIDUS);
     const i = t.id.indexOf(row.id);
@@ -501,6 +532,7 @@ async function openDossier(row) {
       notif: get('Notification_ULIS') === true,
     };
     scol = await refreshScolarite(row.id).then(() => state.scol);
+    notes = await lireNotes(row);
   } catch (err) {
     notify('error', `Lecture du dossier impossible : ${err.message}`);
     return;
@@ -540,6 +572,18 @@ async function openDossier(row) {
             affectationCell(l),
             l.niveau || '—',
             l.situation || '—',
+          ]),
+        ),
+    h('h4', { class: 'fr-h6 fr-mt-3w' }, 'Notes sur l\'élève'),
+    notes.length === 0
+      ? h('p', {}, 'Aucune note.')
+      : tableSimple(
+          "Notes, de la plus récente à la plus ancienne",
+          ['Date', 'Type', 'Note'],
+          notes.map((n) => [
+            formatDateFr(n.date) || '—',
+            [n.type || '—', n.nb ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, 'NB')] : null],
+            h('span', { class: 'note-texte' }, n.note),
           ]),
         ),
     h(
