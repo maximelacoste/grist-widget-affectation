@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -152,4 +152,15 @@ test('niveauxPour() : filtre par type en gardant l\'ordre des choix, sans jamais
   assert.deepEqual(niveauxPour('', tous, parType), tous);
   assert.deepEqual(niveauxPour(undefined, tous, parType), tous);
   assert.deepEqual(niveauxPour('VIDE', tous, parType), tous); // aucun niveau en commun : pas de liste vide
+});
+
+test('typeEtab et libelleEtab', () => {
+  assert.equal(typeEtab('CLG'), 'CLG');
+  assert.equal(typeEtab(' eco '), 'ECO');
+  assert.equal(typeEtab('', 'E.E.PU JEAN MONNET (FENOUILLET)'), 'ECO');
+  assert.equal(typeEtab('Autre', 'COLLEGE VICTOR HUGO'), 'CLG');
+  assert.equal(typeEtab('', 'Truc'), '');
+  assert.equal(libelleEtab('E.E.PU HENRI PUIS (ST ORENS DE GAMEVILLE)', 'Saint-Orens-de-Gameville'), 'E.E.PU HENRI PUIS (ST ORENS DE GAMEVILLE)');
+  assert.equal(libelleEtab('COLLEGE X ()', ''), 'COLLEGE X');
+  assert.equal(libelleEtab('COLLEGE X', 'Muret'), 'COLLEGE X (Muret)');
 });

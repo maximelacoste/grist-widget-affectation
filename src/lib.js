@@ -185,3 +185,28 @@ export function niveauxPour(type, tous, parType) {
   const restreints = tous.filter((n) => autorises.has(n));
   return restreints.length > 0 ? restreints : tous;
 }
+
+/**
+ * Type d'établissement (ECO / CLG / LYC) : la colonne `Type` si elle est reconnue, sinon déduit du libellé
+ * (« E.E.PU … », « COLLEGE … », « LYCEE … »). '' si rien ne permet de conclure.
+ */
+export function typeEtab(brut, libelle = '') {
+  const t = norm(brut || '');
+  if (['eco', 'ecole', 'ee', 'ecoleelementaire'].includes(t)) return 'ECO';
+  if (['clg', 'college'].includes(t)) return 'CLG';
+  if (['lyc', 'lycee', 'lpo', 'lp'].includes(t)) return 'LYC';
+  // minuscules sans accents, ponctuation conservée (normSearch l'efface, ce qui ruine les limites de mots)
+  const l = String(libelle || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/\b(college|clg)\b/.test(l)) return 'CLG';
+  if (/\b(lycee|lyc|lpo)\b/.test(l)) return 'LYC';
+  if (/\becole\b/.test(l) || /^e\.?\s?[ep]\.?\s?(pu|pr)?\b/.test(l)) return 'ECO';
+  return '';
+}
+
+/** Libellé d'établissement : n'ajoute la commune que si le libellé ne contient ni elle, ni déjà une parenthèse. */
+export function libelleEtab(base, commune) {
+  const b = String(base || '').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim();
+  const c = String(commune || '').trim();
+  if (!c || b.includes('(') || normSearch(b).includes(normSearch(c))) return b;
+  return `${b} (${c})`;
+}

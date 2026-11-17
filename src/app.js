@@ -8,6 +8,8 @@ import {
   isoToSec,
   ligneEnCours,
   niveauxPour,
+  typeEtab,
+  libelleEtab,
   norm,
   normSearch,
   parseBan,
@@ -252,14 +254,15 @@ async function loadMeta() {
   const etabs = t.id.map((id, i) => {
     const base = visible && t[visible] ? cellText(t[visible][i]) : `#${id}`;
     const commune = t.Commune ? cellText(t.Commune[i]) : '';
-    // la commune n'est ajoutée que si le libellé ne la contient pas déjà (« (FROUZINS) » vs « Frouzins »)
-    const type = t[COL_TYPE_ETAB] ? cellText(t[COL_TYPE_ETAB][i]).trim() : '';
-    return { id, type, label: commune && !normSearch(base).includes(normSearch(commune)) ? `${base} (${commune})` : base };
+    const label = libelleEtab(base, commune);
+    const brut = t[COL_TYPE_ETAB] ? cellText(t[COL_TYPE_ETAB][i]).trim() : '';
+    return { id, type: typeEtab(brut, label), typeBrut: brut, label };
   });
   etabs.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
   state.etabs = etabs;
   state.etabLabel = new Map(etabs.map((e) => [e.id, e.label]));
   state.etabType = new Map(etabs.map((e) => [e.id, e.type]));
+  state.etabTypeBrut = new Map(etabs.map((e) => [e.id, e.typeBrut]));
 }
 
 async function refreshIndividus() {
@@ -853,6 +856,7 @@ function majNiveaux(etabId) {
   if (retire) sel.value = '';
   const phrases = [];
   if (restreint && LIBELLE_TYPE[type]) phrases.push(`Niveaux proposés pour ${LIBELLE_TYPE[type]}.`);
+  if (etabId && !type) phrases.push(`Type d'établissement non reconnu (colonne ${COL_TYPE_ETAB} : « ${state.etabTypeBrut.get(Number(etabId)) || 'vide'} ») : liste complète.`);
   if (retire) phrases.push(`Le niveau « ${actuel} » a été retiré : il ne correspond pas à ${LIBELLE_TYPE[type] || 'cet établissement'}.`);
   note.textContent = phrases.join(' ');
 }

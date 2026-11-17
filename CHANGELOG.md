@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Établissements : plus de parenthèse en double après le nom (la commune n'est ajoutée que si le libellé n'a pas déjà de parenthèse) ; type déduit du libellé si la colonne `Type` n'est pas reconnue ; message explicite quand le type reste inconnu.
+
 - Champs date : un clic sur un champ vide ouvre le calendrier (et plus seulement l'icône).
 
 ### Modifié
