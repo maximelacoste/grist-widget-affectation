@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Démarrage : si la colonne « élève » de `Scolarite` (`Eleve_Identite_`) a été renommée, le widget reprend l'unique colonne de données qui référence `Individus` ; sinon, le message d'erreur liste les colonnes présentes de la table pour faciliter le diagnostic.
 - Audit sécurité et accessibilité (`docs/audit-securite-accessibilite.md`). Accessibilité : hiérarchie des titres corrigée (sections en `h2`, titres d'alerte en paragraphe, titre de modale en `h2`), `aria-controls` orphelin retiré. Sécurité : suppression du dernier `innerHTML` (le garde-fou de chargement devient `src/garde.js`, ce qui permet une CSP stricte), `referrer` désactivé ; politique CSP proposée et testée mais non activée.
 - Résultats de recherche d'élèves : le bouton « Affecter » est retiré (doublon avec le dossier) ; il ne reste que « Dossier », d'où l'on affecte.
 - Mise en page : plus d'espace entre le texte d'introduction de l'accueil et les deux blocs de recherche, et avant le pied de page. Correction : le libellé du bouton retour du dossier et celui de « Supprimer cette affectation » (formulaire) étaient réduits à leur icône.

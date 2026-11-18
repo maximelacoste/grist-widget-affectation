@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118x';
-import { attachSuggest } from './suggest.js?v=20261118x';
-import { activerCalendriers } from './calendrier.js?v=20261118x';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118y';
+import { attachSuggest } from './suggest.js?v=20261118y';
+import { activerCalendriers } from './calendrier.js?v=20261118y';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -222,7 +222,10 @@ async function loadMeta() {
   });
   const need = (tableId, colId) => {
     const c = [...colById.values()].find((x) => x.tableId === tableId && x.colId === colId);
-    if (!c) throw new Error(`Colonne introuvable : ${tableId}.${colId}`);
+    if (!c) {
+      const presentes = [...colById.values()].filter((x) => x.tableId === tableId && !x.colId.startsWith('gristHelper_')).map((x) => x.colId);
+      throw new Error(`Colonne introuvable : ${tableId}.${colId}${presentes.length ? ` (colonnes présentes : ${presentes.join(', ')})` : ` (la table ${tableId} est introuvable ou vide de colonnes)`}`);
+    }
     return c;
   };
   const choicesOf = (c) => {
@@ -234,6 +237,11 @@ async function loadMeta() {
   };
 
   for (const col of ['Nom', 'Prenom', 'Date_de_naissance', 'Cle']) need(T_INDIVIDUS, col);
+  // Colonne « élève » de Scolarite : si elle a été renommée, on reprend l'unique colonne de données qui référence Individus.
+  if (![...colById.values()].some((x) => x.tableId === T_SCOLARITE && x.colId === COL.eleve)) {
+    const candidates = [...colById.values()].filter((x) => x.tableId === T_SCOLARITE && x.type === `Ref:${T_INDIVIDUS}` && !x.isFormula);
+    if (candidates.length === 1) COL.eleve = candidates[0].colId;
+  }
   for (const col of Object.values(COL)) need(T_SCOLARITE, col);
 
   // Champs facultatifs de la création d'un élève : colonnes de données d'Individus finissant par `_manuel` ou `_manuelle`.
