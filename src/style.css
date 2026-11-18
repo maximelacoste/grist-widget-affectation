@@ -131,3 +131,4 @@ body { background: transparent; }
 
 /* Accueil : les deux blocs du bas (Élèves exclus, Tous les dispositifs) sont écartés des recherches au-dessus ; chacun reste aligné sur sa colonne */
 .accueil-bloc { max-width: 28rem; }
+#etab-results:empty { display: none; } /* zone de résultats vide : pas de marge fantôme sous le bouton, les deux blocs du bas sont à égalité */
