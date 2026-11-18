@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zb';
-import { attachSuggest } from './suggest.js?v=20261118zb';
-import { activerCalendriers } from './calendrier.js?v=20261118zb';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zc';
+import { attachSuggest } from './suggest.js?v=20261118zc';
+import { activerCalendriers } from './calendrier.js?v=20261118zc';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2586,7 +2586,7 @@ function rendreSecteur() {
     .map(([code, nom]) => [code, nom ? `Secteur ${code} (${nom})` : `Secteur ${code}`]);
   if (f.ers && !parCode.has(f.ers)) f.ers = '';
   const tri = sc.tri || (sc.tri = { cle: 'label', dir: 1 });
-  const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, libres: (e) => (e.places === null ? '' : e.places - e.presents), fins: (e) => e.finEchues * 1000 + e.finProches };
+  const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, fins: (e) => e.finEchues * 1000 + e.finProches };
   const onTri = (cle) => {
     sc.tri = { cle, dir: tri.cle === cle ? -tri.dir : 1 };
     rendreSecteur();
@@ -2621,7 +2621,7 @@ function rendreSecteur() {
     );
   const totalPresents = liste.reduce((n, e) => n + e.presents, 0);
   const totalPlaces = liste.reduce((n, e) => n + (e.places || 0), 0);
-  const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], ['Places libres', 'libres'], ['Fins de droits', 'fins']];
+  const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], ['Fins de droits', 'fins']];
   const recherche = h('input', {
     class: 'fr-input',
     id: 'f-q',
@@ -2687,7 +2687,6 @@ function rendreSecteur() {
                         aSecteur ? h('td', {}, e.secteurNum !== null ? String(e.secteurNum) : e.secteur || '—') : null,
                         aErs ? h('td', {}, e.ers ? `Secteur ${e.ers}` : '—', e.ersh ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, e.ersh)] : null) : null,
                         h('td', { class: 'nowrap' }, `${e.presents}${e.places !== null ? ` / ${e.places}` : ''}`, e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "Élèves sur liste d'attente pour cet établissement" }, `${e.attente} en attente`)] : null, badgeOccupation(e.presents, e.places) ? [h('br'), badgeOccupation(e.presents, e.places)] : null),
-                        h('td', { class: 'nowrap' }, e.places === null ? '—' : String(e.places - e.presents)),
                         h('td', {}, e.finEchues || e.finProches ? [e.finEchues ? h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits est dépassée' }, `${e.finEchues} échue${e.finEchues > 1 ? 's' : ''}`) : null, e.finEchues && e.finProches ? ' ' : null, e.finProches ? h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits approche' }, `${e.finProches} proche${e.finProches > 1 ? 's' : ''}`) : null] : '—'),
                       ),
                     ),

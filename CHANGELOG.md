@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Page « Tous les dispositifs » : la colonne « Places libres » est retirée (l'information est déjà dans la pastille d'occupation de la colonne « Effectif », qui reste triable).
 - Calendrier de saisie des dates : la fenêtre suit son champ quand la page défile (position recalculée au défilement et au redimensionnement ; masquée si le champ sort de l'écran) au lieu de rester fixée là où elle s'est ouverte.
 - La page « Établissements par secteur » devient « Tous les dispositifs » (titre, bouton d'accès de l'accueil, boutons de retour) et gagne une barre de recherche (nom, commune, UAI, type) qui s'ajoute aux filtres et se conserve au retour depuis un dispositif.
 - Démarrage : si la table des affectations a été renommée (identifiant différent de `Scolarite`), le widget la reconnaît à ses colonnes (`Affectation`, `Date_effet`, `Niveau_saisi`, `Situation`, `Liste_d_attente`) et lit comme écrit dans cette table. Les autres tables (`Individus`, `Etablissements_avec_ULIS`…) restent cherchées par leur nom.
