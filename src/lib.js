@@ -325,9 +325,10 @@ export function elevesDuDispositif(lignes, etabId, todayIso, { inclure = false, 
 }
 
 /**
- * Élèves exclus : ceux dont la dernière ligne de scolarité (date passée) est de l'année scolaire en cours et dont la
- * situation est « Exclusion ». Un élève qui a ensuite une ligne plus récente (retour, nouvelle affectation) n'en fait plus
- * partie. Renvoie `[{ eleve, ligne }]`, l'exclusion la plus récente d'abord.
+ * Élèves exclus : ceux dont la dernière ligne de scolarité (date passée) a la situation « Exclusion », quelle que soit
+ * l'année scolaire : une exclusion dure jusqu'à une nouvelle affectation, y compris après la rentrée. Un élève qui a ensuite
+ * une ligne plus récente (retour, nouvelle affectation) n'en fait plus partie. Renvoie `[{ eleve, ligne }]`, l'exclusion la
+ * plus récente d'abord.
  */
 export function elevesExclus(lignes, todayIso) {
   const parEleve = new Map();
@@ -335,11 +336,10 @@ export function elevesExclus(lignes, todayIso) {
     if (!parEleve.has(l.eleve)) parEleve.set(l.eleve, []);
     parEleve.get(l.eleve).push(l);
   }
-  const debut = debutAnneeScolaire(todayIso);
   const out = [];
   for (const [eleve, ls] of parEleve) {
     const l = ligneEnCours(ls, todayIso);
-    if (l && l.date >= debut && /^exclu/i.test((l.situation || '').trim())) out.push({ eleve, ligne: l });
+    if (l && /^exclu/i.test((l.situation || '').trim())) out.push({ eleve, ligne: l });
   }
   return out.sort((a, b) => b.ligne.date.localeCompare(a.ligne.date) || a.eleve - b.eleve);
 }

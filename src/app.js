@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zp';
-import { attachSuggest } from './suggest.js?v=20261118zp';
-import { activerCalendriers } from './calendrier.js?v=20261118zp';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zq';
+import { attachSuggest } from './suggest.js?v=20261118zq';
+import { activerCalendriers } from './calendrier.js?v=20261118zq';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2816,7 +2816,7 @@ async function openExclus(retour = retourAccueil(), { garder = false } = {}) {
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title', id: 'h-exclus', tabindex: '-1' }, 'Élèves exclus'),
-      h('p', { class: 'fr-stepper__details' }, "Élèves dont la dernière ligne de scolarité, de l'année scolaire en cours, est une exclusion. Un clic sur un nom ouvre le dossier, un clic sur l'établissement son dispositif."),
+      h('p', { class: 'fr-stepper__details' }, "Élèves dont la dernière ligne de scolarité est une exclusion, tant qu'ils n'ont pas de nouvelle affectation (y compris d'une année scolaire précédente). Un clic sur un nom ouvre le dossier, un clic sur l'établissement son dispositif."),
     ),
     h(
       'nav',
@@ -2875,7 +2875,7 @@ function rendreExclus() {
     ),
     h('p', { role: 'status' }, `${liste.length} élève${liste.length > 1 ? 's' : ''} exclu${liste.length > 1 ? 's' : ''}${liste.length !== ex.rows.length ? ` sur ${ex.rows.length}` : ''}`),
     liste.length === 0
-      ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, ex.rows.length ? 'Aucun élève exclu ne correspond à cette recherche.' : "Aucun élève n'est actuellement exclu : aucune dernière ligne de scolarité de l'année scolaire en cours n'est en situation « Exclusion »."))
+      ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, ex.rows.length ? 'Aucun élève exclu ne correspond à cette recherche.' : "Aucun élève n'est actuellement exclu : aucune dernière ligne de scolarité n'est en situation « Exclusion »."))
       : h(
           'div',
           { class: 'fr-table fr-table--no-caption' },

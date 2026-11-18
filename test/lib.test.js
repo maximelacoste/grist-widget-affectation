@@ -307,18 +307,18 @@ test('debutAnneeScolaire : 1er septembre de l\'année scolaire en cours', () => 
   assert.equal(debutAnneeScolaire('2027-01-15'), '2026-09-01');
 });
 
-test('elevesExclus : dernière ligne de l\'année scolaire en cours en « Exclusion »', () => {
+test('elevesExclus : dernière ligne en « Exclusion », même d\'une année scolaire passée', () => {
   const L = (id, eleve, date, situation) => ({ id, eleve, date, situation, affectation: 7 });
   const lignes = [
     L(1, 1, '2026-10-01', 'Exclusion'), // exclu
     L(2, 2, '2026-03-01', 'Exclusion'), L(3, 2, '2026-09-01', 'En ULIS'), // exclusion suivie d'un retour : plus exclu
-    L(4, 3, '2025-05-01', 'Exclusion'), // exclusion d'une année scolaire passée : plus en cours
+    L(4, 3, '2025-05-01', 'Exclusion'), // exclusion de l'année précédente, pas encore réaffecté : toujours exclu
     L(5, 4, '2026-09-15', 'exclusion '), // casse et espace tolérés
     L(6, 5, '2027-01-10', 'Exclusion'), // date future : ignorée
     L(7, 6, '2026-09-20', 'Sortie du dispositif'),
   ];
   const r = elevesExclus(lignes, '2026-11-18');
-  assert.deepEqual(r.map((x) => x.eleve), [1, 4], 'plus récent d\'abord');
+  assert.deepEqual(r.map((x) => x.eleve), [1, 4, 3], 'plus récent d\'abord');
   assert.deepEqual(elevesExclus([], '2026-11-18'), []);
 });
 

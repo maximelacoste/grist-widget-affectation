@@ -49,7 +49,7 @@ Le bouton de retour de la page Dossier et de la page Dispositif porte le nom de 
 
 ## Page Élèves exclus
 
-Accessible par le bouton « Élèves exclus » de l'accueil. Elle liste les élèves dont la dernière ligne de scolarité (date passée), de l'année scolaire en cours, a la situation « Exclusion » ; recherche par nom, prénom ou établissement ; tris par élève, établissement, classe, date. Un clic sur un nom ouvre le dossier (retour : « Revenir aux élèves exclus »), un clic sur l'établissement ouvre son dispositif. Les exclusions d'années scolaires passées, ou suivies d'une ligne plus récente, n'y figurent pas.
+Accessible par le bouton « Élèves exclus » de l'accueil. Elle liste les élèves dont la dernière ligne de scolarité (date passée) a la situation « Exclusion », quelle que soit l'année scolaire (une exclusion dure jusqu'à une nouvelle affectation) ; recherche par nom, prénom ou établissement ; tris par élève, établissement, classe, date. Un clic sur un nom ouvre le dossier (retour : « Revenir aux élèves exclus »), un clic sur l'établissement ouvre son dispositif. Une exclusion suivie d'une ligne plus récente n'y figure plus.
 
 ## Page Dispositif
 
