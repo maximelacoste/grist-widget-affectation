@@ -41,7 +41,7 @@ npm test           # tests des fonctions pures (clé, dates, recherche)
 npm run serve      # http://localhost:8080 (le widget n'a de sens qu'intégré dans Grist)
 ```
 
-- Aucun CDN n'est utilisé pour le DSFR. Le seul script distant est `grist-plugin-api.js` (voir le commentaire dans `index.html` pour le servir depuis ton instance).
+- Aucun CDN n'est utilisé pour le DSFR. Le seul script distant est `grist-plugin-api.js` (voir le commentaire dans `index.html` pour le servir depuis votre instance).
 - Le DSFR est destiné aux sites et services de l'administration : conserver `vendor/dsfr/LICENSE.md`, ne pas reprendre le bloc-marque ni l'en-tête/pied de page d'un site dans le widget.
 - Le test `norm()` compare la normalisation JavaScript à des valeurs produites par la formule Python de `Cle` ; à relancer si cette formule change.
 

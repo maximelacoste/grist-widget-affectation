@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118j';
-import { attachSuggest } from './suggest.js?v=20261118j';
-import { activerCalendriers } from './calendrier.js?v=20261118j';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118k';
+import { attachSuggest } from './suggest.js?v=20261118k';
+import { activerCalendriers } from './calendrier.js?v=20261118k';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -157,7 +157,7 @@ function renderStepper() {
         'div',
         { class: 'fr-stepper' },
         h('h1', { class: 'fr-stepper__title' }, 'Accueil'),
-        h('p', { class: 'fr-stepper__details' }, "Cherche un élève pour consulter son dossier ou saisir son affectation, ou un établissement pour voir son dispositif ULIS."),
+        h('p', { class: 'fr-stepper__details' }, "Recherchez un élève pour consulter son dossier ou saisir son affectation, ou un établissement pour voir son dispositif ULIS."),
       ),
       ...(reachable(2) ? [h('nav', { 'aria-label': 'Navigation entre les étapes', class: 'step-nav fr-mb-2w' }, navButton(2, 'next'))] : []),
     );
@@ -341,7 +341,7 @@ async function lancerRecherche(query, { ouvrir = null } = {}) {
   clearNotice();
   clearFieldErrors($('#form-search'));
   if (norm(query).length < 2 && !/\d{4}/.test(query)) {
-    setFieldError('q', 'Saisis au moins 2 lettres du nom ou du prénom, ou une année de naissance.');
+    setFieldError('q', 'Saisissez au moins 2 lettres du nom ou du prénom, ou une année de naissance.');
     $('#q').focus();
     return;
   }
@@ -399,7 +399,7 @@ async function renderResults() {
   const { total, rows } = state.results;
   const box = $('#results');
   if (total === 0) {
-    box.replaceChildren(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucune fiche ne correspond : tu peux la créer.')));
+    box.replaceChildren(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucune fiche ne correspond : vous pouvez la créer.')));
     return;
   }
   let enCours = new Map();
@@ -408,7 +408,7 @@ async function renderResults() {
   } catch {
     /* l'affectation en cours est un confort : la liste reste utilisable sans elle */
   }
-  const more = total > rows.length ? `${total} fiches correspondent, les ${rows.length} premières sont affichées : précise la recherche.` : '';
+  const more = total > rows.length ? `${total} fiches correspondent, les ${rows.length} premières sont affichées : précisez la recherche.` : '';
   box.replaceChildren(
     h('p', { role: 'status' }, `${total} fiche${total > 1 ? 's' : ''} trouvée${total > 1 ? 's' : ''}. ${more}`),
     h(
@@ -518,7 +518,7 @@ function gotoCreate(arg) {
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title' }, 'Créer une fiche élève'),
-      h('p', { class: 'fr-stepper__details' }, "Vérifie d'abord qu'elle n'existe pas déjà : les fiches proches s'affichent pendant la saisie.", state.createCtx ? ` Ensuite, tu saisiras l'affectation de l'élève à ${state.etabLabel.get(state.createCtx.etabId) || 'cet établissement'}.` : ''),
+      h('p', { class: 'fr-stepper__details' }, "Vérifiez d'abord qu'elle n'existe pas déjà : les fiches proches s'affichent pendant la saisie.", state.createCtx ? ` Ensuite, vous saisirez l'affectation de l'élève à ${state.etabLabel.get(state.createCtx.etabId) || 'cet établissement'}.` : ''),
     ),
     h(
       'nav',
@@ -558,7 +558,7 @@ function majProches() {
       'div',
       { class: `fr-alert fr-alert--${exact ? 'error' : 'warning'} fr-mb-2w` },
       h('h3', { class: 'fr-alert__title' }, exact ? 'Cette fiche existe déjà' : `${total} fiche${total > 1 ? 's' : ''} proche${total > 1 ? 's' : ''} déjà dans Individus`),
-      h('p', {}, exact ? 'Utilise la fiche existante plutôt que d\'en créer une seconde.' : "Si c'est le même élève, utilise sa fiche. Sinon, continue la saisie."),
+      h('p', {}, exact ? 'Utilisez la fiche existante plutôt que d\'en créer une seconde.' : "Si c'est le même élève, utilisez sa fiche. Sinon, poursuivez la saisie."),
       h(
         'ul',
         { class: 'fr-mt-1w' },
@@ -572,7 +572,7 @@ function majProches() {
           ),
         ),
       ),
-      total > rows.length ? h('p', { class: 'fr-text--sm' }, `Les ${rows.length} premières sont affichées : précise le nom ou le prénom.`) : null,
+      total > rows.length ? h('p', { class: 'fr-text--sm' }, `Les ${rows.length} premières sont affichées : précisez le nom ou le prénom.`) : null,
     ),
   );
 }
@@ -692,7 +692,7 @@ const colManuelle = (re, types) => state.champsManuels.find((f) => re.test(f.col
 const AVERT_ETAT_CIVIL =
   "Attention : le nom, le prénom et la date de naissance forment la clé de rapprochement de l'élève. Les liens qui passent par cette clé (Eleves_ULIS, notes, notifications) peuvent se rompre.";
 const AIDE_EDITION =
-  'Ce que tu saisis dans les coordonnées et les dates de notification prime sur la valeur qui vient de la MDPH. Champ vidé : retour à la valeur de la MDPH.';
+  'Ce que vous saisissez dans les coordonnées et les dates de notification prime sur la valeur qui vient de la MDPH. Champ vidé : retour à la valeur de la MDPH.';
 
 /** Champs modifiables du dossier. `valeur` = ce qui s'affiche aujourd'hui (pré-remplissage) ; null si la colonne manque. */
 function champsDossier(row, ind) {
@@ -815,7 +815,7 @@ function gardeSortie(suite) {
   ouvrirModale({
     titre: 'Abandonner les modifications en cours ?',
     corps: [
-      h('p', { class: 'fr-mb-1w' }, "Tu as modifié des champs du dossier sans les valider : ces changements seront perdus."),
+      h('p', { class: 'fr-mb-1w' }, "Vous avez modifié des champs du dossier sans les valider : ces changements seront perdus."),
       h('p', { class: 'fr-text--sm fr-mb-0' }, 'Rien n\'a été écrit dans Grist.'),
     ],
     actions: [
@@ -863,7 +863,7 @@ function validerEdition(ctx) {
       setFieldError(id, 'Un code postal compte 5 chiffres.');
       ok = false;
     } else if (c.requis && c.type === 'text' && norm(v).length === 0) {
-      setFieldError(id, 'Saisis au moins une lettre.');
+      setFieldError(id, 'Saisissez au moins une lettre.');
       ok = false;
     }
     nouveau[c.colId] = v;
@@ -891,7 +891,7 @@ function validerEdition(ctx) {
     if ('Date_de_naissance' in nouveau) n.ddn = nouveau.Date_de_naissance;
     const conflit = state.individus.find((r) => r.id !== row.id && r.cle === cle(n.nom, n.prenom, n.ddn));
     if (conflit) {
-      setFieldError(etatCivil[0].id, 'Une autre fiche a déjà ce nom, ce prénom et cette date de naissance : utilise-la plutôt que de créer un doublon.');
+      setFieldError(etatCivil[0].id, 'Une autre fiche a déjà ce nom, ce prénom et cette date de naissance : utilisez-la plutôt que de créer un doublon.');
       etatCivil[0].input.focus();
       return;
     }
@@ -980,7 +980,7 @@ async function openDossier(row, origine = 2) {
     h('div', { class: 'fr-mb-2w' }, ctx.ui.modifier),
     ctx.ui.aide,
     infosManquantes(row).length
-      ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row).join(', ')}. Utilise « Modifier » pour la compléter.`))
+      ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row).join(', ')}. Utilisez « Modifier » pour la compléter.`))
       : h('span'),
     h('h4', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
@@ -1116,7 +1116,7 @@ function renderManualFields() {
     h(
       'fieldset',
       { class: 'fr-fieldset', 'aria-labelledby': 'legend-manuel' },
-      h('legend', { class: 'fr-fieldset__legend', id: 'legend-manuel' }, h('span', { class: 'fr-h6' }, 'Informations complémentaires'), h('span', { class: 'fr-hint-text' }, 'Facultatif : à renseigner si tu les connais.')),
+      h('legend', { class: 'fr-fieldset__legend', id: 'legend-manuel' }, h('span', { class: 'fr-h6' }, 'Informations complémentaires'), h('span', { class: 'fr-hint-text' }, 'Facultatif : à renseigner si vous les connaissez.')),
       state.champsManuels.map((f, i) => h('div', { class: 'fr-fieldset__element' }, control(f, i))),
     ),
   );
@@ -1174,7 +1174,7 @@ function collectManual() {
     } else if (f.type === 'Int' || f.type === 'Numeric') {
       const n = Number(v);
       if (!Number.isFinite(n)) {
-        setFieldError(el.id, 'Saisis un nombre.');
+        setFieldError(el.id, 'Saisissez un nombre.');
         ok = false;
       } else out[f.colId] = n;
     } else out[f.colId] = v;
@@ -1234,7 +1234,7 @@ $('#form-create').addEventListener('submit', async (e) => {
     const id = res.retValues[0];
     await refreshIndividus();
     const cree = state.individus.find((r) => r.id === id);
-    if (!cree) throw new Error('la fiche a été créée mais reste introuvable à la relecture : relance la recherche');
+    if (!cree) throw new Error('la fiche a été créée mais reste introuvable à la relecture : relancez la recherche');
     await chooseEleve(cree, { keepNotice: true, affecterA: state.createCtx ? state.createCtx.etabId : null });
     notify('success', 'Fiche créée dans Individus.');
   } catch (err) {
@@ -1460,7 +1460,7 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
           o.label,
         ),
       ),
-        total > rows.length ? h('li', { role: 'presentation', class: 'combo-more' }, `${total - rows.length} autres résultats : précise la recherche.`) : null,
+        total > rows.length ? h('li', { role: 'presentation', class: 'combo-more' }, `${total - rows.length} autres résultats : précisez la recherche.`) : null,
         total === 0 ? h('li', { role: 'presentation', class: 'combo-more' }, 'Aucun résultat.') : null,
       ].filter(Boolean), // replaceChildren(null) écrirait le texte « null »
     );
@@ -1575,8 +1575,8 @@ function openScolForm(ligne, defauts = {}) {
       id: 's-aff',
       label: 'Affectation',
       hint: ligne && ligne.affectationInvalide
-        ? `Valeur actuelle non reconnue : « ${ligne.affectationInvalide} ». Elle est conservée tant que tu ne choisis pas d'établissement.`
-        : 'Tape quelques mots du nom ou de la commune.',
+        ? `Valeur actuelle non reconnue : « ${ligne.affectationInvalide} ». Elle est conservée tant que vous ne choisissez pas d'établissement.`
+        : 'Saisissez quelques mots du nom ou de la commune.',
       placeholder: 'Rechercher un établissement…',
       options: state.etabs.map((e) => ({ value: e.id, label: e.label })),
       value: ligne ? ligne.affectation : defauts.affectation || '',
@@ -1600,7 +1600,7 @@ function openScolForm(ligne, defauts = {}) {
   );
   const infos = {
     's-date': "Date à partir de laquelle l'affectation s'applique : un clic ouvre le calendrier. L'affectation « en cours » est la dernière ligne datée d'aujourd'hui ou avant.",
-    's-aff': "Établissement d'affectation : tape quelques mots du nom ou de la commune, puis choisis dans la liste. Vide, la ligne n'a pas d'établissement (sortie, retour en classe ordinaire…).",
+    's-aff': "Établissement d'affectation : saisissez quelques mots du nom ou de la commune, puis choisissez dans la liste. Vide, la ligne n'a pas d'établissement (sortie, retour en classe ordinaire…).",
     's-niveau': "Niveau de l'élève ; la liste dépend du type de l'établissement choisi (école, collège, lycée).",
     's-situation': "Situation de l'élève à cette date : en ULIS, sortie, exclusion, hors département…",
     's-attente': "À activer si l'élève est sur liste d'attente pour cet établissement (pas encore affecté)",
@@ -1750,7 +1750,7 @@ $('#form-scol').addEventListener('submit', async (e) => {
     ok = false;
   }
   if (affInput.value.trim() && !affInput.dataset.value) {
-    setFieldError('s-aff', 'Choisis un établissement dans la liste, ou vide le champ.');
+    setFieldError('s-aff', 'Choisissez un établissement dans la liste, ou videz le champ.');
     ok = false;
   }
   if (!ok) {
@@ -1818,7 +1818,7 @@ $('#form-etab').addEventListener('submit', (e) => {
   box.replaceChildren();
   const q = $('#qe').value.trim();
   if (norm(q).length < 2) {
-    setFieldError('qe', "Saisis au moins 2 lettres du nom, de la commune ou de l'UAI.");
+    setFieldError('qe', "Saisissez au moins 2 lettres du nom, de la commune ou de l'UAI.");
     $('#qe').focus();
     return;
   }
@@ -1832,7 +1832,7 @@ $('#form-etab').addEventListener('submit', (e) => {
     return;
   }
   box.replaceChildren(
-    h('p', { role: 'status', class: 'fr-mb-1w' }, `${total} établissements correspondent${total > rows.length ? ` (les ${rows.length} premiers sont affichés : précise la recherche)` : ''} :`),
+    h('p', { role: 'status', class: 'fr-mb-1w' }, `${total} établissements correspondent${total > rows.length ? ` (les ${rows.length} premiers sont affichés : précisez la recherche)` : ''} :`),
     h('ul', { class: 'liste-etabs' }, rows.map((r) => h('li', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir le dispositif de cet établissement', onclick: () => openDispositif(r.value, retourAccueil()) }, r.label)))),
   );
 });
@@ -1985,7 +1985,7 @@ function enteteTri(libelle, cle, onTri, tri = state.dispo.tri) {
 function panneauIncomplets(eleves) {
   const n = eleves.filter((e) => infosManquantes(e.row).length).length;
   if (!n) return h('span');
-  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} sans nom, prénom ou date de naissance : ouvre le dossier pour compléter.`));
+  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} sans nom, prénom ou date de naissance : ouvrez le dossier pour compléter.`));
 }
 
 function panneauAlertes(eleves, d, onTri) {
@@ -2012,7 +2012,7 @@ function panneauAlertes(eleves, d, onTri) {
 function panneauAjout(d) {
   const label = state.etabLabel.get(d.etabId) || 'cet établissement';
   const res = h('div', { id: 'dispo-ajout-res', class: 'fr-mt-2w' });
-  const input = h('input', { class: 'fr-input', id: 'dispo-q', type: 'text', autocomplete: 'off', title: "Tape une partie du nom, du prénom ou de la date de naissance de l'élève à ajouter. Les suggestions apparaissent dès 2 caractères." });
+  const input = h('input', { class: 'fr-input', id: 'dispo-q', type: 'text', autocomplete: 'off', title: "Saisissez une partie du nom, du prénom ou de la date de naissance de l'élève à ajouter. Les suggestions apparaissent dès 2 caractères." });
   const form = h(
     'form',
     { id: 'form-ajout', novalidate: true },
@@ -2036,18 +2036,18 @@ function panneauAjout(d) {
     clearFieldErrors(form);
     const q = input.value.trim();
     if (norm(q).length < 2 && !/\d{4}/.test(q)) {
-      setFieldError('dispo-q', 'Saisis au moins 2 lettres du nom ou du prénom, ou une année de naissance.');
+      setFieldError('dispo-q', 'Saisissez au moins 2 lettres du nom ou du prénom, ou une année de naissance.');
       input.focus();
       return;
     }
     const { total, rows } = rechercheLibre(state.individus, q, 20);
     if (total === 0) {
-      res.replaceChildren(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucune fiche ne correspond : tu peux la créer.')));
+      res.replaceChildren(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucune fiche ne correspond : vous pouvez la créer.')));
     } else if (total === 1) {
       ajouterAuDispositif(rows[0]);
     } else {
       res.replaceChildren(
-        h('p', { role: 'status', class: 'fr-mb-1w' }, `${total} fiches correspondent${total > rows.length ? ` (les ${rows.length} premières sont affichées : précise la recherche)` : ''} :`),
+        h('p', { role: 'status', class: 'fr-mb-1w' }, `${total} fiches correspondent${total > rows.length ? ` (les ${rows.length} premières sont affichées : précisez la recherche)` : ''} :`),
         h('ul', { class: 'liste-etabs' }, rows.map((r) => h('li', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: `Ajouter cet élève : ouvrir son formulaire d'affectation à ${label}`, onclick: () => ajouterAuDispositif(r) }, libelleEleve(r))))),
       );
     }
@@ -2181,7 +2181,7 @@ function rendreDispositif() {
           class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-add-line',
           'aria-expanded': String(d.ajout),
           'aria-controls': 'dispo-ajout',
-          title: "Ajouter un élève à ce dispositif : tu choisis l'élève (ou tu crées sa fiche), puis le formulaire d'affectation s'ouvre avec cet établissement",
+          title: "Ajouter un élève à ce dispositif : vous choisissez l'élève (ou vous créez sa fiche), puis le formulaire d'affectation s'ouvre avec cet établissement",
           onclick: () => {
             d.ajout = !d.ajout;
             rendreDispositif();
@@ -2488,9 +2488,9 @@ function accueilNavigation() {
     titre: 'Avant de commencer',
     icone: 'fr-icon-information-line',
     corps: [
-      h('p', {}, h('strong', {}, 'N\'utilise pas les flèches « précédent » et « suivant » de ton navigateur.')),
-      h('p', {}, "Elles ne pilotent pas cette page : elles te feraient quitter la page Grist, ou perdre ta recherche et une modification en cours."),
-      h('p', { class: 'fr-mb-0' }, "Pour revenir en arrière, utilise les boutons « Revenir à… » en haut de chaque page."),
+      h('p', {}, h('strong', {}, 'N\'utilisez pas les flèches « précédent » et « suivant » de votre navigateur.')),
+      h('p', {}, "Elles ne pilotent pas cette page : elles vous feraient quitter la page Grist, ou perdre votre recherche et une modification en cours."),
+      h('p', { class: 'fr-mb-0' }, "Pour revenir en arrière, utilisez les boutons « Revenir à… » en haut de chaque page."),
     ],
     actions: [{ id: 'dlg-ok', libelle: "J'ai compris", info: 'Fermer ce message et commencer' }],
     focus: 'dlg-ok',

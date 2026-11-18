@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Interface : passage au vouvoiement de tous les textes affichés (aides, messages d'erreur, infobulles, pop-ups, message de secours), conformément à l'usage dans l'administration.
 - Pop-up d'accueil réservé à ceux qui consultent : le widget lit la table `Droits_widget` (une ligne), que les règles d'accès Grist ne rendent lisible qu'aux éditeurs ; s'il y trouve une ligne, le pop-up n'est pas affiché. Table absente ou illisible : le pop-up s'affiche pour tout le monde.
 - Pop-up d'accueil « Avant de commencer » : demande de ne pas utiliser les flèches précédent / suivant du navigateur (utiliser les boutons « Revenir à… »). Affichée une fois par session de navigation (`sessionStorage`).
 - Dispositif : un interrupteur « Liste d'attente » par élève permet de le mettre en liste d'attente ou de le remettre présent directement depuis la liste. Une fenêtre de confirmation précède l'écriture (`UpdateRecord` de `Liste_d_attente` sur sa ligne d'affectation en cours) ; « Non » ne change rien. Les élèves dans une autre situation (sortie, exclusion…) n'ont pas d'interrupteur.

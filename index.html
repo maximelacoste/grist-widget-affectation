@@ -10,9 +10,9 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-arrows/icons-arrows.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-system/icons-system.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-design/icons-design.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261118j">
-  <!-- API de plugin Grist. Si possible, remplacer par celle de ton instance
-       (https://<ton-instance-grist>/grist-plugin-api.js) : le script ne reçoit aucune donnée,
+  <link rel="stylesheet" href="src/style.css?v=20261118k">
+  <!-- API de plugin Grist. Si possible, remplacer par celle de votre instance
+       (https://<votre-instance-grist>/grist-plugin-api.js) : le script ne reçoit aucune donnée,
        mais on évite ainsi toute requête vers un serveur tiers. -->
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 </head>
@@ -30,9 +30,9 @@
           <form id="form-search" novalidate>
             <div class="fr-input-group">
               <label class="fr-label" for="q">Rechercher un élève
-                <span class="fr-hint-text">Nom, prénom et date de naissance, dans l'ordre que tu veux (exemples : « dupont léa », « dupont 2015 », « léa 12/03/2015 »).</span>
+                <span class="fr-hint-text">Nom, prénom et date de naissance, dans l'ordre que vous voulez (exemples : « dupont léa », « dupont 2015 », « léa 12/03/2015 »).</span>
               </label>
-              <input class="fr-input" id="q" name="q" title="Tape une partie du nom, du prénom ou de la date de naissance (jj/mm/aaaa ou année), dans l'ordre que tu veux. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off">
+              <input class="fr-input" id="q" name="q" title="Saisissez une partie du nom, du prénom ou de la date de naissance (jj/mm/aaaa ou année), dans l'ordre que vous voulez. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off">
             </div>
             <button title="Lancer la recherche et afficher toutes les fiches correspondantes" class="fr-btn fr-mt-2w" type="submit">Rechercher</button>
           </form>
@@ -44,7 +44,7 @@
               <label class="fr-label" for="qe">Rechercher un établissement
                 <span class="fr-hint-text">Nom, commune ou UAI : la page du dispositif liste les élèves présents et les informations de l'établissement.</span>
               </label>
-              <input class="fr-input" id="qe" name="qe" title="Tape quelques mots du nom, de la commune ou de l'UAI de l'établissement. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off">
+              <input class="fr-input" id="qe" name="qe" title="Saisissez quelques mots du nom, de la commune ou de l'UAI de l'établissement. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off">
             </div>
             <button title="Afficher le dispositif de l'établissement, ou la liste des établissements correspondants" class="fr-btn fr-mt-2w" type="submit">Rechercher</button>
           </form>
@@ -141,10 +141,10 @@
       if (document.documentElement.dataset.pret) return;
       var d = document.createElement('div');
       d.className = 'fr-alert fr-alert--error fr-m-2w';
-      d.innerHTML = '<h3 class="fr-alert__title">Le widget ne s\'est pas chargé</h3><p>Recharge la page sans le cache (Ctrl+Maj+R) ; si le message revient, ouvre la console du navigateur (F12) et transmets l\'erreur affichée.</p>';
+      d.innerHTML = '<h3 class="fr-alert__title">Le widget ne s\'est pas chargé</h3><p>Rechargez la page sans le cache (Ctrl+Maj+R) ; si le message revient, ouvrez la console du navigateur (F12) et transmettez l\'erreur affichée.</p>';
       document.body.prepend(d);
     }, 5000);
   </script>
-  <script type="module" src="src/app.js?v=20261118j"></script>
+  <script type="module" src="src/app.js?v=20261118k"></script>
 </body>
 </html>
