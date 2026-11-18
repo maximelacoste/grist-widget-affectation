@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Dispositif : les informations de l'établissement sont présentées en tableau, deux couples libellé / valeur par ligne (effectifs en pleine largeur, une seule colonne sur écran étroit). Une information dont la formule Grist est en erreur (par exemple « Coordonnateur CDOEA : erreur AttributeError ») n'est plus affichée.
 - Année scolaire : la règle de la formule `Actuellement_en_ULIS` (dernière ligne de l'élève, datée de l'année scolaire en cours — depuis le 1er septembre —, situation « En ULIS » ou vide) est reprise partout où l'application recalcule elle-même : repli sans la colonne, et groupe « Autres situations » des dispositifs, qui n'affiche plus les scolarités d'années scolaires passées.
 - Dossier et suggestions de recherche : l'affectation « En cours » suit la même règle que les effectifs des dispositifs, la colonne `Actuellement_en_ULIS` de Scolarite. Une scolarité ancienne (par exemple de 2023) que Grist ne marque plus comme actuelle n'est plus affichée « En cours » ; l'élève apparaît « sans affectation en cours ». Sans cette colonne, l'ancienne règle (ligne datée la plus récente) sert de secours.
 - Tous les dispositifs : la recherche et les cinq filtres sont réunis en deux lignes de trois champs (la recherche d'abord), alignés ; l'aide sous le champ de recherche est retirée (l'introduction de la page dit déjà « nom, commune ou UAI »).

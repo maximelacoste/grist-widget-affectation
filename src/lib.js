@@ -51,6 +51,11 @@ export function isInvalidCell(v) {
   return Array.isArray(v) && v[0] === 'E';
 }
 
+/** Cellule dont la formule Grist a échoué (AttributeError, etc.) ; une valeur invalide saisie (`InvalidTypedValue`) n'en est pas une. */
+export function isFormulaError(v) {
+  return Array.isArray(v) && v[0] === 'E' && v[1] !== 'InvalidTypedValue';
+}
+
 /** Texte lisible d'une cellule : texte brut d'une valeur invalide, éléments d'une liste, '' si vide. */
 export function cellText(v) {
   if (v == null) return '';

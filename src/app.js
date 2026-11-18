@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zm';
-import { attachSuggest } from './suggest.js?v=20261118zm';
-import { activerCalendriers } from './calendrier.js?v=20261118zm';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zn';
+import { attachSuggest } from './suggest.js?v=20261118zn';
+import { activerCalendriers } from './calendrier.js?v=20261118zn';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -727,6 +727,36 @@ function listeInfos(infos) {
     'dl',
     { class: 'dossier-infos' },
     infos.flatMap(([k, v]) => [h('dt', { class: 'fr-text--bold' }, k), h('dd', {}, v || '—')]),
+  );
+}
+
+/**
+ * Informations d'un établissement en tableau, deux couples « libellé / valeur » par ligne (une seule colonne sur écran
+ * étroit). Une entrée `[libelle, valeur, true]` occupe toute la largeur (texte long).
+ */
+function tableauInfos(infos, legende) {
+  const cellules = (k, v) => [h('th', { scope: 'row' }, k), v];
+  const lignes = [];
+  let attente = null;
+  for (const [k, v, pleine] of infos) {
+    const valeur = v || '—';
+    if (pleine) {
+      if (attente) { lignes.push(h('tr', {}, cellules(attente[0], h('td', { colspan: 3 }, attente[1])))); attente = null; }
+      lignes.push(h('tr', {}, cellules(k, h('td', { colspan: 3 }, valeur))));
+    } else if (attente) {
+      lignes.push(h('tr', {}, cellules(attente[0], h('td', {}, attente[1])), cellules(k, h('td', {}, valeur))));
+      attente = null;
+    } else {
+      attente = [k, valeur];
+    }
+  }
+  if (attente) lignes.push(h('tr', {}, cellules(attente[0], h('td', { colspan: 3 }, attente[1]))));
+  return h(
+    'div',
+    { class: 'fr-table fr-table--no-caption infos-etab' },
+    h('div', { class: 'fr-table__wrapper' }, h('div', { class: 'fr-table__container' }, h('div', { class: 'fr-table__content' },
+      h('table', {}, h('caption', {}, legende), h('tbody', {}, lignes)),
+    ))),
   );
 }
 
@@ -2135,7 +2165,8 @@ async function infosEtab(etabId) {
   const infos = [];
   for (const { col, libelle } of INFOS_ETAB) {
     const c = colDe(col);
-    if (c) infos.push({ libelle, valeur: await valeurColonne(c, t[col][i]) });
+    // une formule en erreur n'a rien à montrer : la ligne est omise plutôt qu'affichée « erreur AttributeError »
+    if (c && !isFormulaError(t[col][i])) infos.push({ libelle, valeur: await valeurColonne(c, t[col][i]) });
   }
   let coords = 0;
   const uai = colDe('Uai');
@@ -2151,6 +2182,7 @@ async function infosEtab(etabId) {
       if (!c) continue;
       pris.add(c.colId);
       coords += 1;
+      if (j >= 0 && isFormulaError(tabU[c.colId][j])) continue;
       infos.push({ libelle, valeur: j >= 0 ? await valeurColonne(c, tabU[c.colId][j]) : '' });
     }
   }
@@ -2392,12 +2424,12 @@ function rendreDispositif() {
   const box = $('#dispo');
   box.replaceChildren(
     h('h2', { class: 'fr-h6' }, "Informations sur l'établissement"),
-    listeInfos([
-      ['Effectifs', badgeOccupation(presents, etab.places) ? [effectifs, ' ', badgeOccupation(presents, etab.places)] : effectifs],
-      etab.effectifGrist !== null && etab.effectifGrist !== presents ? ['Effectif calculé par Grist', `${etab.effectifGrist} (colonne ${COL_EFFECTIF_GRIST}, différent du décompte ci-dessus)`] : null,
+    tableauInfos([
+      ['Effectifs', badgeOccupation(presents, etab.places) ? [effectifs, ' ', badgeOccupation(presents, etab.places)] : effectifs, true],
+      etab.effectifGrist !== null && etab.effectifGrist !== presents ? ['Effectif calculé par Grist', `${etab.effectifGrist} (colonne ${COL_EFFECTIF_GRIST}, différent du décompte ci-dessus)`, true] : null,
       typeLibelle ? ['Type', typeLibelle] : null,
       ...etab.infos.map((x) => [x.libelle, x.valeur]),
-    ].filter(Boolean)),
+    ].filter(Boolean), "Informations sur l'établissement"),
     etab.coords === 0
       ? h('p', { class: 'fr-hint-text fr-mb-2w' }, "Coordonnées : aucune colonne reconnue (code postal, téléphone, courriel) dans la table liée par Uai.")
       : h('span'),

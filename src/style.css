@@ -119,3 +119,12 @@ body { background: transparent; }
 
 /* Libellés des interrupteurs du dispositif sur une seule ligne (au-dessus du tableau et dans chaque ligne) */
 #dispo .fr-toggle__label { white-space: nowrap; width: auto; }
+
+/* Informations d'un établissement : tableau à deux couples libellé / valeur par ligne */
+.infos-etab th[scope="row"] { white-space: nowrap; width: 1%; }
+.infos-etab td { overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 36em) {
+  .infos-etab tr { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .infos-etab th[scope="row"] { width: auto; white-space: normal; padding-bottom: 0; }
+  .infos-etab td[colspan] { grid-column: auto; }
+}
