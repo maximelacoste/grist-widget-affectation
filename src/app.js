@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118i';
-import { attachSuggest } from './suggest.js?v=20261118i';
-import { activerCalendriers } from './calendrier.js?v=20261118i';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118j';
+import { attachSuggest } from './suggest.js?v=20261118j';
+import { activerCalendriers } from './calendrier.js?v=20261118j';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2461,6 +2461,21 @@ $('#btn-secteur').addEventListener('click', () => openSecteur(retourAccueil()));
  * page Grist qui l'entoure, surtout en mode intégré). Affichée une fois par session de navigation ; si le navigateur
  * refuse le stockage de session, elle s'affiche à chaque ouverture.
  */
+/**
+ * Le widget ne peut pas lire le rôle de l'utilisateur. Astuce par les règles d'accès : la table `Droits_widget` (une ligne)
+ * n'est lisible que par les éditeurs ; si le widget la lit et y trouve une ligne, l'utilisateur est éditeur. Table absente,
+ * illisible ou vide : on le traite comme un simple lecteur (le cas le plus prudent).
+ */
+const T_DROITS = 'Droits_widget';
+async function estEditeur() {
+  try {
+    const t = await grist.docApi.fetchTable(T_DROITS);
+    return Array.isArray(t.id) && t.id.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function accueilNavigation() {
   const CLE = 'affectation-accueil-vu';
   try {
@@ -2485,7 +2500,9 @@ function accueilNavigation() {
 async function init() {
   grist.ready({ requiredAccess: 'full' });
   goto(1, { focus: false });
-  accueilNavigation();
+  estEditeur().then((editeur) => {
+    if (!editeur) accueilNavigation(); // les éditeurs connaissent l'outil : le message vise ceux qui consultent
+  });
   try {
     await loadMeta();
     await refreshIndividus();
