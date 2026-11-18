@@ -41,7 +41,7 @@ Le bouton de retour de la page Dossier et de la page Dispositif porte le nom de 
 
 ## Page Dispositif
 
-- Informations : effectifs calculés (présents, liste d'attente, autres situations) et, quand elles existent dans `Etablissements_avec_ULIS`, les colonnes UAI, adresse, code postal, commune, téléphone, courriel, directeur, ERS, capacité, effectif saisi.
+- Informations : effectifs calculés (présents sur `Places_max`, liste d'attente, autres situations) ; colonnes de `Etablissements_avec_ULIS` (UAI, commune, secteur ERS, ERSH, secteur et coordonnateur CDOEA, nombre de dispositifs, ouverture) ; coordonnées (adresse, code postal, téléphone, courriel, directeur) cherchées dans `Etablissements_ERS`, la table liée par `Uai`.
 - Élèves présents : ceux dont la ligne de scolarité en cours (la plus récente dont la date est passée) désigne cet établissement, avec la situation « En ULIS » et hors liste d'attente. Un interrupteur ajoute la liste d'attente et les autres situations.
 - Tri : élève (nom, prénom), classe (ordre des choix de `Niveau_saisi`), première notification, fin de droits ; un second clic inverse l'ordre ; une date absente reste toujours en dernier.
 

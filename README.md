@@ -4,7 +4,7 @@ Widget Grist « Affectation » pour le document ULIS centralisé (écosystème �
 
 Une page d'accueil avec deux recherches, puis deux parcours (schéma complet : [docs/navigation.md](docs/navigation.md)) :
 
-- **Un établissement avec ULIS** : la page *Dispositif* affiche effectifs, informations de l'établissement (colonnes reconnues dans `Etablissements_avec_ULIS` : UAI, adresse, code postal, commune, téléphone, courriel, directeur, ERS, capacité, effectif) et élèves présents, triables ; un clic sur un élève ouvre son dossier.
+- **Un établissement avec ULIS** : la page *Dispositif* affiche effectifs, informations de l'établissement (colonnes de `Etablissements_avec_ULIS` : `Uai`, `Commune`, `Secteur_ERS`, `Uai_ERSH`, `Secteur_CDOEA`, `Uai_Coordo_CDOEA`, `Places_max`… ; coordonnées lues dans la table liée par `Uai`) et élèves présents, triables ; un clic sur un élève ouvre son dossier.
 - **Un élève**, en trois étapes :
   1. **Rechercher** (nom, prénom, date de naissance, dans l'ordre voulu), sans tenir compte des accents, de la casse ni des tirets. Une suggestion ouvre directement le dossier.
   2. **Choisir** la fiche trouvée dans `Individus`, ou **en créer une** si aucune ne convient. La création est refusée si la clé `Cle` (même normalisation que la formule Grist) existe déjà.
@@ -15,7 +15,7 @@ Une page d'accueil avec deux recherches, puis deux parcours (schéma complet : [
 | Table | Colonnes utilisées |
 |---|---|
 | `Individus` | `Nom`, `Prenom`, `Date_de_naissance` (écrites à la création) ; `Cle` (lue) ; `Id_app` (lue) ; `Premiere_notif_ULIS` et `Fin_droits_ULIS` (lues, page Dispositif) |
-| `Etablissements_avec_ULIS` | colonne affichée (réf. de `Scolarite.Affectation`), `Commune`, `Type` ; pour la page Dispositif, lues si elles existent : UAI, adresse, code postal, commune, téléphone, courriel, directeur, ERS, capacité, effectif |
+| `Etablissements_avec_ULIS` | colonne affichée (réf. de `Scolarite.Affectation`), `Commune`, `Type` ; page Dispositif, lues si elles existent : `Uai` (réf. vers `Etablissements_ERS`, dont adresse, code postal, téléphone, courriel, directeur sont cherchés par leur nom), `Secteur_ERS`, `Uai_ERSH`, `Secteur_CDOEA`, `Uai_Coordo_CDOEA`, `Nombre_de_dispositifs`, `Ouverture`, `Places_max`, `Effectif` |
 | `Scolarite` | `Eleve_Identite_` (réf. vers `Individus`), `Affectation` (réf. vers `Etablissements_avec_ULIS`), `Date_effet`, `Niveau_saisi` (Choice), `Situation` (Choice), `Liste_d_attente` (Bascule) |
 
 À la création d'une fiche, le formulaire propose aussi, en facultatif, toutes les colonnes de données d'`Individus` dont l'identifiant finit par `_manuel` ou `_manuelle` (début/fin de notification, représentants légaux, adresse, code postal, commune…). Elles sont découvertes dans les métadonnées Grist : ajouter une telle colonne suffit à la voir apparaître.

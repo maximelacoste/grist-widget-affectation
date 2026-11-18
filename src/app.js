@@ -1780,18 +1780,26 @@ attachSuggest($('#qe'), {
   },
 });
 
-// Colonnes de `Etablissements_avec_ULIS` affichées s'il en existe une qui convient (repérées par leur nom ou leur libellé).
+// Colonnes de `Etablissements_avec_ULIS` affichées dans la page du dispositif (ignorées si elles n'existent pas).
 const INFOS_ETAB = [
-  /(^|[^a-z])(uai|rne)([^a-z]|$)/i,
-  /adresse/i,
-  /(^|[^a-z])cp([^a-z]|$)|postal/i,
-  /^commune|ville/i,
-  /t[eé]l/i,
-  /mail|courriel/i,
-  /direct|chef/i,
-  /(^|[^a-z])ers([^a-z]|$)|r[eé]f[eé]rent/i,
-  /capacit|places/i,
-  /effectif/i,
+  { col: 'Uai', libelle: 'UAI' },
+  { col: 'Commune', libelle: 'Commune' },
+  { col: 'Secteur_ERS', libelle: 'Secteur ERS' },
+  { col: 'Uai_ERSH', libelle: 'ERSH' },
+  { col: 'Secteur_CDOEA', libelle: 'Secteur CDOEA' },
+  { col: 'Uai_Coordo_CDOEA', libelle: 'Coordonnateur CDOEA' },
+  { col: 'Nombre_de_dispositifs', libelle: 'Nombre de dispositifs' },
+  { col: 'Ouverture', libelle: 'Dispositif en ouverture' },
+];
+const COL_PLACES = 'Places_max'; // capacité calculée par Grist
+const COL_EFFECTIF_GRIST = 'Effectif'; // décompte de Grist, comparé au nôtre
+// Coordonnées : la table liée par `Uai` (Etablissements_ERS) ; colonnes repérées par leur nom ou leur libellé.
+const INFOS_UAI = [
+  { re: /adresse/i, libelle: 'Adresse' },
+  { re: /(^|[^a-z])cp([^a-z]|$)|postal/i, libelle: 'Code postal' },
+  { re: /t[eé]l/i, libelle: 'Téléphone' },
+  { re: /mail|courriel/i, libelle: 'Courriel' },
+  { re: /direct|chef/i, libelle: "Directeur ou chef d'établissement" },
 ];
 
 async function valeurColonne(col, v) {
@@ -1813,28 +1821,47 @@ async function valeurColonne(col, v) {
   return cellText(v);
 }
 
-/** Informations de l'établissement : [{ libelle, valeur }] pour les colonnes reconnues et renseignées. */
+/** Informations de l'établissement : { infos: [{ libelle, valeur }], places, effectifGrist, coords }. */
 async function infosEtab(etabId) {
   const t = await lireTable(state.etabTable);
   const i = t.id.indexOf(etabId);
-  if (i < 0) return [];
-  const pris = new Set();
-  const out = [];
-  for (const re of INFOS_ETAB) {
-    const col = state.etabCols.find((c) => !pris.has(c.colId) && c.colId !== COL_TYPE_ETAB && t[c.colId] && c.type !== 'Attachments' && re.test(`${c.colId} ${c.label || ''}`));
-    if (!col) continue;
-    pris.add(col.colId);
-    const valeur = await valeurColonne(col, t[col.colId][i]);
-    out.push({ libelle: (col.label || col.colId).replace(/_/g, ' '), valeur });
+  const vide = { infos: [], places: null, effectifGrist: null, coords: 0 };
+  if (i < 0) return vide;
+  const colDe = (id) => state.etabCols.find((c) => c.colId === id && t[id]);
+  const infos = [];
+  for (const { col, libelle } of INFOS_ETAB) {
+    const c = colDe(col);
+    if (c) infos.push({ libelle, valeur: await valeurColonne(c, t[col][i]) });
   }
-  return out;
+  let coords = 0;
+  const uai = colDe('Uai');
+  if (uai && uai.type.startsWith('Ref:')) {
+    const tableUai = uai.type.slice(4);
+    const tabU = await lireTable(tableUai);
+    const refId = t.Uai[i];
+    const j = typeof refId === 'number' ? tabU.id.indexOf(refId) : -1;
+    const colsU = [...state.colById.values()].filter((c) => c.tableId === tableUai).sort((x, y) => x.pos - y.pos);
+    const pris = new Set();
+    for (const { re, libelle } of INFOS_UAI) {
+      const c = colsU.find((x) => !pris.has(x.colId) && tabU[x.colId] && x.type !== 'Attachments' && re.test(`${x.colId} ${x.label || ''}`));
+      if (!c) continue;
+      pris.add(c.colId);
+      coords += 1;
+      infos.push({ libelle, valeur: j >= 0 ? await valeurColonne(c, tabU[c.colId][j]) : '' });
+    }
+  }
+  const nombre = (id) => {
+    const v = colDe(id) ? t[id][i] : null;
+    return typeof v === 'number' ? v : null;
+  };
+  return { infos, places: nombre(COL_PLACES), effectifGrist: nombre(COL_EFFECTIF_GRIST), coords };
 }
 
 async function chargerDispositif(etabId) {
-  const [tScol, tInd, infos] = await Promise.all([lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS), infosEtab(etabId)]);
+  const [tScol, tInd, etab] = await Promise.all([lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS), infosEtab(etabId)]);
   state.individus = toIndividus(tInd);
   const lignes = tableToRows(tScol, Object.values(COL)).map((r) => ({ eleve: r[COL.eleve], ...mapLigne(r) }));
-  return { lignes, tInd, infos, parId: new Map(state.individus.map((r) => [r.id, r])), idx: new Map(tInd.id.map((id, i) => [id, i])) };
+  return { lignes, tInd, etab, parId: new Map(state.individus.map((r) => [r.id, r])), idx: new Map(tInd.id.map((id, i) => [id, i])) };
 }
 
 async function openDispositif(etabId, retour, { garder = false } = {}) {
@@ -1887,7 +1914,7 @@ function enteteTri(libelle, cle, onTri) {
 
 function rendreDispositif() {
   const d = state.dispo;
-  const { lignes, tInd, infos, parId, idx } = d.data;
+  const { lignes, tInd, etab, parId, idx } = d.data;
   const todayIso = new Date().toISOString().slice(0, 10);
   const { rows, attente, autres } = elevesDuDispositif(lignes, d.etabId, todayIso, { inclure: d.inclure, situationPresent: SITUATION_PAR_DEFAUT });
   const presents = rows.filter(({ ligne }) => ligne.situation === SITUATION_PAR_DEFAUT && !ligne.attente).length;
@@ -1914,17 +1941,18 @@ function rendreDispositif() {
     $(`#dispo [data-tri="${cle}"]`)?.focus();
   };
   const typeLibelle = { ECO: 'École', CLG: 'Collège', LYC: 'Lycée' }[state.etabType.get(d.etabId)] || state.etabTypeBrut.get(d.etabId) || '';
-  const effectifs = [`${presents} élève${presents > 1 ? 's' : ''} présent${presents > 1 ? 's' : ''}`, attente ? `${attente} en liste d'attente` : null, autres ? `${autres} dans une autre situation` : null].filter(Boolean).join(' · ');
+  const effectifs = [`${presents} élève${presents > 1 ? 's' : ''} présent${presents > 1 ? 's' : ''}${etab.places !== null ? ` sur ${etab.places} places` : ''}`, attente ? `${attente} en liste d'attente` : null, autres ? `${autres} dans une autre situation` : null].filter(Boolean).join(' · ');
   const box = $('#dispo');
   box.replaceChildren(
     h('h4', { class: 'fr-h6' }, "Informations sur l'établissement"),
     listeInfos([
       ['Effectifs', effectifs],
+      etab.effectifGrist !== null && etab.effectifGrist !== presents ? ['Effectif calculé par Grist', `${etab.effectifGrist} (colonne ${COL_EFFECTIF_GRIST}, différent du décompte ci-dessus)`] : null,
       typeLibelle ? ['Type', typeLibelle] : null,
-      ...infos.map((x) => [x.libelle, x.valeur]),
+      ...etab.infos.map((x) => [x.libelle, x.valeur]),
     ].filter(Boolean)),
-    infos.length === 0
-      ? h('p', { class: 'fr-hint-text fr-mb-2w' }, `Aucune colonne d'information (UAI, adresse, téléphone, courriel, ERS, capacité…) reconnue dans ${state.etabTable}.`)
+    etab.coords === 0
+      ? h('p', { class: 'fr-hint-text fr-mb-2w' }, "Adresse, téléphone et courriel : aucune colonne reconnue dans la table liée par Uai.")
       : h('span'),
     h('h4', { class: 'fr-h6 fr-mt-2w' }, 'Élèves du dispositif'),
     h(
