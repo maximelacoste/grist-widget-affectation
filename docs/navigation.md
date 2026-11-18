@@ -47,6 +47,10 @@ flowchart TD
 
 Le bouton de retour de la page Dossier et de la page Dispositif porte le nom de la page d'où l'on vient : le schéma les résume par une seule flèche.
 
+## Page Élèves exclus
+
+Accessible par le bouton « Élèves exclus » de l'accueil. Elle liste les élèves dont la dernière ligne de scolarité (date passée), de l'année scolaire en cours, a la situation « Exclusion » ; recherche par nom, prénom ou établissement ; tris par élève, établissement, classe, date. Un clic sur un nom ouvre le dossier (retour : « Revenir aux élèves exclus »), un clic sur l'établissement ouvre son dispositif. Les exclusions d'années scolaires passées, ou suivies d'une ligne plus récente, n'y figurent pas.
+
 ## Page Dispositif
 
 - Informations : effectifs calculés (présents sur `Places_max`, liste d'attente, autres situations) ; colonnes de `Etablissements_avec_ULIS` (UAI, commune, secteur ERS, ERSH, secteur et coordonnateur CDOEA, nombre de dispositifs, ouverture) ; coordonnées (adresse, code postal, téléphone, courriel, directeur) cherchées dans `Etablissements_ERS`, la table liée par `Uai`.

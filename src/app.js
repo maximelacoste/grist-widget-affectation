@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zo';
-import { attachSuggest } from './suggest.js?v=20261118zo';
-import { activerCalendriers } from './calendrier.js?v=20261118zo';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zp';
+import { attachSuggest } from './suggest.js?v=20261118zp';
+import { activerCalendriers } from './calendrier.js?v=20261118zp';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -187,6 +187,7 @@ function masquerPages() {
   $('#step-dossier').hidden = true;
   $('#step-dispo').hidden = true;
   $('#step-secteur').hidden = true;
+  $('#step-exclus').hidden = true;
 }
 
 function goto(step, { focus = true } = {}) {
@@ -1303,7 +1304,7 @@ async function openDossier(row, origine = 2) {
     h(
       'div',
       { class: 'fr-mt-2w' },
-      h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
+      h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'exclus' ? 'Revenir à la liste des élèves exclus' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
     ),
   );
   state.step = 0;
@@ -1329,12 +1330,16 @@ async function openDossier(row, origine = 2) {
   $('#h-dossier').focus();
 }
 
-const libelleRetourDossier = (origine) => (origine === 3 ? 'Revenir aux affectations' : origine === 'dispo' ? 'Revenir au dispositif' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la page de résultats');
+const libelleRetourDossier = (origine) => (origine === 3 ? 'Revenir aux affectations' : origine === 'dispo' ? 'Revenir au dispositif' : origine === 'exclus' ? 'Revenir aux élèves exclus' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la page de résultats');
 
 function retourDossier(row, origine) {
   clearNotice();
   if (origine === 'dispo' && state.dispo) {
     openDispositif(state.dispo.etabId, state.dispo.retour, { garder: true });
+    return;
+  }
+  if (origine === 'exclus' && state.exclus) {
+    openExclus(state.exclus.retour, { garder: true });
     return;
   }
   if (origine === 3 && state.eleve) {
@@ -2775,6 +2780,142 @@ function rendreSecteur() {
 }
 
 $('#btn-secteur').addEventListener('click', () => openSecteur(retourAccueil()));
+
+/* ------------------------------------------------------------------ */
+/* Élèves exclus                                                       */
+/* ------------------------------------------------------------------ */
+const retourExclus = () => ({ libelle: 'Revenir aux élèves exclus', action: () => openExclus(state.exclus.retour, { garder: true }) });
+
+async function chargerExclus() {
+  const [tScol, tInd] = await Promise.all([lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS)]);
+  state.individus = toIndividus(tInd);
+  const parId = new Map(state.individus.map((r) => [r.id, r]));
+  const todayIso = new Date().toISOString().slice(0, 10);
+  return elevesExclus(lignesDe(tScol), todayIso)
+    .filter((x) => parId.has(x.eleve))
+    .map((x) => ({ row: parId.get(x.eleve), ligne: x.ligne, etab: x.ligne.affectation ? state.etabLabel.get(x.ligne.affectation) || `#${x.ligne.affectation}` : '' }));
+}
+
+async function openExclus(retour = retourAccueil(), { garder = false } = {}) {
+  if (state.edition) return gardeSortie(() => openExclus(retour, { garder }));
+  clearNotice();
+  let rows;
+  try {
+    rows = await chargerExclus();
+  } catch (err) {
+    notify('error', `Lecture des élèves exclus impossible : ${err.message}`);
+    return;
+  }
+  const prec = garder && state.exclus ? state.exclus : null;
+  state.exclus = { retour, rows, tri: prec ? prec.tri : { cle: 'date', dir: -1 }, q: prec ? prec.q : '' };
+  state.step = 0;
+  masquerPages();
+  $('#step-exclus').hidden = false;
+  $('#stepper').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-stepper' },
+      h('h1', { class: 'fr-stepper__title', id: 'h-exclus', tabindex: '-1' }, 'Élèves exclus'),
+      h('p', { class: 'fr-stepper__details' }, "Élèves dont la dernière ligne de scolarité, de l'année scolaire en cours, est une exclusion. Un clic sur un nom ouvre le dossier, un clic sur l'établissement son dispositif."),
+    ),
+    h(
+      'nav',
+      { 'aria-label': 'Navigation', class: 'step-nav fr-mb-2w' },
+      h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter cette page', onclick: () => { clearNotice(); retour.action(); } }, retour.libelle),
+    ),
+  );
+  rendreExclus();
+  $('#h-exclus').focus();
+}
+
+function rendreExclus() {
+  const ex = state.exclus;
+  const tri = ex.tri;
+  const cles = {
+    nom: (x) => `${x.row.nom} ${x.row.prenom}`,
+    etab: (x) => x.etab,
+    niveau: (x) => x.ligne.niveau,
+    date: (x) => x.ligne.date,
+  };
+  const onTri = (cle) => {
+    ex.tri = { cle, dir: tri.cle === cle ? -tri.dir : cle === 'date' ? -1 : 1 };
+    rendreExclus();
+    $(`#exclus [data-tri="${cle}"]`)?.focus();
+  };
+  const jetons = normSearch(ex.q || '').split(/\s+/).filter(Boolean);
+  const correspond = (x) => !jetons.length || jetons.every((t) => normSearch(`${x.row.nom} ${x.row.prenom} ${x.etab}`).includes(t));
+  const val = cles[tri.cle];
+  const liste = ex.rows.filter(correspond).sort((a, b) => {
+    const u = val(a);
+    const v = val(b);
+    const vide = (z) => z === '' || z === null || z === undefined;
+    if (vide(u) !== vide(v)) return vide(u) ? 1 : -1; // valeur absente : toujours en dernier
+    return String(u).localeCompare(String(v), 'fr', { numeric: true }) * tri.dir || cles.nom(a).localeCompare(cles.nom(b), 'fr');
+  });
+  const recherche = h('input', {
+    class: 'fr-input',
+    id: 'x-q',
+    type: 'search',
+    autocomplete: 'off',
+    value: ex.q || '',
+    title: "Saisissez une partie du nom, du prénom ou de l'établissement : la liste se réduit au fil de la frappe",
+    oninput: (e) => {
+      ex.q = e.target.value;
+      rendreExclus();
+      const champ = $('#x-q');
+      champ.focus();
+      champ.setSelectionRange(champ.value.length, champ.value.length);
+    },
+  });
+  $('#exclus').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-grid-row fr-grid-row--gutters fr-mb-2w' },
+      h('div', { class: 'fr-input-group fr-col-12 fr-col-md-4' }, h('label', { class: 'fr-label', for: 'x-q' }, 'Rechercher un élève exclu'), recherche),
+    ),
+    h('p', { role: 'status' }, `${liste.length} élève${liste.length > 1 ? 's' : ''} exclu${liste.length > 1 ? 's' : ''}${liste.length !== ex.rows.length ? ` sur ${ex.rows.length}` : ''}`),
+    liste.length === 0
+      ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, ex.rows.length ? 'Aucun élève exclu ne correspond à cette recherche.' : "Aucun élève n'est actuellement exclu : aucune dernière ligne de scolarité de l'année scolaire en cours n'est en situation « Exclusion »."))
+      : h(
+          'div',
+          { class: 'fr-table fr-table--no-caption' },
+          h(
+            'div',
+            { class: 'fr-table__wrapper' },
+            h(
+              'div',
+              { class: 'fr-table__container' },
+              h(
+                'div',
+                { class: 'fr-table__content' },
+                h(
+                  'table',
+                  {},
+                  h('caption', {}, 'Élèves exclus'),
+                  h('thead', {}, h('tr', {}, [['Élève', 'nom'], ['Établissement', 'etab'], ['Classe', 'niveau'], ['Exclu depuis le', 'date']].map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
+                  h(
+                    'tbody',
+                    {},
+                    liste.map((x) =>
+                      h(
+                        'tr',
+                        {},
+                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${x.row.nom} ${x.row.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(x.row, 'exclus') }, `${x.row.nom} ${x.row.prenom}`.trim() || 'Sans nom'), badgeIncomplet(x.row) ? [h('br'), badgeIncomplet(x.row)] : null),
+                        h('td', {}, lienEtab(x.ligne, retourExclus())),
+                        h('td', {}, x.ligne.niveau || '—'),
+                        h('td', { class: 'nowrap' }, formatDateFr(x.ligne.date) || '—'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+  );
+}
+
+$('#btn-exclus').addEventListener('click', () => openExclus(retourAccueil()));
 
 /* ------------------------------------------------------------------ */
 /* Démarrage                                                           */

@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Nouveau module « Élèves exclus », accessible depuis l'accueil : liste des élèves dont la dernière ligne de scolarité, de l'année scolaire en cours, est en situation « Exclusion » (nom, établissement, classe, date d'effet), avec recherche et tris. Un clic sur le nom ouvre le dossier, un clic sur l'établissement son dispositif, et le bouton de retour ramène à la liste. Un élève qui a ensuite une ligne plus récente (retour, nouvelle affectation) n'en fait plus partie.
 - Dispositif : les courriels et numéros de téléphone de l'établissement sont cliquables (`mailto:` / `tel:`), avec l'icône enveloppe ou téléphone du DSFR. Seuls les jetons strictement reconnus deviennent des liens (pas de paramètre `?cc=…` dans un courriel) ; le reste s'affiche en texte.
 - Dispositif : les informations de l'établissement sont présentées en tableau, deux couples libellé / valeur par ligne (effectifs en pleine largeur, une seule colonne sur écran étroit). Une information dont la formule Grist est en erreur (par exemple « Coordonnateur CDOEA : erreur AttributeError ») n'est plus affichée.
 - Année scolaire : la règle de la formule `Actuellement_en_ULIS` (dernière ligne de l'élève, datée de l'année scolaire en cours — depuis le 1er septembre —, situation « En ULIS » ou vide) est reprise partout où l'application recalcule elle-même : repli sans la colonne, et groupe « Autres situations » des dispositifs, qui n'affiche plus les scolarités d'années scolaires passées.
