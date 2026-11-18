@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118r';
-import { attachSuggest } from './suggest.js?v=20261118r';
-import { activerCalendriers } from './calendrier.js?v=20261118r';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118u';
+import { attachSuggest } from './suggest.js?v=20261118u';
+import { activerCalendriers } from './calendrier.js?v=20261118u';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1203,7 +1203,7 @@ async function openDossier(row, origine = 2) {
           ]),
         ),
     origine !== 3
-      ? h('div', { class: 'fr-mt-2w' }, h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève pour ajouter ou modifier une ligne', onclick: () => chooseEleve(row) }, 'Affecter'))
+      ? h('div', { class: 'fr-mt-2w' }, h('button', { class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-map-pin-2-line', type: 'button', title: 'Passer aux affectations de cet élève pour ajouter ou modifier une ligne', onclick: () => chooseEleve(row) }, 'Affecter'))
       : h('span'),
     h('h4', { class: 'fr-h6 fr-mt-3w' }, 'Notes sur l\'élève'),
     notes.length === 0
@@ -1223,7 +1223,7 @@ async function openDossier(row, origine = 2) {
     ctx.ui.barre,
     h(
       'div',
-      { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
+      { class: 'fr-mt-2w' },
       h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
     ),
   );
@@ -1772,7 +1772,7 @@ function openScolForm(ligne, defauts = {}) {
     ),
     h(
       'div',
-      { class: 'fr-btns-group fr-btns-group--inline' },
+      { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--icon-left' },
       h('button', { class: 'fr-btn', type: 'submit', title: ligne ? 'Enregistrer les modifications (une confirmation montrera ce qui change)' : 'Enregistrer cette nouvelle ligne d\'affectation' }, 'Enregistrer'),
       h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer le formulaire sans rien enregistrer', onclick: () => { form.hidden = true; } }, 'Annuler'),
       ligne ? h('button', { class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line fr-btn--icon-left', type: 'button', id: 's-suppr', title: 'Supprimer cette ligne d\'affectation (une confirmation sera demandée)', onclick: () => demanderSuppression(ligne) }, 'Supprimer cette affectation') : null,

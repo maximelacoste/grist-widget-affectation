@@ -102,4 +102,6 @@ body { background: transparent; }
 .app-titre-lien { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; }
 .app-titre-lien:hover { text-decoration: underline; }
 .app-titre-sous { font-size: 0.875rem; font-weight: 400; }
-.app-pied { margin-top: 2rem; text-align: right; }
+.app-pied { margin-top: 3rem; text-align: right; }
+#stepper { margin-bottom: 1.5rem; }
+#step-1 { margin-top: 2.5rem; }
