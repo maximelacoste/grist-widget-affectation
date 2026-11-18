@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118n';
-import { attachSuggest } from './suggest.js?v=20261118n';
-import { activerCalendriers } from './calendrier.js?v=20261118n';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118o';
+import { attachSuggest } from './suggest.js?v=20261118o';
+import { activerCalendriers } from './calendrier.js?v=20261118o';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1083,8 +1083,6 @@ async function openDossier(row, origine = 2) {
   );
   const note = elementsNote(ctx);
   box.replaceChildren(
-    h('div', { class: 'fr-mb-2w' }, ctx.ui.modifier, note.bouton ? [' ', note.bouton] : null),
-    note.panneau || h('span'),
     ctx.ui.aide,
     infosManquantes(row).length
       ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row).join(', ')}. Utilisez « Modifier » pour la compléter.`))
@@ -1108,6 +1106,7 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Début de la dernière', dateOuTexte(ind.debut), [ch.debut], ctx),
       ligneModifiable('Fin de droits', badgeFin(secToIso(ind.fin)) ? [dateOuTexte(ind.fin), ' ', badgeFin(secToIso(ind.fin))] : dateOuTexte(ind.fin), [ch.fin], ctx),
     ]),
+    h('div', { class: 'fr-my-2w' }, ctx.ui.modifier),
     h('h4', { class: 'fr-h6' }, 'Historique des affectations'),
     scol.length === 0
       ? h('p', {}, 'Aucune affectation enregistrée.')
@@ -1133,6 +1132,8 @@ async function openDossier(row, origine = 2) {
             h('span', { class: 'note-texte' }, n.note),
           ]),
         ),
+    note.bouton ? h('div', { class: 'fr-mt-2w' }, note.bouton) : h('span'),
+    note.panneau || h('span'),
     ctx.ui.barre,
     h(
       'div',
