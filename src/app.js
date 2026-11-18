@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zn';
-import { attachSuggest } from './suggest.js?v=20261118zn';
-import { activerCalendriers } from './calendrier.js?v=20261118zn';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zo';
+import { attachSuggest } from './suggest.js?v=20261118zo';
+import { activerCalendriers } from './calendrier.js?v=20261118zo';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -728,6 +728,32 @@ function listeInfos(infos) {
     { class: 'dossier-infos' },
     infos.flatMap(([k, v]) => [h('dt', { class: 'fr-text--bold' }, k), h('dd', {}, v || '—')]),
   );
+}
+
+/**
+ * Courriels et téléphones cliquables (`mailto:` / `tel:`) quand la valeur s'y prête. Seuls des jetons strictement reconnus
+ * deviennent des liens (pas de `?cc=…` dans un courriel, que des chiffres et un « + » dans un numéro) ; le reste reste du texte.
+ */
+const RE_COURRIEL = /^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+const RE_TEL = /^\+?\d{9,15}$/;
+function lienContact(libelle, valeur) {
+  if (!valeur || typeof valeur !== 'string') return valeur;
+  const courriel = /courriel|mail/i.test(libelle);
+  const tel = /t[eé]l[eé]phone|t[eé]l\b/i.test(libelle);
+  if (!courriel && !tel) return valeur;
+  const morceaux = (courriel ? valeur.split(/[\s,;]+/) : valeur.split(/\s*[;,/]\s*|\s+ou\s+/)).filter(Boolean);
+  const liens = morceaux.map((m) => {
+    if (courriel && RE_COURRIEL.test(m)) {
+      return h('a', { class: 'fr-link fr-link--icon-left fr-icon-mail-line', href: `mailto:${m}`, title: `Écrire à ${m}` }, m);
+    }
+    const chiffres = m.replace(/[\s.\-()]/g, '');
+    if (tel && RE_TEL.test(chiffres)) {
+      return h('a', { class: 'fr-link fr-link--icon-left fr-icon-phone-line', href: `tel:${chiffres}`, title: `Appeler le ${m}` }, m);
+    }
+    return m;
+  });
+  if (!liens.some((x) => typeof x !== 'string')) return valeur;
+  return liens.flatMap((x, i) => (i ? [h('br'), x] : [x]));
 }
 
 /**
@@ -2428,7 +2454,7 @@ function rendreDispositif() {
       ['Effectifs', badgeOccupation(presents, etab.places) ? [effectifs, ' ', badgeOccupation(presents, etab.places)] : effectifs, true],
       etab.effectifGrist !== null && etab.effectifGrist !== presents ? ['Effectif calculé par Grist', `${etab.effectifGrist} (colonne ${COL_EFFECTIF_GRIST}, différent du décompte ci-dessus)`, true] : null,
       typeLibelle ? ['Type', typeLibelle] : null,
-      ...etab.infos.map((x) => [x.libelle, x.valeur]),
+      ...etab.infos.map((x) => [x.libelle, lienContact(x.libelle, x.valeur)]),
     ].filter(Boolean), "Informations sur l'établissement"),
     etab.coords === 0
       ? h('p', { class: 'fr-hint-text fr-mb-2w' }, "Coordonnées : aucune colonne reconnue (code postal, téléphone, courriel) dans la table liée par Uai.")

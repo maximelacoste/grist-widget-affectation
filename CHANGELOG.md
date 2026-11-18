@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Dispositif : les courriels et numéros de téléphone de l'établissement sont cliquables (`mailto:` / `tel:`), avec l'icône enveloppe ou téléphone du DSFR. Seuls les jetons strictement reconnus deviennent des liens (pas de paramètre `?cc=…` dans un courriel) ; le reste s'affiche en texte.
 - Dispositif : les informations de l'établissement sont présentées en tableau, deux couples libellé / valeur par ligne (effectifs en pleine largeur, une seule colonne sur écran étroit). Une information dont la formule Grist est en erreur (par exemple « Coordonnateur CDOEA : erreur AttributeError ») n'est plus affichée.
 - Année scolaire : la règle de la formule `Actuellement_en_ULIS` (dernière ligne de l'élève, datée de l'année scolaire en cours — depuis le 1er septembre —, situation « En ULIS » ou vide) est reprise partout où l'application recalcule elle-même : repli sans la colonne, et groupe « Autres situations » des dispositifs, qui n'affiche plus les scolarités d'années scolaires passées.
 - Dossier et suggestions de recherche : l'affectation « En cours » suit la même règle que les effectifs des dispositifs, la colonne `Actuellement_en_ULIS` de Scolarite. Une scolarité ancienne (par exemple de 2023) que Grist ne marque plus comme actuelle n'est plus affichée « En cours » ; l'élève apparaît « sans affectation en cours ». Sans cette colonne, l'ancienne règle (ligne datée la plus récente) sert de secours.
