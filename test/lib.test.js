@@ -320,6 +320,15 @@ test('elevesExclus : dernière ligne en « Exclusion », même d\'une année sco
   const r = elevesExclus(lignes, '2026-11-18');
   assert.deepEqual(r.map((x) => x.eleve), [1, 4, 3], 'plus récent d\'abord');
   assert.deepEqual(elevesExclus([], '2026-11-18'), []);
+  // l'exclusion n'a pas d'établissement : on retient la dernière affectation connue
+  const r2 = elevesExclus([
+    { id: 1, eleve: 9, date: '2024-09-01', situation: 'En ULIS', affectation: 5, niveau: 'CE2' },
+    { id: 2, eleve: 9, date: '2025-09-01', situation: 'En ULIS', affectation: 6, niveau: 'CM1' },
+    { id: 3, eleve: 9, date: '2026-10-01', situation: 'Exclusion', affectation: 0, niveau: '' },
+  ], '2026-11-18');
+  assert.equal(r2[0].derniere.affectation, 6);
+  assert.equal(r2[0].derniere.niveau, 'CM1');
+  assert.equal(elevesExclus([{ id: 1, eleve: 9, date: '2026-10-01', situation: 'Exclusion', affectation: 0 }], '2026-11-18')[0].derniere, null);
 });
 
 test('occupation : libre, presque plein, plein, dépassement', () => {

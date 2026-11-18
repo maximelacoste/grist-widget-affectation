@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Élèves exclus : la colonne « Établissement » devient « Dernière affectation » (la ligne d'exclusion n'a généralement pas d'établissement : on affiche la ligne la plus récente qui en porte un, et sa classe si l'exclusion n'en a pas). Sur l'accueil, le bloc « Élèves exclus » passe sous la recherche d'un élève.
 - Nouveau module « Élèves exclus », accessible depuis l'accueil : liste des élèves dont la dernière ligne de scolarité est en situation « Exclusion », même datée d'une année scolaire précédente tant qu'ils n'ont pas de nouvelle affectation (nom, établissement, classe, date d'effet), avec recherche et tris. Un clic sur le nom ouvre le dossier, un clic sur l'établissement son dispositif, et le bouton de retour ramène à la liste. Un élève qui a ensuite une ligne plus récente (retour, nouvelle affectation) n'en fait plus partie.
 - Dispositif : les courriels et numéros de téléphone de l'établissement sont cliquables (`mailto:` / `tel:`), avec l'icône enveloppe ou téléphone du DSFR. Seuls les jetons strictement reconnus deviennent des liens (pas de paramètre `?cc=…` dans un courriel) ; le reste s'affiche en texte.
 - Dispositif : les informations de l'établissement sont présentées en tableau, deux couples libellé / valeur par ligne (effectifs en pleine largeur, une seule colonne sur écran étroit). Une information dont la formule Grist est en erreur (par exemple « Coordonnateur CDOEA : erreur AttributeError ») n'est plus affichée.

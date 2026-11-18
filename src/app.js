@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zq';
-import { attachSuggest } from './suggest.js?v=20261118zq';
-import { activerCalendriers } from './calendrier.js?v=20261118zq';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zr';
+import { attachSuggest } from './suggest.js?v=20261118zr';
+import { activerCalendriers } from './calendrier.js?v=20261118zr';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2793,7 +2793,13 @@ async function chargerExclus() {
   const todayIso = new Date().toISOString().slice(0, 10);
   return elevesExclus(lignesDe(tScol), todayIso)
     .filter((x) => parId.has(x.eleve))
-    .map((x) => ({ row: parId.get(x.eleve), ligne: x.ligne, etab: x.ligne.affectation ? state.etabLabel.get(x.ligne.affectation) || `#${x.ligne.affectation}` : '' }));
+    .map((x) => ({
+      row: parId.get(x.eleve),
+      ligne: x.ligne,
+      derniere: x.derniere, // dernière affectation connue : la ligne d'exclusion n'a généralement pas d'établissement
+      etab: x.derniere ? state.etabLabel.get(x.derniere.affectation) || `#${x.derniere.affectation}` : '',
+      niveau: x.ligne.niveau || (x.derniere ? x.derniere.niveau : ''),
+    }));
 }
 
 async function openExclus(retour = retourAccueil(), { garder = false } = {}) {
@@ -2816,7 +2822,7 @@ async function openExclus(retour = retourAccueil(), { garder = false } = {}) {
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title', id: 'h-exclus', tabindex: '-1' }, 'Élèves exclus'),
-      h('p', { class: 'fr-stepper__details' }, "Élèves dont la dernière ligne de scolarité est une exclusion, tant qu'ils n'ont pas de nouvelle affectation (y compris d'une année scolaire précédente). Un clic sur un nom ouvre le dossier, un clic sur l'établissement son dispositif."),
+      h('p', { class: 'fr-stepper__details' }, "Élèves dont la dernière ligne de scolarité est une exclusion, tant qu'ils n'ont pas de nouvelle affectation (y compris d'une année scolaire précédente). Un clic sur un nom ouvre le dossier, un clic sur la dernière affectation le dispositif de cet établissement."),
     ),
     h(
       'nav',
@@ -2834,7 +2840,7 @@ function rendreExclus() {
   const cles = {
     nom: (x) => `${x.row.nom} ${x.row.prenom}`,
     etab: (x) => x.etab,
-    niveau: (x) => x.ligne.niveau,
+    niveau: (x) => x.niveau,
     date: (x) => x.ligne.date,
   };
   const onTri = (cle) => {
@@ -2892,7 +2898,7 @@ function rendreExclus() {
                   'table',
                   {},
                   h('caption', {}, 'Élèves exclus'),
-                  h('thead', {}, h('tr', {}, [['Élève', 'nom'], ['Établissement', 'etab'], ['Classe', 'niveau'], ['Exclu depuis le', 'date']].map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
+                  h('thead', {}, h('tr', {}, [['Élève', 'nom'], ['Dernière affectation', 'etab'], ['Classe', 'niveau'], ['Exclu depuis le', 'date']].map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
                   h(
                     'tbody',
                     {},
@@ -2901,8 +2907,8 @@ function rendreExclus() {
                         'tr',
                         {},
                         h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${x.row.nom} ${x.row.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(x.row, 'exclus') }, `${x.row.nom} ${x.row.prenom}`.trim() || 'Sans nom'), badgeIncomplet(x.row) ? [h('br'), badgeIncomplet(x.row)] : null),
-                        h('td', {}, lienEtab(x.ligne, retourExclus())),
-                        h('td', {}, x.ligne.niveau || '—'),
+                        h('td', {}, x.derniere ? lienEtab(x.derniere, retourExclus()) : '—'),
+                        h('td', {}, x.niveau || '—'),
                         h('td', { class: 'nowrap' }, formatDateFr(x.ligne.date) || '—'),
                       ),
                     ),
