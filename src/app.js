@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118l';
-import { attachSuggest } from './suggest.js?v=20261118l';
-import { activerCalendriers } from './calendrier.js?v=20261118l';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118m';
+import { attachSuggest } from './suggest.js?v=20261118m';
+import { activerCalendriers } from './calendrier.js?v=20261118m';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2569,12 +2569,20 @@ $('#btn-secteur').addEventListener('click', () => openSecteur(retourAccueil()));
  * refuse le stockage de session, elle s'affiche à chaque ouverture.
  */
 /**
- * Le widget ne peut pas lire le rôle de l'utilisateur. Astuce par les règles d'accès : la table `Droits_widget` (une ligne)
- * n'est lisible que par les éditeurs ; si le widget la lit et y trouve une ligne, l'utilisateur est éditeur. Table absente,
- * illisible ou vide : on le traite comme un simple lecteur (le cas le plus prudent).
+ * Mode de consultation : Grist ajoute `readonly=true|false` à l'adresse du widget (avec `access`, `language`…). `true` pour
+ * l'URL intégrée `?embed=true` et pour les lecteurs, `false` pour les éditeurs. Si le paramètre manque (autre hôte, ancienne
+ * version), repli sur la table `Droits_widget` (une ligne), que les règles d'accès rendent lisible aux seuls éditeurs ; table
+ * absente, illisible ou vide : lecteur, le cas le plus prudent.
  */
 const T_DROITS = 'Droits_widget';
 async function estEditeur() {
+  try {
+    const ro = new URLSearchParams(window.location.search).get('readonly');
+    if (ro === 'true') return false;
+    if (ro === 'false') return true;
+  } catch {
+    /* adresse illisible : repli ci-dessous */
+  }
   try {
     const t = await grist.docApi.fetchTable(T_DROITS);
     return Array.isArray(t.id) && t.id.length > 0;
