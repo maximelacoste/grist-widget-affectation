@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -216,4 +216,43 @@ test('trierEleves : nom, classe (ordre des choix), date de première notificatio
   assert.deepEqual(noms('premiere', 1), ['DURAND', 'ABEL', 'MARTIN', 'DUPONT']);
   assert.deepEqual(noms('premiere', -1), ['MARTIN', 'ABEL', 'DURAND', 'DUPONT']); // sans date toujours en dernier
   assert.deepEqual(noms('fin', 1), ['DURAND', 'DUPONT', 'ABEL', 'MARTIN']);
+});
+
+test('effectifsParEtab : présents et liste d\'attente par établissement, ligne en cours seulement', () => {
+  const L = (eleve, id, date, affectation, situation = 'En ULIS', attente = false) => ({ eleve, id, date, affectation, situation, attente });
+  const lignes = [
+    L(1, 1, '2025-09-01', 7), L(1, 2, '2026-09-01', 8), // 1 : en cours à 8
+    L(2, 3, '2025-09-01', 7),
+    L(3, 4, '2026-09-01', 7, 'En ULIS', true),
+    L(4, 5, '2026-09-01', 8, 'Retour classe ordinaire'),
+    L(5, 6, '2027-09-01', 8), // futur : ignoré
+  ];
+  const m = effectifsParEtab(lignes, '2026-11-18');
+  assert.deepEqual(m.get(7), { presents: 1, attente: 1, ids: [2] });
+  assert.deepEqual(m.get(8), { presents: 1, attente: 0, ids: [1] });
+  assert.equal(m.size, 2);
+});
+
+test('alerteFinDroits : échue, proche, ok, sans date', () => {
+  const today = '2026-11-18';
+  assert.equal(alerteFinDroits('', today), null);
+  assert.deepEqual(alerteFinDroits('2026-11-17', today), { niveau: 'expiree', jours: -1 });
+  assert.deepEqual(alerteFinDroits('2026-11-18', today), { niveau: 'proche', jours: 0 });
+  assert.equal(alerteFinDroits('2027-03-18', today).niveau, 'proche'); // 120 jours
+  assert.equal(alerteFinDroits('2027-03-19', today).niveau, 'ok');
+  assert.equal(alerteFinDroits('2027-03-19', today, 200).niveau, 'proche');
+  assert.equal(libelleAlerteFin(alerteFinDroits('2026-06-30', today)), 'Échue depuis 5 mois');
+  assert.equal(libelleAlerteFin(alerteFinDroits('2026-11-10', today)), 'Échue depuis 8 jours');
+  assert.equal(libelleAlerteFin(alerteFinDroits('2026-11-19', today)), 'Fin dans 1 jour');
+  assert.equal(libelleAlerteFin(alerteFinDroits('2026-11-18', today)), "Échoit aujourd'hui");
+  assert.equal(libelleAlerteFin(alerteFinDroits('2027-01-20', today)), 'Fin dans 2 mois');
+  assert.equal(libelleAlerteFin(alerteFinDroits('2028-01-01', today)), '');
+});
+
+test('infosManquantes : nom, prénom, date de naissance', () => {
+  assert.deepEqual(infosManquantes({ nom: 'A', prenom: 'B', ddn: '2014-05-01' }), []);
+  assert.deepEqual(infosManquantes({ nom: '', prenom: ' ', ddn: null }), ['nom', 'prénom', 'date de naissance']);
+  assert.deepEqual(infosManquantes({ nom: 'A', prenom: 'B', ddn: 'pas une date' }), ['date de naissance']);
+  assert.deepEqual(infosManquantes({ nom: 'A', prenom: null, ddn: '2014-05-01' }), ['prénom']);
+  assert.deepEqual(infosManquantes(null), []);
 });

@@ -51,6 +51,13 @@
           <div id="etab-results" class="fr-mt-2w"></div>
         </div>
       </div>
+      <div class="fr-grid-row fr-mt-4w">
+        <div class="fr-col-12">
+          <h3 class="fr-h5">Par secteur</h3>
+          <p class="fr-hint-text">Parcourir les établissements avec ULIS, filtrés par secteur, type d'établissement et ERS.</p>
+          <button class="fr-btn fr-btn--secondary" type="button" id="btn-secteur" title="Ouvrir la liste des établissements avec ULIS, avec des sélecteurs de secteur, de type et d'ERS">Parcourir les établissements par secteur</button>
+        </div>
+      </div>
     </section>
 
     <!-- Étape 2 : choisir une fiche ou en créer une -->
@@ -61,6 +68,11 @@
         <button class="fr-btn fr-btn--secondary" type="button" id="btn-show-create" title="Ouvrir la page de création d'une fiche élève (à utiliser seulement si la fiche n'existe pas déjà)">Créer une nouvelle fiche</button>
         <button class="fr-btn fr-btn--tertiary" type="button" id="btn-back-1" title="Revenir à la recherche pour saisir un autre nom">Nouvelle recherche</button>
       </div>
+    </section>
+
+    <!-- Page dédiée : établissements par secteur -->
+    <section id="step-secteur" aria-label="Établissements par secteur" hidden>
+      <div id="secteur"></div>
     </section>
 
     <!-- Page dédiée : dispositif (établissement avec ULIS) -->

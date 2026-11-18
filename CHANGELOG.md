@@ -2,6 +2,11 @@
 
 ## [Non publié]
 
+- Dispositif : bouton « Ajouter un élève » (recherche d'une fiche avec suggestions, ou création d'une fiche) ; l'élève arrive sur le formulaire de nouvelle affectation prérempli avec l'établissement, niveaux limités à son type.
+- Accueil : nouvelle page « Établissements par secteur », avec filtres type, secteur, ERS et fins de droits ; effectifs sur places et alertes par établissement ; le retour depuis un dispositif conserve les filtres.
+- Alertes de fin de droits : panneau récapitulatif, pastilles avec texte (« Échue depuis 5 mois », « Fin dans 2 mois ») dans le dispositif, le dossier et la page par secteur ; bouton « Trier par fin de droits ». Seuil : 120 jours (`FIN_DROITS_ALERTE_JOURS`).
+- Dossiers incomplets : pastille et alerte quand le nom, le prénom ou la date de naissance manque (résultats, dispositif, dossier).
+- Création de fiche : message d'erreur explicite si la fiche créée est introuvable à la relecture (au lieu d'un faux « Fiche créée »).
 - Accueil refait : deux recherches côte à côte, « Un élève » et « Un établissement avec ULIS » (nom, commune ou UAI, avec suggestions). Un clic sur une suggestion mène directement au dossier de l'élève ou à la page du dispositif ; Entrée ou « Rechercher » affiche la liste des résultats (plusieurs établissements : liste de boutons).
 - Nouvelle page « Dispositif ULIS » : effectifs (présents sur `Places_max`, liste d'attente, autres situations ; l'`Effectif` calculé par Grist est signalé s'il diffère du décompte), informations de l'établissement lues dans `Etablissements_avec_ULIS` (`Uai`, `Commune`, `Secteur_ERS`, `Uai_ERSH`, `Secteur_CDOEA`, `Uai_Coordo_CDOEA`, `Nombre_de_dispositifs`, `Ouverture`) et coordonnées (adresse, code postal, téléphone, courriel, directeur) cherchées dans la table liée par `Uai` (`Etablissements_ERS`) quand ces colonnes existent ; liste des élèves présents (ligne de scolarité en cours = cet établissement, situation « En ULIS », hors liste d'attente) triable par nom, classe, première notification et fin de droits. Un clic sur un élève ouvre son dossier, avec retour au dispositif (tri conservé).
 - Le nom de l'établissement est cliquable (ouvre le dispositif) dans les résultats, l'historique du dossier et la liste des affectations ; le bouton de retour porte le nom de la page d'origine.

@@ -295,3 +295,60 @@ export function trierEleves(rows, cle, dir = 1, niveaux = []) {
   }[cle] || ((a, b) => parNom(a, b));
   return [...rows].sort((a, b) => cmp(a, b) || parNom(a, b));
 }
+
+/**
+ * Effectifs de tous les établissements en une passe : pour chaque élève, sa ligne en cours ; Map(id d'établissement ->
+ * { presents, attente, ids }), `ids` = élèves présents. « Présent » = situation `situationPresent` hors liste d'attente (même règle que `elevesDuDispositif`).
+ */
+export function effectifsParEtab(lignes, todayIso, situationPresent = 'En ULIS') {
+  const parEleve = new Map();
+  for (const l of lignes) {
+    if (!parEleve.has(l.eleve)) parEleve.set(l.eleve, []);
+    parEleve.get(l.eleve).push(l);
+  }
+  const out = new Map();
+  for (const ls of parEleve.values()) {
+    const l = ligneEnCours(ls, todayIso);
+    if (!l || !l.affectation) continue;
+    if (!out.has(l.affectation)) out.set(l.affectation, { presents: 0, attente: 0, ids: [] });
+    const e = out.get(l.affectation);
+    if (l.attente) e.attente += 1;
+    else if (l.situation === situationPresent) {
+      e.presents += 1;
+      e.ids.push(l.eleve);
+    }
+  }
+  return out;
+}
+
+/**
+ * Alerte sur la fin de droits : `null` sans date ; `expiree` (date passée), `proche` (dans les `seuilJours` jours,
+ * aujourd'hui compris) ou `ok`. `jours` = jours restants (négatif si échue). Dates 'AAAA-MM-JJ'.
+ */
+export function alerteFinDroits(finIso, todayIso, seuilJours = 120) {
+  if (!finIso || !todayIso) return null;
+  const jours = Math.round((Date.parse(`${finIso}T00:00:00Z`) - Date.parse(`${todayIso}T00:00:00Z`)) / 86400000);
+  if (!Number.isFinite(jours)) return null;
+  return { niveau: jours < 0 ? 'expiree' : jours <= seuilJours ? 'proche' : 'ok', jours };
+}
+
+/** Texte de l'alerte (« Échue depuis 3 mois », « Fin dans 12 jours »), pour ne pas compter sur la seule couleur. */
+export function libelleAlerteFin(a) {
+  if (!a || a.niveau === 'ok') return '';
+  const duree = (j) => (j < 60 ? `${j} jour${j > 1 ? 's' : ''}` : `${Math.round(j / 30)} mois`);
+  if (a.niveau === 'expiree') return `Échue depuis ${duree(-a.jours)}`;
+  return a.jours === 0 ? "Échoit aujourd'hui" : `Fin dans ${duree(a.jours)}`;
+}
+
+/**
+ * Informations d'état civil manquantes d'une fiche Individus (`{ nom, prenom, ddn }`) : tableau de libellés,
+ * vide si la fiche est complète. `ddn` est la date ISO 'AAAA-MM-JJ' (voir `secToIso`) ; une valeur vide ou qui n'est pas une vraie date compte comme manquante.
+ */
+export function infosManquantes(row) {
+  if (!row) return [];
+  const out = [];
+  if (!String(row.nom ?? '').trim()) out.push('nom');
+  if (!String(row.prenom ?? '').trim()) out.push('prénom');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.ddn ?? ''))) out.push('date de naissance');
+  return out;
+}

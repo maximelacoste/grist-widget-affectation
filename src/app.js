@@ -1,4 +1,4 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves } from './lib.js';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js';
 import { attachSuggest } from './suggest.js';
 import { activerCalendriers } from './calendrier.js';
 
@@ -18,6 +18,9 @@ const COL = {
   attente: 'Liste_d_attente', // Bascule
 };
 const SITUATION_PAR_DEFAUT = 'En ULIS';
+// Alerte « fin de droits » : une fin passée est signalée en rouge, une fin dans les N prochains jours en orange.
+// 120 jours (≈ 4 mois) laissent le temps de préparer un renouvellement ; à ajuster ici.
+const FIN_DROITS_ALERTE_JOURS = 120;
 // Niveaux proposés selon le type de l'établissement choisi (colonne `Type` de Etablissements_avec_ULIS :
 // ECO, CLG, LYC ou Autre). Un type absent de cette table (« Autre », vide) laisse tous les niveaux.
 // Seuls les niveaux qui existent dans les choix de `Niveau_saisi` sont proposés.
@@ -179,6 +182,7 @@ function masquerPages() {
   $('#step-create').hidden = true;
   $('#step-dossier').hidden = true;
   $('#step-dispo').hidden = true;
+  $('#step-secteur').hidden = true;
 }
 
 function goto(step, { focus = true } = {}) {
@@ -418,9 +422,9 @@ async function renderResults() {
                   h(
                     'tr',
                     {},
-                    h('td', {}, r.nom),
-                    h('td', {}, r.prenom),
-                    h('td', { class: 'nowrap' }, formatDateFr(r.ddn) || 'non renseignée'),
+                    h('td', {}, r.nom || '—'),
+                    h('td', {}, r.prenom || '—'),
+                    h('td', { class: 'nowrap' }, formatDateFr(r.ddn) || 'non renseignée', badgeIncomplet(r) ? [h('br'), badgeIncomplet(r)] : null),
                     h('td', {}, celluleEnCours(enCours.get(r.id), retourResultats())),
                     h(
                       'td',
@@ -476,8 +480,22 @@ function prefillCreate() {
 /* ------------------------------------------------------------------ */
 /* Page dédiée à la création d'une fiche                               */
 /* ------------------------------------------------------------------ */
-function gotoCreate() {
-  if (state.edition) return gardeSortie(() => gotoCreate());
+/** Sortie de la page de création : retour au dispositif si on venait de là, sinon aux résultats ou à l'accueil. */
+function sortirCreation() {
+  clearNotice();
+  const c = state.createCtx;
+  state.createCtx = null;
+  if (c && state.dispo && state.dispo.etabId === c.etabId) {
+    openDispositif(c.etabId, state.dispo.retour, { garder: true });
+    return;
+  }
+  goto(state.searched ? 2 : 1);
+}
+
+/** `{ etabId }` : création depuis la page d'un dispositif ; l'affectation dans cet établissement est ensuite proposée. */
+function gotoCreate(arg) {
+  if (state.edition) return gardeSortie(() => gotoCreate(arg));
+  state.createCtx = arg && typeof arg.etabId === 'number' ? { etabId: arg.etabId } : null;
   clearNotice();
   state.step = 0;
   masquerPages();
@@ -487,15 +505,15 @@ function gotoCreate() {
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title' }, 'Créer une fiche élève'),
-      h('p', { class: 'fr-stepper__details' }, "Vérifie d'abord qu'elle n'existe pas déjà : les fiches proches s'affichent pendant la saisie."),
+      h('p', { class: 'fr-stepper__details' }, "Vérifie d'abord qu'elle n'existe pas déjà : les fiches proches s'affichent pendant la saisie.", state.createCtx ? ` Ensuite, tu saisiras l'affectation de l'élève à ${state.etabLabel.get(state.createCtx.etabId) || 'cet établissement'}.` : ''),
     ),
     h(
       'nav',
       { 'aria-label': 'Navigation', class: 'step-nav fr-mb-2w' },
       h(
         'button',
-        { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter la création sans rien enregistrer', onclick: () => { clearNotice(); goto(state.searched ? 2 : 1); } },
-        state.searched ? 'Revenir à la page de résultats' : `Précédent : ${STEPS[0].title}`,
+        { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter la création sans rien enregistrer', onclick: sortirCreation },
+        state.createCtx ? 'Revenir au dispositif' : state.searched ? 'Revenir à la page de résultats' : `Précédent : ${STEPS[0].title}`,
       ),
     ),
   );
@@ -537,7 +555,7 @@ function majProches() {
             {},
             libelleEleve(r),
             ' ',
-            h('button', { class: 'fr-btn fr-btn--sm fr-btn--secondary fr-ml-1w', type: 'button', title: "C'est le même élève : utiliser cette fiche existante au lieu d'en créer une", onclick: () => chooseEleve(r) }, 'Affecter'),
+            h('button', { class: 'fr-btn fr-btn--sm fr-btn--secondary fr-ml-1w', type: 'button', title: "C'est le même élève : utiliser cette fiche existante au lieu d'en créer une", onclick: () => chooseEleve(r, { affecterA: state.createCtx ? state.createCtx.etabId : null }) }, 'Affecter'),
           ),
         ),
       ),
@@ -546,10 +564,7 @@ function majProches() {
   );
 }
 for (const id of ['c-nom', 'c-prenom', 'c-ddn']) $(`#${id}`).addEventListener('input', majProches);
-$('#btn-cancel-create').addEventListener('click', () => {
-  clearNotice();
-  goto(state.searched ? 2 : 1);
-});
+$('#btn-cancel-create').addEventListener('click', sortirCreation);
 
 $('#btn-show-create').addEventListener('click', gotoCreate);
 $('#btn-back-1').addEventListener('click', backToSearch);
@@ -616,6 +631,27 @@ function tableSimple(legende, entetes, lignes) {
 }
 
 /** Liste « libellé : valeur » (état civil, coordonnées, notification). */
+/** Pastille « Dossier incomplet » (avec la liste de ce qui manque) ; `null` si nom, prénom et date de naissance sont renseignés. */
+function badgeIncomplet(row) {
+  const m = infosManquantes(row);
+  if (!m.length) return null;
+  return h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: `Information manquante : ${m.join(', ')}` }, 'Dossier incomplet');
+}
+
+/** Pastille d'alerte de fin de droits (texte + couleur) ; `null` si la fin est lointaine ou inconnue. */
+function badgeFin(finIso) {
+  const a = alerteFinDroits(finIso, new Date().toISOString().slice(0, 10), FIN_DROITS_ALERTE_JOURS);
+  if (!a || a.niveau === 'ok') return null;
+  return h(
+    'p',
+    {
+      class: `fr-badge fr-badge--${a.niveau === 'expiree' ? 'error' : 'warning'} fr-badge--sm fr-badge--no-icon`,
+      title: a.niveau === 'expiree' ? 'La fin de droits est dépassée : vérifier le renouvellement de la notification' : `La fin de droits approche (alerte ${Math.round(FIN_DROITS_ALERTE_JOURS / 30)} mois avant l'échéance)`,
+    },
+    libelleAlerteFin(a),
+  );
+}
+
 function listeInfos(infos) {
   return h(
     'dl',
@@ -918,6 +954,9 @@ async function openDossier(row, origine = 2) {
   box.replaceChildren(
     h('div', { class: 'fr-mb-2w' }, ctx.ui.modifier),
     ctx.ui.aide,
+    infosManquantes(row).length
+      ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row).join(', ')}. Utilise « Modifier » pour la compléter.`))
+      : h('span'),
     h('h4', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
       ligneModifiable('Nom', row.nom, [ch.nom], ctx),
@@ -935,7 +974,7 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Notification ULIS', ind.notif ? 'Oui' : 'Non', null, ctx),
       ligneModifiable('Première notification', dateOuTexte(ind.premiere), null, ctx),
       ligneModifiable('Début de la dernière', dateOuTexte(ind.debut), [ch.debut], ctx),
-      ligneModifiable('Fin de droits', dateOuTexte(ind.fin), [ch.fin], ctx),
+      ligneModifiable('Fin de droits', badgeFin(secToIso(ind.fin)) ? [dateOuTexte(ind.fin), ' ', badgeFin(secToIso(ind.fin))] : dateOuTexte(ind.fin), [ch.fin], ctx),
     ]),
     h('h4', { class: 'fr-h6' }, 'Historique des affectations'),
     scol.length === 0
@@ -1160,7 +1199,7 @@ $('#form-create').addEventListener('submit', async (e) => {
     const existant = state.individus.find((r) => r.cle === key);
     if (existant) {
       notify('warning', `Une fiche existe déjà pour ${existant.nom} ${existant.prenom} (${formatDateFr(existant.ddn) || 'sans date'}) : elle est reprise, rien n'a été créé.`);
-      await chooseEleve(existant, { keepNotice: true });
+      await chooseEleve(existant, { keepNotice: true, affecterA: state.createCtx ? state.createCtx.etabId : null });
       return;
     }
     viderCache();
@@ -1170,15 +1209,16 @@ $('#form-create').addEventListener('submit', async (e) => {
     const id = res.retValues[0];
     await refreshIndividus();
     const cree = state.individus.find((r) => r.id === id);
-    await chooseEleve(cree, { keepNotice: true });
+    if (!cree) throw new Error('la fiche a été créée mais reste introuvable à la relecture : relance la recherche');
+    await chooseEleve(cree, { keepNotice: true, affecterA: state.createCtx ? state.createCtx.etabId : null });
     notify('success', 'Fiche créée dans Individus.');
   } catch (err) {
     notify('error', `Création impossible : ${err.message}`);
   }
 });
 
-async function chooseEleve(row, { keepNotice = false } = {}) {
-  if (state.edition) return gardeSortie(() => chooseEleve(row, { keepNotice }));
+async function chooseEleve(row, { keepNotice = false, affecterA = null } = {}) {
+  if (state.edition) return gardeSortie(() => chooseEleve(row, { keepNotice, affecterA }));
   if (!keepNotice) clearNotice();
   state.eleve = row;
   try {
@@ -1190,7 +1230,9 @@ async function chooseEleve(row, { keepNotice = false } = {}) {
   $('#eleve-resume').textContent = `${row.nom} ${row.prenom}, né(e) le ${formatDateFr(row.ddn) || '(date non renseignée)'}`;
   $('#form-scol').hidden = true;
   renderScolList();
+  state.createCtx = null;
   goto(3);
+  if (affecterA) openScolForm(null, { affectation: affecterA }); // ajout depuis un dispositif : l'établissement est déjà choisi
 }
 
 /* ------------------------------------------------------------------ */
@@ -1455,8 +1497,8 @@ function niveauxDe(etabId) {
 }
 
 /** Champ « Niveau » : liste filtrée selon l'établissement de la ligne ; une valeur hors liste est conservée. */
-function niveauField(ligne) {
-  const options = niveauxDe(ligne ? ligne.affectation : '').map((n) => ({ value: n, label: n }));
+function niveauField(ligne, defauts = {}) {
+  const options = niveauxDe(ligne ? ligne.affectation : defauts.affectation || '').map((n) => ({ value: n, label: n }));
   const groupe = select('s-niveau', 'Niveau', options, ligne ? ligne.niveau : '');
   groupe.append(h('p', { class: 'fr-hint-text', id: 's-niveau-note', role: 'status' }));
   return groupe;
@@ -1490,7 +1532,7 @@ function majNiveaux(etabId) {
   note.textContent = phrases.join(' ');
 }
 
-function openScolForm(ligne) {
+function openScolForm(ligne, defauts = {}) {
   clearNotice();
   state.editingId = ligne ? ligne.id : null;
   state.editingLigne = ligne;
@@ -1512,10 +1554,10 @@ function openScolForm(ligne) {
         : 'Tape quelques mots du nom ou de la commune.',
       placeholder: 'Rechercher un établissement…',
       options: state.etabs.map((e) => ({ value: e.id, label: e.label })),
-      value: ligne ? ligne.affectation : '',
+      value: ligne ? ligne.affectation : defauts.affectation || '',
       onChange: (id) => majNiveaux(id),
     }),
-    niveauField(ligne),
+    niveauField(ligne, defauts),
     select('s-situation', 'Situation', state.situations.map((s) => ({ value: s, label: s })), defSituation),
     h(
       'div',
@@ -1875,7 +1917,7 @@ async function openDispositif(etabId, retour, { garder = false } = {}) {
     return;
   }
   const prec = garder && state.dispo && state.dispo.etabId === etabId ? state.dispo : null;
-  state.dispo = { etabId, retour, data, tri: prec ? prec.tri : { cle: 'nom', dir: 1 }, inclure: prec ? prec.inclure : false };
+  state.dispo = { etabId, retour, data, tri: prec ? prec.tri : { cle: 'nom', dir: 1 }, inclure: prec ? prec.inclure : false, ajout: false };
   const label = state.etabLabel.get(etabId) || `#${etabId}`;
   state.step = 0;
   masquerPages();
@@ -1912,6 +1954,86 @@ function enteteTri(libelle, cle, onTri) {
   );
 }
 
+/** Panneau d'alerte sur les fins de droits des élèves affichés (rouge si l'une est échue, orange sinon). */
+function panneauIncomplets(eleves) {
+  const n = eleves.filter((e) => infosManquantes(e.row).length).length;
+  if (!n) return h('span');
+  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} sans nom, prénom ou date de naissance : ouvre le dossier pour compléter.`));
+}
+
+function panneauAlertes(eleves, d, onTri) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  let echues = 0;
+  let proches = 0;
+  for (const e of eleves) {
+    const a = alerteFinDroits(e.fin, todayIso, FIN_DROITS_ALERTE_JOURS);
+    if (a && a.niveau === 'expiree') echues += 1;
+    else if (a && a.niveau === 'proche') proches += 1;
+  }
+  if (!echues && !proches) return h('span');
+  const mois = Math.round(FIN_DROITS_ALERTE_JOURS / 30);
+  const texte = [echues ? `${echues} fin${echues > 1 ? 's' : ''} de droits échue${echues > 1 ? 's' : ''}` : null, proches ? `${proches} dans les ${mois} mois` : null].filter(Boolean).join(' · ');
+  return h(
+    'div',
+    { class: 'fr-mb-2w', id: 'dispo-alertes' },
+    h('div', { class: `fr-alert fr-alert--${echues ? 'error' : 'warning'} fr-alert--sm`, role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Fins de droits à surveiller'), h('p', {}, texte)),
+    h('button', { class: 'fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w', type: 'button', title: 'Classer les élèves par fin de droits, les plus anciennes en premier', onclick: () => onTri('fin', true) }, 'Trier par fin de droits'),
+  );
+}
+
+/** Panneau « Ajouter un élève » : recherche (suggestions) ou création de fiche, puis formulaire d'affectation prérempli. */
+function panneauAjout(d) {
+  const label = state.etabLabel.get(d.etabId) || 'cet établissement';
+  const res = h('div', { id: 'dispo-ajout-res', class: 'fr-mt-2w' });
+  const input = h('input', { class: 'fr-input', id: 'dispo-q', type: 'text', autocomplete: 'off', title: "Tape une partie du nom, du prénom ou de la date de naissance de l'élève à ajouter. Les suggestions apparaissent dès 2 caractères." });
+  const form = h(
+    'form',
+    { id: 'form-ajout', novalidate: true },
+    h(
+      'div',
+      { class: 'fr-input-group' },
+      h('label', { class: 'fr-label', for: 'dispo-q' }, 'Rechercher l\'élève à ajouter', h('span', { class: 'fr-hint-text' }, `Un clic sur une suggestion ouvre le formulaire d'affectation de l'élève à ${label}.`)),
+      input,
+    ),
+    h(
+      'ul',
+      { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
+      h('li', {}, h('button', { class: 'fr-btn', type: 'submit', title: 'Chercher les fiches correspondantes' }, 'Rechercher')),
+      h('li', {}, h('button', { class: 'fr-btn fr-btn--secondary', type: 'button', id: 'dispo-creer', title: "L'élève n'a pas encore de fiche : ouvrir la page de création, puis revenir ici pour l'affecter", onclick: () => gotoCreate({ etabId: d.etabId }) }, 'Créer une nouvelle fiche')),
+      h('li', {}, h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer ce panneau', onclick: () => { d.ajout = false; rendreDispositif(); $('#dispo-ajouter')?.focus(); } }, 'Annuler')),
+    ),
+    res,
+  );
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearFieldErrors(form);
+    const q = input.value.trim();
+    if (norm(q).length < 2 && !/\d{4}/.test(q)) {
+      setFieldError('dispo-q', 'Saisis au moins 2 lettres du nom ou du prénom, ou une année de naissance.');
+      input.focus();
+      return;
+    }
+    const { total, rows } = rechercheLibre(state.individus, q, 20);
+    if (total === 0) {
+      res.replaceChildren(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucune fiche ne correspond : tu peux la créer.')));
+    } else if (total === 1) {
+      ajouterAuDispositif(rows[0]);
+    } else {
+      res.replaceChildren(
+        h('p', { role: 'status', class: 'fr-mb-1w' }, `${total} fiches correspondent${total > rows.length ? ` (les ${rows.length} premières sont affichées : précise la recherche)` : ''} :`),
+        h('ul', { class: 'liste-etabs' }, rows.map((r) => h('li', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: `Ajouter cet élève : ouvrir son formulaire d'affectation à ${label}`, onclick: () => ajouterAuDispositif(r) }, libelleEleve(r))))),
+      );
+    }
+  });
+  input.addEventListener('input', () => res.replaceChildren());
+  return h('div', { id: 'dispo-ajout', class: 'fr-mb-3w ajout-eleve' }, form);
+}
+
+/** Élève choisi dans le panneau : étape 3 avec le formulaire de nouvelle affectation, établissement prérempli. */
+function ajouterAuDispositif(row) {
+  return chooseEleve(row, { affecterA: state.dispo.etabId });
+}
+
 function rendreDispositif() {
   const d = state.dispo;
   const { lignes, tInd, etab, parId, idx } = d.data;
@@ -1935,8 +2057,8 @@ function rendreDispositif() {
     });
   }
   const tries = trierEleves(eleves, d.tri.cle, d.tri.dir, state.niveaux);
-  const onTri = (cle) => {
-    d.tri = { cle, dir: d.tri.cle === cle ? -d.tri.dir : 1 };
+  const onTri = (cle, croissant = false) => {
+    d.tri = { cle, dir: !croissant && d.tri.cle === cle ? -d.tri.dir : 1 };
     rendreDispositif();
     $(`#dispo [data-tri="${cle}"]`)?.focus();
   };
@@ -1955,6 +2077,30 @@ function rendreDispositif() {
       ? h('p', { class: 'fr-hint-text fr-mb-2w' }, "Adresse, téléphone et courriel : aucune colonne reconnue dans la table liée par Uai.")
       : h('span'),
     h('h4', { class: 'fr-h6 fr-mt-2w' }, 'Élèves du dispositif'),
+    panneauAlertes(eleves, d, onTri),
+    panneauIncomplets(eleves),
+    h(
+      'div',
+      { class: 'fr-mb-2w' },
+      h(
+        'button',
+        {
+          type: 'button',
+          id: 'dispo-ajouter',
+          class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-add-line',
+          'aria-expanded': String(d.ajout),
+          'aria-controls': 'dispo-ajout',
+          title: "Ajouter un élève à ce dispositif : tu choisis l'élève (ou tu crées sa fiche), puis le formulaire d'affectation s'ouvre avec cet établissement",
+          onclick: () => {
+            d.ajout = !d.ajout;
+            rendreDispositif();
+            (d.ajout ? $('#dispo-q') : $('#dispo-ajouter'))?.focus();
+          },
+        },
+        'Ajouter un élève',
+      ),
+    ),
+    d.ajout ? panneauAjout(d) : h('span'),
     h(
       'div',
       { class: 'fr-toggle fr-mb-2w' },
@@ -1993,11 +2139,168 @@ function rendreDispositif() {
                       h(
                         'tr',
                         {},
-                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${e.nom} ${e.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'dispo') }, `${e.nom} ${e.prenom}`)),
+                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${e.nom} ${e.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'dispo') }, `${e.nom} ${e.prenom}`.trim() || 'Sans nom'), badgeIncomplet(e.row) ? [h('br'), badgeIncomplet(e.row)] : null),
                         h('td', {}, e.niveau || '—'),
                         h('td', {}, e.situation || '—', e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, "Liste d'attente")] : null),
                         h('td', { class: 'nowrap' }, formatDateFr(e.premiere) || '—'),
-                        h('td', { class: 'nowrap' }, formatDateFr(e.fin) || '—'),
+                        h('td', {}, h('span', { class: 'nowrap' }, formatDateFr(e.fin) || '—'), badgeFin(e.fin) ? [h('br'), badgeFin(e.fin)] : null),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+  );
+  if (d.ajout) {
+    attachSuggest($('#dispo-q'), {
+      minChars: 2,
+      fetchItems: (query) => rechercheLibre(state.individus, query, 8).rows.map((r) => ({ value: String(r.id), label: libelleEleve(r), row: r })),
+      onPick: (item) => ajouterAuDispositif(item.row),
+    });
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Page « Établissements par secteur »                                  */
+/* ------------------------------------------------------------------ */
+const TYPE_LIBELLE = { ECO: 'École', CLG: 'Collège', LYC: 'Lycée' };
+const retourSecteur = () => ({ libelle: 'Revenir aux établissements par secteur', action: () => openSecteur(state.secteur.retour, { garder: true }) });
+
+async function chargerSecteur() {
+  const [t, tScol, tInd] = await Promise.all([lireTable(state.etabTable), lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS)]);
+  const idxInd = new Map(tInd.id.map((id, i) => [id, i]));
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const lignes = tableToRows(tScol, Object.values(COL)).map((r) => ({ eleve: r[COL.eleve], ...mapLigne(r) }));
+  const eff = effectifsParEtab(lignes, todayIso, SITUATION_PAR_DEFAUT);
+  const texte = (col, i) => (t[col] ? cellText(t[col][i]).trim() : '');
+  const etabs = state.etabs.map((e) => {
+    const i = t.id.indexOf(e.id);
+    const places = t.Places_max && typeof t.Places_max[i] === 'number' ? t.Places_max[i] : null;
+    const n = eff.get(e.id) || { presents: 0, attente: 0, ids: [] };
+    let finEchues = 0;
+    let finProches = 0;
+    for (const id of n.ids) {
+      const i2 = idxInd.get(id);
+      const a = i2 === undefined || !tInd.Fin_droits_ULIS ? null : alerteFinDroits(secToIso(tInd.Fin_droits_ULIS[i2]), todayIso, FIN_DROITS_ALERTE_JOURS);
+      if (a && a.niveau === 'expiree') finEchues += 1;
+      else if (a && a.niveau === 'proche') finProches += 1;
+    }
+    return {
+      id: e.id,
+      label: e.label,
+      type: TYPE_LIBELLE[e.type] || e.typeBrut || 'Autre',
+      commune: texte('Commune', i),
+      secteur: texte('Secteur_CDOEA', i),
+      ers: texte('Secteur_ERS', i),
+      ersh: texte('Uai_ERSH', i),
+      places,
+      presents: n.presents,
+      attente: n.attente,
+      finEchues,
+      finProches,
+    };
+  });
+  return { etabs, aSecteur: Boolean(t.Secteur_CDOEA), aErs: Boolean(t.Secteur_ERS) };
+}
+
+async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
+  if (state.edition) return gardeSortie(() => openSecteur(retour, { garder }));
+  clearNotice();
+  let data;
+  try {
+    data = await chargerSecteur();
+  } catch (err) {
+    notify('error', `Lecture des établissements impossible : ${err.message}`);
+    return;
+  }
+  const prec = garder && state.secteur ? state.secteur : null;
+  state.secteur = { retour, data, filtres: prec ? prec.filtres : { secteur: '', type: '', ers: '', alerte: '' } };
+  state.step = 0;
+  masquerPages();
+  $('#step-secteur').hidden = false;
+  $('#stepper').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-stepper' },
+      h('h1', { class: 'fr-stepper__title', id: 'h-secteur', tabindex: '-1' }, 'Établissements par secteur'),
+      h('p', { class: 'fr-stepper__details' }, "Établissements avec ULIS, filtrés par secteur, type et ERS. Un clic sur un établissement ouvre son dispositif."),
+    ),
+    h(
+      'nav',
+      { 'aria-label': 'Navigation', class: 'step-nav fr-mb-2w' },
+      h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter cette page', onclick: () => { clearNotice(); retour.action(); } }, retour.libelle),
+    ),
+  );
+  rendreSecteur();
+  $('#h-secteur').focus();
+}
+
+function rendreSecteur() {
+  const sc = state.secteur;
+  const { etabs, aSecteur, aErs } = sc.data;
+  const f = sc.filtres;
+  const distinct = (k) => [...new Set(etabs.map((e) => e[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  const liste = etabs.filter((e) => (!f.secteur || e.secteur === f.secteur) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0));
+  const selecteur = (id, cle, libelle, options, aide) =>
+    h(
+      'div',
+      { class: 'fr-select-group fr-col-12 fr-col-md-4' },
+      h('label', { class: 'fr-label', for: id }, libelle),
+      h(
+        'select',
+        { class: 'fr-select', id, title: aide, onchange: (e) => { f[cle] = e.target.value; rendreSecteur(); $(`#${id}`)?.focus(); } },
+        h('option', { value: '', selected: !f[cle] }, 'Tous'),
+        options.map((o) => h('option', { value: o, selected: o === f[cle] }, o)),
+      ),
+    );
+  const totalPresents = liste.reduce((n, e) => n + e.presents, 0);
+  const totalPlaces = liste.reduce((n, e) => n + (e.places || 0), 0);
+  const colonnes = ['Établissement', 'Type', 'Commune', ...(aSecteur ? ['Secteur'] : []), ...(aErs ? ['ERS'] : []), 'Effectif', 'Fins de droits'];
+  $('#secteur').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-grid-row fr-grid-row--gutters fr-mb-2w' },
+      aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', distinct('secteur'), 'Ne garder que les établissements de ce secteur') : h('span'),
+      selecteur('f-type', 'type', "Type d'établissement", distinct('type'), 'Ne garder que les écoles, collèges ou lycées'),
+      aErs ? selecteur('f-ers', 'ers', 'ERS', distinct('ers'), "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : h('span'),
+      selecteur('f-alerte', 'alerte', 'Fins de droits', ['Échues ou proches'], 'Ne garder que les établissements qui ont au moins un élève dont la fin de droits est échue ou proche'),
+    ),
+    h('p', { role: 'status' }, `${liste.length} établissement${liste.length > 1 ? 's' : ''} · ${totalPresents} élève${totalPresents > 1 ? 's' : ''} présent${totalPresents > 1 ? 's' : ''}${totalPlaces ? ` sur ${totalPlaces} places` : ''}`),
+    liste.length === 0
+      ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucun établissement ne correspond à ces filtres.'))
+      : h(
+          'div',
+          { class: 'fr-table fr-table--no-caption' },
+          h(
+            'div',
+            { class: 'fr-table__wrapper' },
+            h(
+              'div',
+              { class: 'fr-table__container' },
+              h(
+                'div',
+                { class: 'fr-table__content' },
+                h(
+                  'table',
+                  {},
+                  h('caption', {}, 'Établissements avec ULIS du secteur'),
+                  h('thead', {}, h('tr', {}, colonnes.map((c) => h('th', { scope: 'col' }, c)))),
+                  h(
+                    'tbody',
+                    {},
+                    liste.map((e) =>
+                      h(
+                        'tr',
+                        {},
+                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir le dispositif de cet établissement', onclick: () => openDispositif(e.id, retourSecteur()) }, e.label)),
+                        h('td', {}, e.type),
+                        h('td', {}, e.commune || '—'),
+                        aSecteur ? h('td', {}, e.secteur || '—') : null,
+                        aErs ? h('td', {}, e.ers || '—', e.ersh ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, e.ersh)] : null) : null,
+                        h('td', { class: 'nowrap' }, `${e.presents}${e.places !== null ? ` / ${e.places}` : ''}`, e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "Élèves sur liste d'attente pour cet établissement" }, `${e.attente} en attente`)] : null),
+                        h('td', {}, e.finEchues || e.finProches ? [e.finEchues ? h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits est dépassée' }, `${e.finEchues} échue${e.finEchues > 1 ? 's' : ''}`) : null, e.finEchues && e.finProches ? ' ' : null, e.finProches ? h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits approche' }, `${e.finProches} proche${e.finProches > 1 ? 's' : ''}`) : null] : '—'),
                       ),
                     ),
                   ),
@@ -2008,6 +2311,8 @@ function rendreDispositif() {
         ),
   );
 }
+
+$('#btn-secteur').addEventListener('click', () => openSecteur(retourAccueil()));
 
 /* ------------------------------------------------------------------ */
 /* Démarrage                                                           */

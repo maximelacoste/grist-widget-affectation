@@ -5,6 +5,8 @@ Widget Grist « Affectation » pour le document ULIS centralisé (écosystème �
 Une page d'accueil avec deux recherches, puis deux parcours (schéma complet : [docs/navigation.md](docs/navigation.md)) :
 
 - **Un établissement avec ULIS** : la page *Dispositif* affiche effectifs, informations de l'établissement (colonnes de `Etablissements_avec_ULIS` : `Uai`, `Commune`, `Secteur_ERS`, `Uai_ERSH`, `Secteur_CDOEA`, `Uai_Coordo_CDOEA`, `Places_max`… ; coordonnées lues dans la table liée par `Uai`) et élèves présents, triables ; un clic sur un élève ouvre son dossier.
+- **Par secteur** : liste des établissements filtrable par type, secteur et ERS, avec effectifs et alertes de fin de droits.
+- **Signalements** : pastilles « fin de droits échue / proche » (seuil 120 jours) et « dossier incomplet » (nom, prénom ou date de naissance manquant).
 - **Un élève**, en trois étapes :
   1. **Rechercher** (nom, prénom, date de naissance, dans l'ordre voulu), sans tenir compte des accents, de la casse ni des tirets. Une suggestion ouvre directement le dossier.
   2. **Choisir** la fiche trouvée dans `Individus`, ou **en créer une** si aucune ne convient. La création est refusée si la clé `Cle` (même normalisation que la formule Grist) existe déjà.

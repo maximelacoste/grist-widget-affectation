@@ -1,6 +1,6 @@
 # Navigation du widget « Affectation »
 
-Six pages, une seule visible à la fois. Les flèches pleines sont des boutons de la page ; les pointillés sont les boutons « Précédent / Suivant » du bandeau d'étapes (atteignables seulement si la recherche ou le choix d'élève existe).
+Sept pages, une seule visible à la fois. Les flèches pleines sont des boutons de la page ; les pointillés sont les boutons « Précédent / Suivant » du bandeau d'étapes (atteignables seulement si la recherche ou le choix d'élève existe).
 
 ```mermaid
 flowchart TD
@@ -9,12 +9,21 @@ flowchart TD
     P3["<b>Affectations de l'élève</b><br/>liste des lignes, ✎ modifier, 🗑 supprimer<br/>formulaire d'affectation (ajout / modification)"]
     PC["<b>Création de fiche</b><br/>nom, prénom, naissance, coordonnées<br/>fiches proches affichées pendant la saisie"]
     PD["<b>Dossier</b><br/>lecture seule ; bouton Modifier<br/>tous les champs → Valider / Annuler"]
-    PE["<b>Dispositif ULIS</b><br/>effectifs, coordonnées, ERS…<br/>élèves présents, triables"]
+    PE["<b>Dispositif ULIS</b><br/>effectifs, coordonnées, ERS…<br/>élèves présents, triables, alertes<br/>Ajouter un élève"]
+    PS["<b>Établissements par secteur</b><br/>filtres : type, secteur, ERS, alertes<br/>effectifs et fins de droits par établissement"]
 
     P1 -->|"Entrée / Rechercher (élève)"| P2
     P1 -->|"clic sur une suggestion élève"| PD
     P1 -->|"clic sur une suggestion établissement<br/>ou Rechercher (1 résultat)"| PE
     P1 -->|"Rechercher (plusieurs établissements)<br/>puis clic dans la liste"| PE
+    P1 -->|"Par secteur"| PS
+    PS -->|"clic sur l'établissement"| PE
+    PS -->|"Revenir à l'accueil"| P1
+    PE -->|"Revenir aux établissements par secteur"| PS
+    PE -->|"Ajouter un élève : suggestion,<br/>ou fiche existante"| P3
+    PE -->|"Ajouter un élève : créer la fiche"| PC
+    PC -->|"Créer la fiche (depuis un dispositif)<br/>→ affectation à cet établissement"| P3
+    P3 -->|"Revenir au dispositif"| PE
     P2 -->|"Affecter"| P3
     P2 -->|"Dossier"| PD
     P2 -->|"clic sur l'établissement"| PE
@@ -44,6 +53,14 @@ Le bouton de retour de la page Dossier et de la page Dispositif porte le nom de 
 - Informations : effectifs calculés (présents sur `Places_max`, liste d'attente, autres situations) ; colonnes de `Etablissements_avec_ULIS` (UAI, commune, secteur ERS, ERSH, secteur et coordonnateur CDOEA, nombre de dispositifs, ouverture) ; coordonnées (adresse, code postal, téléphone, courriel, directeur) cherchées dans `Etablissements_ERS`, la table liée par `Uai`.
 - Élèves présents : ceux dont la ligne de scolarité en cours (la plus récente dont la date est passée) désigne cet établissement, avec la situation « En ULIS » et hors liste d'attente. Un interrupteur ajoute la liste d'attente et les autres situations.
 - Tri : élève (nom, prénom), classe (ordre des choix de `Niveau_saisi`), première notification, fin de droits ; un second clic inverse l'ordre ; une date absente reste toujours en dernier.
+
+- Ajouter un élève : bouton en tête de la liste ; recherche d'une fiche (suggestions, Entrée) ou création d'une nouvelle fiche. L'élève arrive à l'étape 3 avec le formulaire de nouvelle affectation déjà rempli avec l'établissement (niveaux limités à son type).
+- Alertes : le panneau « Fins de droits à surveiller » compte les fins échues (rouge) et proches (orange, 120 jours, constante `FIN_DROITS_ALERTE_JOURS`), avec un bouton « Trier par fin de droits » ; chaque élève concerné porte une pastille avec texte (« Échue depuis 5 mois », « Fin dans 2 mois »), jamais la couleur seule.
+- Dossiers incomplets : une pastille « Dossier incomplet » (avec la liste de ce qui manque en infobulle) apparaît quand le nom, le prénom ou la date de naissance manque ; elle est visible dans les résultats, le dispositif (avec un panneau de comptage) et en tête du dossier.
+
+## Page Établissements par secteur
+
+Accessible depuis l'accueil. Tableau de tous les établissements avec ULIS : type, secteur, ERS, effectif présent sur places, liste d'attente et fins de droits (échues / proches). Filtres combinables : type (École, Collège, Lycée), secteur (`Secteur_CDOEA`), ERS (`Secteur_ERS`) et « Fins de droits » (échues ou proches). Le retour depuis un dispositif conserve les filtres.
 
 ## Fenêtres (pop-ups)
 
