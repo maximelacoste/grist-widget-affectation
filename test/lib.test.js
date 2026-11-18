@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, ligneActuelle, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, statutsEleves, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, ligneActuelle, debutAnneeScolaire, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, statutsEleves, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -186,11 +186,11 @@ test('elevesDuDispositif : seule la ligne en cours compte ; attente et autres si
   const L = (eleve, id, date, affectation, situation = 'En ULIS', attente = false, niveau = 'CM2') => ({ eleve, id, date, affectation, situation, attente, niveau });
   const lignes = [
     L(1, 1, '2025-09-01', 7), L(1, 2, '2026-09-01', 8), // 1 : parti vers 8
-    L(2, 3, '2025-09-01', 7), // 2 : présent
+    L(2, 3, '2026-09-01', 7), // 2 : présent
     L(3, 4, '2026-09-01', 7, 'En ULIS', true), // 3 : liste d'attente
     L(4, 5, '2026-09-01', 7, 'Retour classe ordinaire'), // 4 : autre situation
     L(5, 6, '2027-09-01', 7), // 5 : affectation future, pas encore en cours
-    L(6, 7, '2024-09-01', 7), L(6, 8, '2026-01-01', 7, 'Exclusion'), // 6 : en cours = exclusion
+    L(6, 7, '2024-09-01', 7), L(6, 8, '2026-10-01', 7, 'Exclusion'), // 6 : en cours = exclusion
   ];
   const r = elevesDuDispositif(lignes, 7, '2026-11-18');
   assert.deepEqual(r.rows.map((x) => x.eleve), [2]);
@@ -222,7 +222,7 @@ test('effectifsParEtab : présents et liste d\'attente par établissement, ligne
   const L = (eleve, id, date, affectation, situation = 'En ULIS', attente = false) => ({ eleve, id, date, affectation, situation, attente });
   const lignes = [
     L(1, 1, '2025-09-01', 7), L(1, 2, '2026-09-01', 8), // 1 : en cours à 8
-    L(2, 3, '2025-09-01', 7),
+    L(2, 3, '2026-09-01', 7),
     L(3, 4, '2026-09-01', 7, 'En ULIS', true),
     L(4, 5, '2026-09-01', 8, 'Retour classe ordinaire'),
     L(5, 6, '2027-09-01', 8), // futur : ignoré
@@ -267,7 +267,7 @@ test('Actuellement_en_ULIS (Grist) décide du statut quand la colonne existe', (
     // élève 1 : ancienne ligne et ligne récente, Grist ne marque que la récente
     L(1, 1, '2024-09-01', 7, { actuel: false }), L(2, 1, '2026-09-01', 8, { actuel: true }),
     // élève 2 : « En ULIS » à la date mais Grist dit non (ex. notification échue) → pas présent
-    L(3, 2, '2025-09-01', 7, { actuel: false }),
+    L(3, 2, '2026-10-01', 7, { actuel: false }),
     // élève 3 : liste d'attente marquée actuelle
     L(4, 3, '2026-09-01', 7, { actuel: true, attente: true }),
     // élève 4 : présent à 7
@@ -290,9 +290,21 @@ test('ligneActuelle : Actuellement_en_ULIS décide, sinon la ligne datée la plu
   assert.equal(ligneActuelle([L(1, '2023-09-01', { actuel: false })], '2026-11-18'), null);
   assert.equal(ligneActuelle([L(1, '2023-09-01', { actuel: false }), L(2, '2025-09-01', { actuel: true })], '2026-11-18').id, 2);
   assert.equal(ligneActuelle([L(1, '2024-09-01', { actuel: true }), L(2, '2025-09-01', { actuel: true })], '2026-11-18').id, 2);
-  // colonne absente : repli sur la ligne la plus récente dont la date est passée
-  assert.equal(ligneActuelle([L(1, '2023-09-01')], '2026-11-18').id, 1);
-  assert.equal(ligneActuelle([L(1, '2023-09-01'), L(2, '2027-09-01')], '2026-11-18').id, 1);
+  // colonne absente : même règle que la formule Grist (dernière ligne, année scolaire en cours, « En ULIS » ou vide)
+  assert.equal(ligneActuelle([L(1, '2023-09-01')], '2026-11-18'), null);
+  assert.equal(ligneActuelle([L(1, '2026-09-01', { situation: 'En ULIS' })], '2026-11-18').id, 1);
+  assert.equal(ligneActuelle([L(1, '2026-09-01', { situation: '' })], '2026-11-18').id, 1);
+  assert.equal(ligneActuelle([L(1, '2026-09-01', { situation: 'Sortie' })], '2026-11-18'), null);
+  assert.equal(ligneActuelle([L(1, '2026-09-01'), L(2, '2027-09-01')], '2026-11-18').id, 1, 'ligne future ignorée');
+  assert.equal(ligneActuelle([L(1, '2026-08-31')], '2026-11-18'), null, 'année scolaire précédente');
+  assert.equal(ligneActuelle([L(1, '2026-08-31')], '2026-08-31').id, 1, 'avant septembre : l\'année scolaire commence l\'an passé');
+});
+
+test('debutAnneeScolaire : 1er septembre de l\'année scolaire en cours', () => {
+  assert.equal(debutAnneeScolaire('2026-11-18'), '2026-09-01');
+  assert.equal(debutAnneeScolaire('2026-09-01'), '2026-09-01');
+  assert.equal(debutAnneeScolaire('2026-08-31'), '2025-09-01');
+  assert.equal(debutAnneeScolaire('2027-01-15'), '2026-09-01');
 });
 
 test('occupation : libre, presque plein, plein, dépassement', () => {

@@ -117,6 +117,12 @@ export function searchIndividus(rows, { nom = '', prenom = '', iso = '' }, limit
   return { total: out.length, rows: out.slice(0, limit) };
 }
 
+/** 1er septembre de l'année scolaire qui contient `todayIso` (comme la formule `Actuellement_en_ULIS` de Scolarite). */
+export function debutAnneeScolaire(todayIso) {
+  const annee = Number(todayIso.slice(0, 4));
+  return `${Number(todayIso.slice(5, 7)) >= 9 ? annee : annee - 1}-09-01`;
+}
+
 /** Ligne « en cours » : la plus récente dont Date_effet <= aujourd'hui (à date égale, la plus grande id). */
 export function ligneEnCours(lignes, todayIso) {
   let best = null;
@@ -133,7 +139,11 @@ export function ligneEnCours(lignes, todayIso) {
  * marquée actuelle, ou aucune (une scolarité de 2023 échue n'est plus « en cours »). Sans cette colonne : `ligneEnCours`.
  */
 export function ligneActuelle(lignes, todayIso) {
-  if (!lignes.some((l) => l.actuel !== undefined)) return ligneEnCours(lignes, todayIso);
+  if (!lignes.some((l) => l.actuel !== undefined)) {
+    // Repli sans la colonne : même règle que la formule Grist (dernière ligne, de l'année scolaire en cours, « En ULIS » ou vide)
+    const l = ligneEnCours(lignes, todayIso);
+    return l && l.date >= debutAnneeScolaire(todayIso) && (!l.situation || l.situation === 'En ULIS') ? l : null;
+  }
   let best = null;
   for (const l of lignes) {
     if (l.actuel !== true) continue;
@@ -270,6 +280,7 @@ export function statutsEleves(lignes, todayIso, situationPresent = 'En ULIS') {
     parEleve.get(l.eleve).push(l);
   }
   const grist = lignes.some((l) => l.actuel !== undefined);
+  const debut = debutAnneeScolaire(todayIso); // une ligne d'une année scolaire passée n'est plus « en cours »
   const plusRecente = (ls) => ls.reduce((b, l) => (!b || (l.date || '') > (b.date || '') || ((l.date || '') === (b.date || '') && l.id > b.id) ? l : b), null);
   const out = [];
   for (const [eleve, ls] of parEleve) {
@@ -281,12 +292,12 @@ export function statutsEleves(lignes, todayIso, situationPresent = 'En ULIS') {
         continue;
       }
       const l = ligneEnCours(ls, todayIso);
-      if (l && l.affectation) out.push({ eleve, ligne: l, statut: l.attente ? 'attente' : 'autre' });
+      if (l && l.affectation && l.date >= debut) out.push({ eleve, ligne: l, statut: l.attente ? 'attente' : 'autre' });
       continue;
     }
     const l = ligneEnCours(ls, todayIso);
-    if (!l || !l.affectation) continue;
-    out.push({ eleve, ligne: l, statut: l.attente ? 'attente' : l.situation === situationPresent ? 'present' : 'autre' });
+    if (!l || !l.affectation || l.date < debut) continue;
+    out.push({ eleve, ligne: l, statut: l.attente ? 'attente' : !l.situation || l.situation === situationPresent ? 'present' : 'autre' });
   }
   return out;
 }
