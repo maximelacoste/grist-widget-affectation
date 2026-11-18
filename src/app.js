@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zr';
-import { attachSuggest } from './suggest.js?v=20261118zr';
-import { activerCalendriers } from './calendrier.js?v=20261118zr';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zs';
+import { attachSuggest } from './suggest.js?v=20261118zs';
+import { activerCalendriers } from './calendrier.js?v=20261118zs';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -438,6 +438,12 @@ function badgesEnCours(l) {
     h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'En cours'),
     l.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "L'élève est sur liste d'attente pour cet établissement (pas encore affecté)" }, "Liste d'attente")] : null,
   ];
+}
+
+/** Situation d'une ligne d'historique ; une exclusion porte une pastille rouge bien visible (texte, jamais la couleur seule). */
+function celluleSituation(l) {
+  if (/^exclu/i.test((l.situation || '').trim())) return h('p', { class: 'fr-badge fr-badge--error fr-badge--no-icon', title: "Cette ligne est une exclusion" }, l.situation.trim());
+  return l.situation || '—';
 }
 
 /** Cellule « Affectation en cours » : établissement, puis niveau et situation en petit. */
@@ -1279,7 +1285,7 @@ async function openDossier(row, origine = 2) {
             [dateLabel(l), ' ', enCours && enCours.id === l.id ? badgesEnCours(l) : null],
             lienEtab(l, retourDossierDe(row, origine)),
             l.niveau || '—',
-            l.situation || '—',
+            celluleSituation(l),
           ]),
         ),
     origine !== 3
@@ -1617,7 +1623,7 @@ function renderScolList() {
                     ),
                     h('td', {}, lienEtab(l, retourAffectations())),
                     h('td', {}, l.niveau || '—'),
-                    h('td', {}, l.situation || '—'),
+                    h('td', {}, celluleSituation(l)),
                     h('td', {}, l.attente ? 'Oui' : 'Non'),
                     h(
                       'td',
