@@ -1839,7 +1839,10 @@ const COL_EFFECTIF_GRIST = 'Effectif'; // décompte de Grist, comparé au nôtre
 const INFOS_UAI = [
   { re: /adresse/i, libelle: 'Adresse' },
   { re: /(^|[^a-z])cp([^a-z]|$)|postal/i, libelle: 'Code postal' },
-  { re: /t[eé]l/i, libelle: 'Téléphone' },
+  { re: /t[eé]l/i, libelle: 'Téléphone professionnel' },
+  // Etablissements_ERS a deux courriels (« Mail SECTEUR » et « Mail ac. (ERSH) ») : on les distingue.
+  { re: /(mail|courriel).*secteur/i, libelle: "Courriel du secteur (référent)" },
+  { re: /(mail|courriel).*(ersh|ac\.)/i, libelle: "Courriel de l'ERSH" },
   { re: /mail|courriel/i, libelle: 'Courriel' },
   { re: /direct|chef/i, libelle: "Directeur ou chef d'établissement" },
 ];
@@ -2074,7 +2077,7 @@ function rendreDispositif() {
       ...etab.infos.map((x) => [x.libelle, x.valeur]),
     ].filter(Boolean)),
     etab.coords === 0
-      ? h('p', { class: 'fr-hint-text fr-mb-2w' }, "Adresse, téléphone et courriel : aucune colonne reconnue dans la table liée par Uai.")
+      ? h('p', { class: 'fr-hint-text fr-mb-2w' }, "Coordonnées : aucune colonne reconnue (code postal, téléphone, courriel) dans la table liée par Uai.")
       : h('span'),
     h('h4', { class: 'fr-h6 fr-mt-2w' }, 'Élèves du dispositif'),
     panneauAlertes(eleves, d, onTri),
