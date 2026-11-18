@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118m';
-import { attachSuggest } from './suggest.js?v=20261118m';
-import { activerCalendriers } from './calendrier.js?v=20261118m';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118n';
+import { attachSuggest } from './suggest.js?v=20261118n';
+import { activerCalendriers } from './calendrier.js?v=20261118n';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2401,11 +2401,12 @@ async function chargerSecteur() {
       return m ? Number(m[0]) : null;
     };
     const secteurNum = nombreDans(texte('Secteur_CDOEA', i)) ?? nombreDans(secteur) ?? nombreDans(texte('Secteur', i));
-    let ers = texte('Secteur_ERS', i);
-    if (!ers && ersCalc) {
-      const v = t[ersCalc.colId][i];
-      ers = typeof v === 'number' && v ? `SECTEUR ${v}` : '';
-    }
+    // Code du secteur d'ERS sur 3 chiffres (« SECTEUR 011 (06-01) BELLEVUE… » et « 11 » donnent tous deux « 011 »)
+    const codeErs = (v) => {
+      const m = /\d+/.exec(String(v ?? ''));
+      return m ? m[0].padStart(3, '0') : '';
+    };
+    const ers = codeErs(texte('Secteur_ERS', i)) || (ersCalc ? codeErs(t[ersCalc.colId][i]) : '') || codeErs(texte('Uai_Code_secteur', i));
     etabs.push({
       id: e.id,
       label: e.label,
@@ -2414,7 +2415,7 @@ async function chargerSecteur() {
       secteur,
       secteurNum,
       ers,
-      ersh: texte('Uai_ERSH', i),
+      ersh: texte('Uai_ERSH', i).replace(/\s+/g, ' ').trim(),
       places,
       presents: n.presents,
       attente: n.attente,
@@ -2464,8 +2465,16 @@ function rendreSecteur() {
   const SECTEURS = ['1', '2', '3'];
   const dansSecteur = (e) => !f.secteur || String(e.secteurNum) === f.secteur;
   // Les ERS proposés dépendent du secteur choisi ; un ERS qui n'en fait plus partie est abandonné.
-  const ersProposes = [...new Set(etabs.filter(dansSecteur).map((e) => e.ers).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
-  if (f.ers && !ersProposes.includes(f.ers)) f.ers = '';
+  // Menu ERS : « Secteur 011 (NOM Prénom) », un seul choix par secteur d'ERS, limité au secteur choisi
+  const parCode = new Map();
+  for (const e of etabs.filter(dansSecteur)) {
+    if (!e.ers) continue;
+    if (!parCode.get(e.ers)) parCode.set(e.ers, e.ersh);
+  }
+  const ersProposes = [...parCode.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'fr', { numeric: true }))
+    .map(([code, nom]) => [code, nom ? `Secteur ${code} (${nom})` : `Secteur ${code}`]);
+  if (f.ers && !parCode.has(f.ers)) f.ers = '';
   const tri = sc.tri || (sc.tri = { cle: 'label', dir: 1 });
   const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, libres: (e) => (e.places === null ? '' : e.places - e.presents), fins: (e) => e.finEchues * 1000 + e.finProches };
   const onTri = (cle) => {
@@ -2543,7 +2552,7 @@ function rendreSecteur() {
                         h('td', {}, e.type),
                         h('td', {}, e.commune || '—'),
                         aSecteur ? h('td', {}, e.secteurNum !== null ? String(e.secteurNum) : e.secteur || '—') : null,
-                        aErs ? h('td', {}, e.ers || '—', e.ersh ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, e.ersh)] : null) : null,
+                        aErs ? h('td', {}, e.ers ? `Secteur ${e.ers}` : '—', e.ersh ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, e.ersh)] : null) : null,
                         h('td', { class: 'nowrap' }, `${e.presents}${e.places !== null ? ` / ${e.places}` : ''}`, e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "Élèves sur liste d'attente pour cet établissement" }, `${e.attente} en attente`)] : null, badgeOccupation(e.presents, e.places) ? [h('br'), badgeOccupation(e.presents, e.places)] : null),
                         h('td', { class: 'nowrap' }, e.places === null ? '—' : String(e.places - e.presents)),
                         h('td', {}, e.finEchues || e.finProches ? [e.finEchues ? h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits est dépassée' }, `${e.finEchues} échue${e.finEchues > 1 ? 's' : ''}`) : null, e.finEchues && e.finProches ? ' ' : null, e.finProches ? h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits approche' }, `${e.finProches} proche${e.finProches > 1 ? 's' : ''}`) : null] : '—'),

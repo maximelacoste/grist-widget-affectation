@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Page par secteur : menu et colonne « ERS » homogènes, au format « Secteur 011 (NOM Prénom) » (code sur 3 chiffres extrait de `Secteur_ERS`, nom de l'ERSH), un seul choix par secteur d'ERS, toujours limité au secteur choisi.
 - Pop-up d'accueil : le mode de consultation est lu dans le paramètre `readonly` que Grist ajoute à l'adresse du widget (`true` en vue intégrée `?embed=true` et pour les lecteurs, `false` pour les éditeurs) ; la table `Droits_widget` ne sert plus que de repli si le paramètre est absent.
 - Dossier : bouton « Ajouter une note » (texte libre, type facultatif si la colonne `Type` de `Notes_sur_l_eleve` est un choix). La note est écrite dans `Notes_sur_l_eleve`, liée à l'élève par `Individu` (et par `Eleve` si la clé le permet) ; les colonnes calculées ne sont jamais écrites ; `Cree_le` est renseignée si elle est modifiable. Le bouton n'apparaît que si la table de notes existe.
 - Interface : passage au vouvoiement de tous les textes affichés (aides, messages d'erreur, infobulles, pop-ups, message de secours), conformément à l'usage dans l'administration.
