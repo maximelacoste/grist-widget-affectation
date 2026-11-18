@@ -105,3 +105,17 @@ body { background: transparent; }
 .app-pied { margin-top: 3rem; text-align: right; }
 #stepper { margin-bottom: 1.5rem; }
 #step-1 { margin-top: 2.5rem; }
+
+/* Les deux interrupteurs d'affichage du dispositif sur la même ligne (retour à la ligne si l'écran est étroit) */
+.toggles-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 2.5rem; }
+.toggles-ligne .fr-toggle { margin-bottom: 0; }
+
+/* Écrans étroits : libellé au-dessus de la valeur, et les valeurs longues (UAI, noms d'ERS, adresses) passent à la ligne */
+.dossier-infos dd { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 36em) {
+  .dossier-infos { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .dossier-infos dt { margin-top: 0.5rem; }
+}
+
+/* Libellés des interrupteurs du dispositif sur une seule ligne (au-dessus du tableau et dans chaque ligne) */
+#dispo .fr-toggle__label { white-space: nowrap; width: auto; }

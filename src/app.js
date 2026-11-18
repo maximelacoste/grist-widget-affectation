@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zd';
-import { attachSuggest } from './suggest.js?v=20261118zd';
-import { activerCalendriers } from './calendrier.js?v=20261118zd';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zg';
+import { attachSuggest } from './suggest.js?v=20261118zg';
+import { activerCalendriers } from './calendrier.js?v=20261118zg';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2410,7 +2410,7 @@ function rendreDispositif() {
     d.ajout ? panneauAjout(d) : h('span'),
     h(
       'div',
-      { class: 'fr-mb-2w' },
+      { class: 'toggles-ligne fr-mb-2w' },
       basculeDispo('dispo-attente', 'inclureAttente', `Liste d'attente (${attente})`, "Afficher aussi, dans la liste, les élèves en liste d'attente pour cet établissement"),
       basculeDispo('dispo-autres', 'inclureAutres', `Autres situations (${autres})`, 'Afficher aussi les élèves dont la situation en cours est une sortie, une exclusion… avec cet établissement'),
     ),
