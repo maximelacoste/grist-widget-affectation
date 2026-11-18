@@ -96,6 +96,10 @@ body { background: transparent; }
 
 .ajout-eleve { border-left: 4px solid var(--border-action-high-blue-france, #000091); padding: 0.5rem 0 0.5rem 1rem; }
 
-/* Titre de l'application */
-.app-titre { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
+/* Titre de l'application (cliquable : retour à l'accueil) et pied de page discret */
+.app-entete { margin-bottom: 2rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-default-grey); }
+.app-titre { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; }
+.app-titre-lien { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; }
+.app-titre-lien:hover { text-decoration: underline; }
 .app-titre-sous { font-size: 0.875rem; font-weight: 400; }
+.app-pied { margin-top: 2rem; text-align: right; }

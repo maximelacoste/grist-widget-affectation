@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118q';
-import { attachSuggest } from './suggest.js?v=20261118q';
-import { activerCalendriers } from './calendrier.js?v=20261118q';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118r';
+import { attachSuggest } from './suggest.js?v=20261118r';
+import { activerCalendriers } from './calendrier.js?v=20261118r';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1015,7 +1015,7 @@ function ouvrirPanneauNote(ctx, panneau, cols, existante = null) {
       return;
     }
     const type = $('#note-type')?.value || '';
-    if (!existante) return ecrireNote(ctx, cols, texte, type);
+    if (!existante) return confirmerAjout('Ajouter cette note ?', [['Note', texte], ...($('#note-type') ? [['Type', type || '—']] : [])], () => ecrireNote(ctx, cols, texte, type));
     const modifs = [];
     if (texte !== existante.note) modifs.push(['Note', existante.note, texte]);
     if ($('#note-type') && type !== (existante.type || '')) modifs.push(['Type', existante.type || '—', type || '—']);
@@ -1420,16 +1420,23 @@ $('#form-create').addEventListener('submit', async (e) => {
       await chooseEleve(existant, { keepNotice: true, affecterA: state.createCtx ? state.createCtx.etabId : null });
       return;
     }
-    viderCache();
-    const res = await grist.docApi.applyUserActions([
-      ['AddRecord', T_INDIVIDUS, null, { ...manuel, Nom: nom, Prenom: prenom, Date_de_naissance: isoToSec(iso) }],
-    ]);
-    const id = res.retValues[0];
-    await refreshIndividus();
-    const cree = state.individus.find((r) => r.id === id);
-    if (!cree) throw new Error('la fiche a été créée mais reste introuvable à la relecture : relancez la recherche');
-    await chooseEleve(cree, { keepNotice: true, affecterA: state.createCtx ? state.createCtx.etabId : null });
-    notify('success', 'Fiche créée dans Individus.');
+    const creer = async () => {
+      try {
+        viderCache();
+        const res = await grist.docApi.applyUserActions([
+          ['AddRecord', T_INDIVIDUS, null, { ...manuel, Nom: nom, Prenom: prenom, Date_de_naissance: isoToSec(iso) }],
+        ]);
+        const id = res.retValues[0];
+        await refreshIndividus();
+        const cree = state.individus.find((r) => r.id === id);
+        if (!cree) throw new Error('la fiche a été créée mais reste introuvable à la relecture : relancez la recherche');
+        await chooseEleve(cree, { keepNotice: true, affecterA: state.createCtx ? state.createCtx.etabId : null });
+        notify('success', 'Fiche créée dans Individus.');
+      } catch (err) {
+        notify('error', `Création impossible : ${err.message}`);
+      }
+    };
+    confirmerAjout('Créer cette fiche ?', [['Nom', nom], ['Prénom', prenom], ['Date de naissance', formatDateFr(iso)]], creer);
   } catch (err) {
     notify('error', `Création impossible : ${err.message}`);
   }
@@ -1864,6 +1871,28 @@ async function supprimerLigne(ligne) {
   }
 }
 
+/** Confirmation d'un ajout : récapitulatif des valeurs qui vont être écrites (champ, valeur). */
+function confirmerAjout(titre, champs, onOui) {
+  ouvrirModale({
+    titre,
+    icone: 'fr-icon-check-line',
+    corps: [
+      h(
+        'table',
+        { class: 'modale-diff' },
+        h('caption', { class: 'fr-sr-only' }, 'Valeurs à enregistrer'),
+        h('thead', {}, h('tr', {}, ['Champ', 'Valeur'].map((t) => h('th', { scope: 'col' }, t)))),
+        h('tbody', {}, champs.map(([champ, valeur]) => h('tr', {}, h('th', { scope: 'row' }, champ), h('td', { class: 'diff-apres' }, valeur)))),
+      ),
+    ],
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, ajouter', info: 'Écrire ces informations dans Grist', onClick: onOui },
+      { id: 'dlg-non', libelle: 'Revenir au formulaire', info: "Fermer cette fenêtre et continuer la saisie : rien n'est enregistré", secondaire: true },
+    ],
+    focus: 'dlg-oui',
+  });
+}
+
 /** Confirmation d'une modification : tableau « avant → après » des seuls champs changés. */
 function confirmerModification(modifs, onOui, avertissement = '') {
   ouvrirModale({
@@ -1955,12 +1984,21 @@ $('#form-scol').addEventListener('submit', async (e) => {
     confirmerModification(modifs, () => ecrireAffectation(fields));
     return;
   }
-  await ecrireAffectation(fields);
+  confirmerAjout("Ajouter cette affectation ?", [
+    ["Date d'effet", formatDateFr(iso) || '—'],
+    ['Affectation', aff ? state.etabLabel.get(aff) || `#${aff}` : '—'],
+    ['Niveau', $('#s-niveau').value || '—'],
+    ['Situation', $('#s-situation').value || '—'],
+    ["Liste d'attente", $('#s-attente').checked ? 'Oui' : 'Non'],
+  ], () => ecrireAffectation(fields));
 });
 
 /* ------------------------------------------------------------------ */
 /* Accueil : recherche d'un établissement ; page du dispositif          */
 /* ------------------------------------------------------------------ */
+// Le titre ramène à l'accueil (en passant par la garde de sortie si une modification de dossier est en cours).
+$('#app-titre').addEventListener('click', () => gardeSortie(() => { clearNotice(); goto(1); }));
+
 const retourAccueil = () => ({ libelle: "Revenir à l'accueil", action: () => goto(1) });
 const retourResultats = () => ({ libelle: 'Revenir à la page de résultats', action: () => goto(2) });
 const retourAffectations = () => ({ libelle: 'Revenir aux affectations', action: () => goto(3) });

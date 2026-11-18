@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-arrows/icons-arrows.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-system/icons-system.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-design/icons-design.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261118q">
+  <link rel="stylesheet" href="src/style.css?v=20261118r">
   <!-- API de plugin Grist. Si possible, remplacer par celle de votre instance
        (https://<votre-instance-grist>/grist-plugin-api.js) : le script ne reçoit aucune donnée,
        mais on évite ainsi toute requête vers un serveur tiers. -->
@@ -18,7 +18,12 @@
 </head>
 <body>
   <main class="fr-container fr-py-2w" id="app">
-    <p class="app-titre fr-h4 fr-mb-1w" title="ANESH : Affectations et Notifications des Élèves en Situation de Handicap"><span aria-hidden="true">🫏</span> ANESH <span class="fr-hint-text app-titre-sous">Aucune Notification d'Élève Sans Historique</span></p>
+    <header class="app-entete">
+      <p class="app-titre fr-h4 fr-mb-0">
+        <button type="button" class="app-titre-lien" id="app-titre" title="Revenir à l'accueil"><span aria-hidden="true">🫏</span> ANESH</button>
+        <span class="fr-hint-text app-titre-sous">Affectations et Notifications des Élèves en Situation de Handicap</span>
+      </p>
+    </header>
     <div id="stepper"></div>
     <div id="notice" aria-live="polite"></div>
 
@@ -133,6 +138,9 @@
       <form id="form-scol" class="fr-mt-3w" novalidate hidden></form>
     </section>
   </main>
+  <footer class="fr-container fr-pb-2w app-pied">
+    <p class="fr-text--xs fr-hint-text fr-mb-0" title="Aucune Notification d'Élève Sans Historique">ANESH is not AGESH · Licence ouverte 2.0 · CDOEA 31</p>
+  </footer>
 
   <script type="module" src="vendor/dsfr/dsfr.module.min.js"></script>
   <script nomodule src="vendor/dsfr/dsfr.nomodule.min.js"></script>
@@ -146,6 +154,6 @@
       document.body.prepend(d);
     }, 5000);
   </script>
-  <script type="module" src="src/app.js?v=20261118q"></script>
+  <script type="module" src="src/app.js?v=20261118r"></script>
 </body>
 </html>

@@ -2,7 +2,9 @@
 
 ## [Non publié]
 
-- Titre de l'application « 🫏 ANESH » (onglet et en-tête de la page), avec un slogan discret ; l'acronyme développé est en infobulle.
+- Toute écriture est confirmée : en plus des modifications, les ajouts (nouvelle affectation, nouvelle note, création de fiche) ouvrent une fenêtre de récapitulatif (« Oui, ajouter » / « Revenir au formulaire ») avant d'écrire dans Grist. Les suppressions et le basculement en liste d'attente avaient déjà leur confirmation.
+- En-tête : titre « 🫏 ANESH » cliquable (retour à l'accueil, avec la garde de sortie si une modification de dossier est en cours), acronyme développé visible, plus d'espace avant le contenu.
+- Pied de page discret : « ANESH is not AGESH · Licence ouverte 2.0 · CDOEA 31 » (le slogan « Aucune Notification d'Élève Sans Historique » est en infobulle).
 - Dossier incomplet : l'absence de niveau est signalée pour les élèves réellement affectés (établissement renseigné, hors liste d'attente) : dans les résultats, le dossier et le panneau du dispositif.
 - Dossier : la liste des notes a une colonne « Action » avec un crayon (modifier le texte et le type, avec confirmation avant → après) et une corbeille (confirmation, annulable dans le panneau Activité de Grist), comme les affectations. Le bouton « Affecter » est placé juste sous l'historique des affectations.
 - Harmonisation des boutons d'action : crayon et corbeille de fin de ligne produits par une même fonction (affectations et notes) ; « Affecter » toujours en bouton principal ; boutons « retour » tous en tertiaire petit avec flèche.
