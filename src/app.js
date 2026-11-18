@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js?v=20261118b';
-import { attachSuggest } from './suggest.js?v=20261118b';
-import { activerCalendriers } from './calendrier.js?v=20261118b';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js?v=20261118c';
+import { attachSuggest } from './suggest.js?v=20261118c';
+import { activerCalendriers } from './calendrier.js?v=20261118c';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1943,8 +1943,7 @@ async function openDispositif(etabId, retour, { garder = false } = {}) {
   $('#h-dispo').focus();
 }
 
-function enteteTri(libelle, cle, onTri) {
-  const { tri } = state.dispo;
+function enteteTri(libelle, cle, onTri, tri = state.dispo.tri) {
   const actif = tri.cle === cle;
   return h(
     'th',
@@ -2179,7 +2178,13 @@ async function chargerSecteur() {
   const lignes = tableToRows(tScol, Object.values(COL)).map((r) => ({ eleve: r[COL.eleve], ...mapLigne(r) }));
   const eff = effectifsParEtab(lignes, todayIso, SITUATION_PAR_DEFAUT);
   const texte = (col, i) => (t[col] ? cellText(t[col][i]).trim() : '');
-  const etabs = state.etabs.map((e) => {
+  // Secteur_CDOEA et Secteur_ERS (colonnes de données) ne sont remplis que pour une partie des établissements :
+  // à défaut, on prend les colonnes calculées à partir de la table Secteurs_ERS, renseignées pour tous.
+  const colDe = (id) => state.etabCols.find((c) => c.colId === id && t[id]);
+  const cdoeaCalc = colDe('Secteur_ERS_Secteurs_CDOEA');
+  const ersCalc = colDe('Secteur_ERS_Secteurs_ERS');
+  const etabs = [];
+  for (const e of state.etabs) {
     const i = t.id.indexOf(e.id);
     const places = t.Places_max && typeof t.Places_max[i] === 'number' ? t.Places_max[i] : null;
     const n = eff.get(e.id) || { presents: 0, attente: 0, ids: [] };
@@ -2191,22 +2196,29 @@ async function chargerSecteur() {
       if (a && a.niveau === 'expiree') finEchues += 1;
       else if (a && a.niveau === 'proche') finProches += 1;
     }
-    return {
+    let secteur = texte('Secteur_CDOEA', i);
+    if (!secteur && cdoeaCalc) secteur = (await valeurColonne(cdoeaCalc, t[cdoeaCalc.colId][i])).trim();
+    let ers = texte('Secteur_ERS', i);
+    if (!ers && ersCalc) {
+      const v = t[ersCalc.colId][i];
+      ers = typeof v === 'number' && v ? `SECTEUR ${v}` : '';
+    }
+    etabs.push({
       id: e.id,
       label: e.label,
       type: TYPE_LIBELLE[e.type] || e.typeBrut || 'Autre',
       commune: texte('Commune', i),
-      secteur: texte('Secteur_CDOEA', i),
-      ers: texte('Secteur_ERS', i),
+      secteur,
+      ers,
       ersh: texte('Uai_ERSH', i),
       places,
       presents: n.presents,
       attente: n.attente,
       finEchues,
       finProches,
-    };
-  });
-  return { etabs, aSecteur: Boolean(t.Secteur_CDOEA), aErs: Boolean(t.Secteur_ERS) };
+    });
+  }
+  return { etabs, aSecteur: Boolean(t.Secteur_CDOEA || cdoeaCalc), aErs: Boolean(t.Secteur_ERS || ersCalc) };
 }
 
 async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
@@ -2220,7 +2232,7 @@ async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
     return;
   }
   const prec = garder && state.secteur ? state.secteur : null;
-  state.secteur = { retour, data, filtres: prec ? prec.filtres : { secteur: '', type: '', ers: '', alerte: '' } };
+  state.secteur = { retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { secteur: '', type: '', ers: '', alerte: '' } };
   state.step = 0;
   masquerPages();
   $('#step-secteur').hidden = false;
@@ -2246,7 +2258,23 @@ function rendreSecteur() {
   const { etabs, aSecteur, aErs } = sc.data;
   const f = sc.filtres;
   const distinct = (k) => [...new Set(etabs.map((e) => e[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
-  const liste = etabs.filter((e) => (!f.secteur || e.secteur === f.secteur) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0));
+  const tri = sc.tri || (sc.tri = { cle: 'label', dir: 1 });
+  const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, fins: (e) => e.finEchues * 1000 + e.finProches };
+  const onTri = (cle) => {
+    sc.tri = { cle, dir: tri.cle === cle ? -tri.dir : 1 };
+    rendreSecteur();
+    $(`#secteur [data-tri="${cle}"]`)?.focus();
+  };
+  const liste0 = etabs.filter((e) => (!f.secteur || e.secteur === f.secteur) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0));
+  const val = clesTri[tri.cle];
+  const liste = [...liste0].sort((a, b) => {
+    const x = val(a);
+    const y = val(b);
+    const vide = (v) => v === '' || v === null || v === undefined;
+    if (vide(x) !== vide(y)) return vide(x) ? 1 : -1; // une valeur absente reste en dernier, quel que soit le sens
+    const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'fr', { numeric: true });
+    return c * tri.dir || a.label.localeCompare(b.label, 'fr', { numeric: true });
+  });
   const selecteur = (id, cle, libelle, options, aide) =>
     h(
       'div',
@@ -2261,13 +2289,13 @@ function rendreSecteur() {
     );
   const totalPresents = liste.reduce((n, e) => n + e.presents, 0);
   const totalPlaces = liste.reduce((n, e) => n + (e.places || 0), 0);
-  const colonnes = ['Établissement', 'Type', 'Commune', ...(aSecteur ? ['Secteur'] : []), ...(aErs ? ['ERS'] : []), 'Effectif', 'Fins de droits'];
+  const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], ['Fins de droits', 'fins']];
   $('#secteur').replaceChildren(
     h(
       'div',
       { class: 'fr-grid-row fr-grid-row--gutters fr-mb-2w' },
       aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', distinct('secteur'), 'Ne garder que les établissements de ce secteur') : h('span'),
-      selecteur('f-type', 'type', "Type d'établissement", distinct('type'), 'Ne garder que les écoles, collèges ou lycées'),
+      selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
       aErs ? selecteur('f-ers', 'ers', 'ERS', distinct('ers'), "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : h('span'),
       selecteur('f-alerte', 'alerte', 'Fins de droits', ['Échues ou proches'], 'Ne garder que les établissements qui ont au moins un élève dont la fin de droits est échue ou proche'),
     ),
@@ -2290,7 +2318,7 @@ function rendreSecteur() {
                   'table',
                   {},
                   h('caption', {}, 'Établissements avec ULIS du secteur'),
-                  h('thead', {}, h('tr', {}, colonnes.map((c) => h('th', { scope: 'col' }, c)))),
+                  h('thead', {}, h('tr', {}, colonnes.map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
                   h(
                     'tbody',
                     {},

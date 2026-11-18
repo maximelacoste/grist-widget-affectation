@@ -2,6 +2,10 @@
 
 ## [Non publié]
 
+- Page par secteur : le filtre « Secteur » propose tous les secteurs (repli sur `Secteur_ERS_Secteurs_CDOEA` quand `Secteur_CDOEA` est vide, idem pour l'ERS) et le filtre « Type » propose toujours École, Collège et Lycée.
+- Page par secteur : tri par clic sur chaque colonne (un second clic inverse l'ordre), conservé au retour depuis un dispositif.
+- Coordonnées du dispositif : colonnes réelles d'`Etablissements_ERS` (code postal, téléphone, courriel du secteur et de l'ERSH).
+- Anti-cache : les modules et la feuille de style sont appelés avec `?v=…` (à changer à chaque publication, dans `index.html` et dans les imports de `src/app.js`) ; un message s'affiche si le widget ne se charge pas.
 - Dispositif : bouton « Ajouter un élève » (recherche d'une fiche avec suggestions, ou création d'une fiche) ; l'élève arrive sur le formulaire de nouvelle affectation prérempli avec l'établissement, niveaux limités à son type.
 - Accueil : nouvelle page « Établissements par secteur », avec filtres type, secteur, ERS et fins de droits ; effectifs sur places et alertes par établissement ; le retour depuis un dispositif conserve les filtres.
 - Alertes de fin de droits : panneau récapitulatif, pastilles avec texte (« Échue depuis 5 mois », « Fin dans 2 mois ») dans le dispositif, le dossier et la page par secteur ; bouton « Trier par fin de droits ». Seuil : 120 jours (`FIN_DROITS_ALERTE_JOURS`).
