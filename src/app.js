@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zg';
-import { attachSuggest } from './suggest.js?v=20261118zg';
-import { activerCalendriers } from './calendrier.js?v=20261118zg';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zi';
+import { attachSuggest } from './suggest.js?v=20261118zi';
+import { activerCalendriers } from './calendrier.js?v=20261118zi';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -268,7 +268,7 @@ async function loadMeta() {
   state.colById = colById;
   state.etabCols = [...colById.values()].filter((c) => c.tableId === refTable).sort((a, b) => a.pos - b.pos);
   const visible = colById.get(aff.visibleCol)?.colId;
-  const t = await grist.docApi.fetchTable(refTable);
+  const t = await lireTable(refTable); // mise en mémoire : la page « Tous les dispositifs » la réutilise sans nouvel appel
   const etabs = t.id.map((id, i) => {
     const base = visible && t[visible] ? cellText(t[visible][i]) : `#${id}`;
     const commune = t.Commune ? cellText(t.Commune[i]) : '';
@@ -298,6 +298,24 @@ function lireTable(tableId) {
   return promise;
 }
 const viderCache = () => cache.clear();
+
+/**
+ * Lecture « d'abord le connu » pour les données de confort (scolarité affichée dans les suggestions de recherche) : on
+ * répond tout de suite avec la dernière lecture, même ancienne, et on la rafraîchit en arrière-plan si elle a plus de 30 s.
+ * Sans lecture préalable, comportement identique à lireTable.
+ */
+function lireTableRapide(tableId) {
+  const hit = cache.get(tableId);
+  if (!hit) return lireTable(tableId);
+  if (Date.now() - hit.ts >= CACHE_MS) {
+    const frais = grist.docApi.fetchTable(tableId);
+    frais.then(
+      () => cache.set(tableId, { ts: Date.now(), promise: frais }),
+      () => {}, // échec silencieux : on garde la lecture précédente
+    );
+  }
+  return hit.promise;
+}
 
 async function refreshIndividus() {
   state.individus = toIndividus(await lireTable(T_INDIVIDUS));
@@ -393,7 +411,7 @@ async function suggestionsEleves(query) {
   const { rows } = rechercheLibre(state.individus, query, 8);
   let enCours = new Map();
   try {
-    enCours = enCoursDe(await lireTable(T_SCOLARITE), new Set(rows.map((r) => r.id)));
+    enCours = enCoursDe(await lireTableRapide(T_SCOLARITE), new Set(rows.map((r) => r.id)));
   } catch {
     /* la scolarité est un confort : les suggestions restent utilisables sans elle */
   }
@@ -2389,27 +2407,6 @@ function rendreDispositif() {
     panneauIncomplets(eleves),
     h(
       'div',
-      { class: 'fr-mb-2w' },
-      h(
-        'button',
-        {
-          type: 'button',
-          id: 'dispo-ajouter',
-          class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-add-line',
-          'aria-expanded': String(d.ajout),
-          title: "Ajouter un élève à ce dispositif : vous choisissez l'élève (ou vous créez sa fiche), puis le formulaire d'affectation s'ouvre avec cet établissement",
-          onclick: () => {
-            d.ajout = !d.ajout;
-            rendreDispositif();
-            (d.ajout ? $('#dispo-q') : $('#dispo-ajouter'))?.focus();
-          },
-        },
-        'Ajouter un élève',
-      ),
-    ),
-    d.ajout ? panneauAjout(d) : h('span'),
-    h(
-      'div',
       { class: 'toggles-ligne fr-mb-2w' },
       basculeDispo('dispo-attente', 'inclureAttente', `Liste d'attente (${attente})`, "Afficher aussi, dans la liste, les élèves en liste d'attente pour cet établissement"),
       basculeDispo('dispo-autres', 'inclureAutres', `Autres situations (${autres})`, 'Afficher aussi les élèves dont la situation en cours est une sortie, une exclusion… avec cet établissement'),
@@ -2461,6 +2458,27 @@ function rendreDispositif() {
             ),
           ),
         ),
+    h(
+      'div',
+      { class: 'fr-mt-2w fr-mb-2w' },
+      h(
+        'button',
+        {
+          type: 'button',
+          id: 'dispo-ajouter',
+          class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-add-line',
+          'aria-expanded': String(d.ajout),
+          title: "Ajouter un élève à ce dispositif : vous choisissez l'élève (ou vous créez sa fiche), puis le formulaire d'affectation s'ouvre avec cet établissement",
+          onclick: () => {
+            d.ajout = !d.ajout;
+            rendreDispositif();
+            (d.ajout ? $('#dispo-q') : $('#dispo-ajouter'))?.focus();
+          },
+        },
+        'Ajouter un élève',
+      ),
+    ),
+    d.ajout ? panneauAjout(d) : h('span'),
   );
   if (d.ajout) {
     attachSuggest($('#dispo-q'), {
@@ -2760,8 +2778,11 @@ async function init() {
     if (!editeur) accueilNavigation(); // les éditeurs connaissent l'outil : le message vise ceux qui consultent
   });
   try {
+    // Individus ne dépend pas des métadonnées : on lance sa lecture en même temps, au lieu de l'enchaîner après elles.
+    const individus = lireTable(T_INDIVIDUS);
     await loadMeta();
-    await refreshIndividus();
+    lireTable(T_SCOLARITE).catch(() => {}); // préchargée en arrière-plan : suggestions et pages dispositifs seront prêtes
+    state.individus = toIndividus(await individus);
   } catch (err) {
     notify('error', `Initialisation impossible : ${err.message}`);
   }

@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Dispositif : le bouton « Ajouter un élève » (et son panneau) passe sous le tableau des élèves, comme les autres boutons d'action ; il reste visible quand le tableau est vide.
+- Démarrage plus rapide : la lecture d'Individus se fait en même temps que celle des métadonnées, la table des établissements est lue une seule fois, et Scolarité est préchargée en arrière-plan ; les suggestions de recherche s'affichent aussitôt avec la dernière lecture de la scolarité, rafraîchie en arrière-plan.
 - Dispositif : les interrupteurs « Liste d'attente (n) » et « Autres situations (n) » sont sur la même ligne (retour à la ligne seulement si l'écran est étroit) ; leurs libellés, et celui des interrupteurs de chaque ligne du tableau, ne se coupent plus en deux. Correction à 320 px : la liste d'informations de l'établissement ne fait plus déborder la page (libellé au-dessus de la valeur, valeurs longues à la ligne).
 - Accueil : le bouton « Tous les dispositifs » passe en bouton principal (bleu plein), comme les deux boutons « Rechercher » : chaque bloc n'a qu'une action.
 - Page « Tous les dispositifs » : la colonne « Places libres » est retirée (l'information est déjà dans la pastille d'occupation de la colonne « Effectif », qui reste triable).
