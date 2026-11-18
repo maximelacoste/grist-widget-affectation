@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
   <title>🫏 ANESH</title>
   <!-- DSFR auto-hébergé : voir README (npm install && npm run vendor). -->
   <link rel="stylesheet" href="vendor/dsfr/dsfr.min.css">
@@ -11,7 +12,7 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-system/icons-system.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-design/icons-design.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-map/icons-map.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261118v">
+  <link rel="stylesheet" href="src/style.css?v=20261118x">
   <!-- API de plugin Grist. Si possible, remplacer par celle de votre instance
        (https://<votre-instance-grist>/grist-plugin-api.js) : le script ne reçoit aucune donnée,
        mais on évite ainsi toute requête vers un serveur tiers. -->
@@ -145,16 +146,7 @@
 
   <script type="module" src="vendor/dsfr/dsfr.module.min.js"></script>
   <script nomodule src="vendor/dsfr/dsfr.nomodule.min.js"></script>
-  <script>
-    /* Garde-fou : si les modules ne se chargent pas (souvent un cache qui mélange d'anciens et de nouveaux fichiers), on le dit au lieu d'afficher une page blanche. */
-    setTimeout(function () {
-      if (document.documentElement.dataset.pret) return;
-      var d = document.createElement('div');
-      d.className = 'fr-alert fr-alert--error fr-m-2w';
-      d.innerHTML = '<h3 class="fr-alert__title">Le widget ne s\'est pas chargé</h3><p>Rechargez la page sans le cache (Ctrl+Maj+R) ; si le message revient, ouvrez la console du navigateur (F12) et transmettez l\'erreur affichée.</p>';
-      document.body.prepend(d);
-    }, 5000);
-  </script>
-  <script type="module" src="src/app.js?v=20261118v"></script>
+  <script src="src/garde.js?v=20261118x"></script>
+  <script type="module" src="src/app.js?v=20261118x"></script>
 </body>
 </html>

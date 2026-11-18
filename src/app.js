@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118v';
-import { attachSuggest } from './suggest.js?v=20261118v';
-import { activerCalendriers } from './calendrier.js?v=20261118v';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118x';
+import { attachSuggest } from './suggest.js?v=20261118x';
+import { activerCalendriers } from './calendrier.js?v=20261118x';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -984,7 +984,7 @@ function ouvrirPanneauNote(ctx, panneau, cols, existante = null) {
   const form = h(
     'form',
     { novalidate: true, class: 'ajout-eleve' },
-    h('h4', { class: 'fr-h6', id: 'h-note', tabindex: '-1' }, existante ? 'Modifier la note' : 'Nouvelle note'),
+    h('h3', { class: 'fr-h6', id: 'h-note', tabindex: '-1' }, existante ? 'Modifier la note' : 'Nouvelle note'),
     h('div', { class: 'fr-input-group fr-mb-2w' }, h('label', { class: 'fr-label', for: 'note-texte' }, 'Note', h('span', { class: 'fr-hint-text' }, "Texte libre, ajouté à l'historique des notes de l'élève.")), h('textarea', { class: 'fr-input', id: 'note-texte', rows: 4, required: true }, existante ? existante.note : '')),
     choix.length
       ? h('div', { class: 'fr-select-group fr-mb-2w' }, h('label', { class: 'fr-label', for: 'note-type' }, 'Type de note (facultatif)'), h('select', { class: 'fr-select', id: 'note-type' }, h('option', { value: '' }, '— aucun —'), choix.map((c) => h('option', { value: c }, c))))
@@ -1158,21 +1158,21 @@ async function openDossier(row, origine = 2) {
   box.replaceChildren(
     ctx.ui.aide,
     infosManquantes(row, affectationPour(enCours)).length
-      ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row, affectationPour(enCours)).join(', ')}. ${infosManquantes(row, affectationPour(enCours)).some((m) => m !== 'niveau') ? 'Utilisez « Modifier » pour la compléter' : "Le niveau se renseigne dans la ligne d'affectation (bouton « Affecter »)"}.`))
+      ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('p', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row, affectationPour(enCours)).join(', ')}. ${infosManquantes(row, affectationPour(enCours)).some((m) => m !== 'niveau') ? 'Utilisez « Modifier » pour la compléter' : "Le niveau se renseigne dans la ligne d'affectation (bouton « Affecter »)"}.`))
       : h('span'),
-    h('h4', { class: 'fr-h6' }, 'État civil'),
+    h('h2', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
       ligneModifiable('Nom', row.nom, [ch.nom], ctx),
       ligneModifiable('Prénom', row.prenom, [ch.prenom], ctx),
       ligneModifiable('Date de naissance', formatDateFr(row.ddn), [ch.ddn], ctx),
     ]),
-    h('h4', { class: 'fr-h6' }, 'Coordonnées'),
+    h('h2', { class: 'fr-h6' }, 'Coordonnées'),
     listeInfos([
       ligneModifiable('Adresse', ind.adresse, [ch.adr], ctx),
       ligneModifiable('Code postal et commune', ind.cpVille, ch.cp && ch.commune ? [ch.cp, ch.commune] : [], ctx),
       ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
     ]),
-    h('h4', { class: 'fr-h6' }, 'Notification ULIS'),
+    h('h2', { class: 'fr-h6' }, 'Notification ULIS'),
     listeInfos([
       ligneModifiable('Notification ULIS', ind.notif ? 'Oui' : 'Non', null, ctx),
       ligneModifiable('Première notification', dateOuTexte(ind.premiere), null, ctx),
@@ -1180,7 +1180,7 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Fin de droits', badgeFin(secToIso(ind.fin)) ? [dateOuTexte(ind.fin), ' ', badgeFin(secToIso(ind.fin))] : dateOuTexte(ind.fin), [ch.fin], ctx),
     ]),
     h('div', { class: 'fr-my-2w' }, ctx.ui.modifier),
-    h('h4', { class: 'fr-h6' }, 'Historique des affectations'),
+    h('h2', { class: 'fr-h6' }, 'Historique des affectations'),
     scol.length === 0
       ? h('p', {}, 'Aucune affectation enregistrée.')
       : tableSimple(
@@ -1196,7 +1196,7 @@ async function openDossier(row, origine = 2) {
     origine !== 3
       ? h('div', { class: 'fr-mt-2w' }, h('button', { class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-map-pin-2-line', type: 'button', title: 'Passer aux affectations de cet élève pour ajouter ou modifier une ligne', onclick: () => chooseEleve(row) }, 'Affecter'))
       : h('span'),
-    h('h4', { class: 'fr-h6 fr-mt-3w' }, 'Notes sur l\'élève'),
+    h('h2', { class: 'fr-h6 fr-mt-3w' }, 'Notes sur l\'élève'),
     notes.length === 0
       ? h('p', {}, 'Aucune note.')
       : tableSimple(
@@ -1792,7 +1792,7 @@ function ouvrirModale({ titre, icone = 'fr-icon-warning-line', corps, actions, f
   const dlg = h(
     'dialog',
     { class: 'modale-confirm', 'aria-labelledby': 'dlg-titre' },
-    h('div', { class: 'modale-entete' }, h('h4', { class: `fr-h5 fr-mb-0 ${icone} fr-icon--lg modale-titre`, id: 'dlg-titre' }, titre)),
+    h('div', { class: 'modale-entete' }, h('h2', { class: `fr-h5 fr-mb-0 ${icone} fr-icon--lg modale-titre`, id: 'dlg-titre' }, titre)),
     h('div', { class: 'modale-corps' }, corps),
     h(
       'div',
@@ -2187,7 +2187,7 @@ function enteteTri(libelle, cle, onTri, tri = state.dispo.tri) {
 function panneauIncomplets(eleves) {
   const n = eleves.filter((e) => infosManquantes(e.row, { affecte: e.statut === 'present', niveau: e.niveau }).length).length;
   if (!n) return h('span');
-  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} dont le nom, le prénom, la date de naissance ou le niveau (élèves affectés) est manquant : ouvrez le dossier pour compléter.`));
+  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('p', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} dont le nom, le prénom, la date de naissance ou le niveau (élèves affectés) est manquant : ouvrez le dossier pour compléter.`));
 }
 
 function panneauAlertes(eleves, d, onTri) {
@@ -2205,7 +2205,7 @@ function panneauAlertes(eleves, d, onTri) {
   return h(
     'div',
     { class: 'fr-mb-2w', id: 'dispo-alertes' },
-    h('div', { class: `fr-alert fr-alert--${echues ? 'error' : 'warning'} fr-alert--sm`, role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Fins de droits à surveiller'), h('p', {}, texte)),
+    h('div', { class: `fr-alert fr-alert--${echues ? 'error' : 'warning'} fr-alert--sm`, role: 'status' }, h('p', { class: 'fr-alert__title' }, 'Fins de droits à surveiller'), h('p', {}, texte)),
     h('button', { class: 'fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w', type: 'button', title: 'Classer les élèves par fin de droits, les plus anciennes en premier', onclick: () => onTri('fin', true) }, 'Trier par fin de droits'),
   );
 }
@@ -2359,7 +2359,7 @@ function rendreDispositif() {
   const effectifs = [`${presents} élève${presents > 1 ? 's' : ''} présent${presents > 1 ? 's' : ''}${etab.places !== null ? ` sur ${etab.places} places` : ''}`, attente ? `${attente} en liste d'attente` : null, autres ? `${autres} dans une autre situation` : null].filter(Boolean).join(' · ');
   const box = $('#dispo');
   box.replaceChildren(
-    h('h4', { class: 'fr-h6' }, "Informations sur l'établissement"),
+    h('h2', { class: 'fr-h6' }, "Informations sur l'établissement"),
     listeInfos([
       ['Effectifs', badgeOccupation(presents, etab.places) ? [effectifs, ' ', badgeOccupation(presents, etab.places)] : effectifs],
       etab.effectifGrist !== null && etab.effectifGrist !== presents ? ['Effectif calculé par Grist', `${etab.effectifGrist} (colonne ${COL_EFFECTIF_GRIST}, différent du décompte ci-dessus)`] : null,
@@ -2369,7 +2369,7 @@ function rendreDispositif() {
     etab.coords === 0
       ? h('p', { class: 'fr-hint-text fr-mb-2w' }, "Coordonnées : aucune colonne reconnue (code postal, téléphone, courriel) dans la table liée par Uai.")
       : h('span'),
-    h('h4', { class: 'fr-h6 fr-mt-2w' }, 'Élèves du dispositif'),
+    h('h2', { class: 'fr-h6 fr-mt-2w' }, 'Élèves du dispositif'),
     panneauAlertes(eleves, d, onTri),
     panneauIncomplets(eleves),
     h(
@@ -2382,7 +2382,6 @@ function rendreDispositif() {
           id: 'dispo-ajouter',
           class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-add-line',
           'aria-expanded': String(d.ajout),
-          'aria-controls': 'dispo-ajout',
           title: "Ajouter un élève à ce dispositif : vous choisissez l'élève (ou vous créez sa fiche), puis le formulaire d'affectation s'ouvre avec cet établissement",
           onclick: () => {
             d.ajout = !d.ajout;

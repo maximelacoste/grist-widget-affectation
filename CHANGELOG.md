@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Audit sécurité et accessibilité (`docs/audit-securite-accessibilite.md`). Accessibilité : hiérarchie des titres corrigée (sections en `h2`, titres d'alerte en paragraphe, titre de modale en `h2`), `aria-controls` orphelin retiré. Sécurité : suppression du dernier `innerHTML` (le garde-fou de chargement devient `src/garde.js`, ce qui permet une CSP stricte), `referrer` désactivé ; politique CSP proposée et testée mais non activée.
 - Résultats de recherche d'élèves : le bouton « Affecter » est retiré (doublon avec le dossier) ; il ne reste que « Dossier », d'où l'on affecte.
 - Mise en page : plus d'espace entre le texte d'introduction de l'accueil et les deux blocs de recherche, et avant le pied de page. Correction : le libellé du bouton retour du dossier et celui de « Supprimer cette affectation » (formulaire) étaient réduits à leur icône.
 - Dossier : « Affecter » harmonisé avec « Modifier » et « Ajouter une note » (bouton secondaire avec icône ; épingle de lieu du DSFR, feuille `icons-map` ajoutée).
