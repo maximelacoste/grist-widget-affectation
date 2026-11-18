@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118z';
-import { attachSuggest } from './suggest.js?v=20261118z';
-import { activerCalendriers } from './calendrier.js?v=20261118z';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118za';
+import { attachSuggest } from './suggest.js?v=20261118za';
+import { activerCalendriers } from './calendrier.js?v=20261118za';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2472,10 +2472,10 @@ function rendreDispositif() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Page « Établissements par secteur »                                  */
+/* Page « Tous les dispositifs »                                         */
 /* ------------------------------------------------------------------ */
 const TYPE_LIBELLE = { ECO: 'École', CLG: 'Collège', LYC: 'Lycée' };
-const retourSecteur = () => ({ libelle: 'Revenir aux établissements par secteur', action: () => openSecteur(state.secteur.retour, { garder: true }) });
+const retourSecteur = () => ({ libelle: 'Revenir à tous les dispositifs', action: () => openSecteur(state.secteur.retour, { garder: true }) });
 
 async function chargerSecteur() {
   const [t, tScol, tInd] = await Promise.all([lireTable(state.etabTable), lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS)]);
@@ -2521,6 +2521,7 @@ async function chargerSecteur() {
       label: e.label,
       type: TYPE_LIBELLE[e.type] || e.typeBrut || 'Autre',
       commune: texte('Commune', i),
+      uai: texte('Uai', i),
       secteur,
       secteurNum,
       ers,
@@ -2546,7 +2547,7 @@ async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
     return;
   }
   const prec = garder && state.secteur ? state.secteur : null;
-  state.secteur = { retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { secteur: '', type: '', ers: '', alerte: '', occup: '' } };
+  state.secteur = { retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { q: '', secteur: '', type: '', ers: '', alerte: '', occup: '' } };
   state.step = 0;
   masquerPages();
   $('#step-secteur').hidden = false;
@@ -2554,8 +2555,8 @@ async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
     h(
       'div',
       { class: 'fr-stepper' },
-      h('h1', { class: 'fr-stepper__title', id: 'h-secteur', tabindex: '-1' }, 'Établissements par secteur'),
-      h('p', { class: 'fr-stepper__details' }, "Établissements avec ULIS, filtrés par secteur, type et ERS. Un clic sur un établissement ouvre son dispositif."),
+      h('h1', { class: 'fr-stepper__title', id: 'h-secteur', tabindex: '-1' }, 'Tous les dispositifs'),
+      h('p', { class: 'fr-stepper__details' }, "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. Un clic sur un établissement ouvre son dispositif."),
     ),
     h(
       'nav',
@@ -2591,7 +2592,9 @@ function rendreSecteur() {
     rendreSecteur();
     $(`#secteur [data-tri="${cle}"]`)?.focus();
   };
-  const liste0 = etabs.filter((e) => dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0) && (!f.occup || (occupation(e.presents, e.places, SEUIL_PRESQUE_PLEIN) || {}).niveau === f.occup));
+  const jetons = normSearch(f.q || '').split(/\s+/).filter(Boolean);
+  const correspond = (e) => !jetons.length || jetons.every((t) => normSearch(`${e.label} ${e.commune} ${e.uai} ${e.type}`).includes(t));
+  const liste0 = etabs.filter((e) => correspond(e) && dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0) && (!f.occup || (occupation(e.presents, e.places, SEUIL_PRESQUE_PLEIN) || {}).niveau === f.occup));
   const val = clesTri[tri.cle];
   const liste = [...liste0].sort((a, b) => {
     const x = val(a);
@@ -2619,7 +2622,28 @@ function rendreSecteur() {
   const totalPresents = liste.reduce((n, e) => n + e.presents, 0);
   const totalPlaces = liste.reduce((n, e) => n + (e.places || 0), 0);
   const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], ['Places libres', 'libres'], ['Fins de droits', 'fins']];
+  const recherche = h('input', {
+    class: 'fr-input',
+    id: 'f-q',
+    type: 'search',
+    autocomplete: 'off',
+    value: f.q || '',
+    title: "Saisissez une partie du nom, de la commune ou de l'UAI : la liste se réduit au fil de la frappe",
+    oninput: (e) => {
+      f.q = e.target.value;
+      rendreSecteur();
+      const champ = $('#f-q');
+      champ.focus();
+      champ.setSelectionRange(champ.value.length, champ.value.length);
+    },
+  });
   $('#secteur').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-input-group fr-mb-2w' },
+      h('label', { class: 'fr-label', for: 'f-q' }, 'Rechercher un dispositif', h('span', { class: 'fr-hint-text' }, "Nom de l'établissement, commune ou UAI.")),
+      recherche,
+    ),
     h(
       'div',
       { class: 'fr-grid-row fr-grid-row--gutters fr-mb-2w' },

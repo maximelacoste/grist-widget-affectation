@@ -10,16 +10,16 @@ flowchart TD
     PC["<b>Création de fiche</b><br/>nom, prénom, naissance, coordonnées<br/>fiches proches affichées pendant la saisie"]
     PD["<b>Dossier</b><br/>lecture seule ; bouton Modifier<br/>tous les champs → Valider / Annuler"]
     PE["<b>Dispositif ULIS</b><br/>effectifs, coordonnées, ERS…<br/>élèves présents, triables, alertes<br/>Ajouter un élève"]
-    PS["<b>Établissements par secteur</b><br/>filtres : type, secteur, ERS, alertes<br/>effectifs et fins de droits par établissement"]
+    PS["<b>Tous les dispositifs</b><br/>recherche, filtres : type, secteur, ERS, occupation, alertes<br/>effectifs et fins de droits par établissement"]
 
     P1 -->|"Entrée / Rechercher (élève)"| P2
     P1 -->|"clic sur une suggestion élève<br/>(identité + scolarité actuelle)"| PD
     P1 -->|"clic sur une suggestion établissement<br/>ou Rechercher (1 résultat)"| PE
     P1 -->|"Rechercher (plusieurs établissements)<br/>puis clic dans la liste"| PE
-    P1 -->|"Par secteur"| PS
+    P1 -->|"Tous les dispositifs"| PS
     PS -->|"clic sur l'établissement"| PE
     PS -->|"Revenir à l'accueil"| P1
-    PE -->|"Revenir aux établissements par secteur"| PS
+    PE -->|"Revenir à tous les dispositifs"| PS
     PE -->|"Ajouter un élève : suggestion,<br/>ou fiche existante"| P3
     PE -->|"Ajouter un élève : créer la fiche"| PC
     PC -->|"Créer la fiche (depuis un dispositif)<br/>→ affectation à cet établissement"| P3
@@ -57,7 +57,7 @@ Le bouton de retour de la page Dossier et de la page Dispositif porte le nom de 
 - Alertes : le panneau « Fins de droits à surveiller » compte les fins échues (rouge) et proches (orange, 120 jours, constante `FIN_DROITS_ALERTE_JOURS`), avec un bouton « Trier par fin de droits » ; chaque élève concerné porte une pastille avec texte (« Échue depuis 5 mois », « Fin dans 2 mois »), jamais la couleur seule.
 - Dossiers incomplets : une pastille « Dossier incomplet » (avec la liste de ce qui manque en infobulle) apparaît quand le nom, le prénom ou la date de naissance manque ; elle est visible dans les résultats, le dispositif (avec un panneau de comptage) et en tête du dossier.
 
-## Page Établissements par secteur
+## Page Tous les dispositifs
 
 Accessible depuis l'accueil. Tableau de tous les établissements avec ULIS : type, secteur, ERS, effectif présent sur places, liste d'attente et fins de droits (échues / proches). Filtres combinables : type (École, Collège, Lycée), secteur (`Secteur_CDOEA`), ERS (`Secteur_ERS`) et « Fins de droits » (échues ou proches). Le retour depuis un dispositif conserve les filtres.
 

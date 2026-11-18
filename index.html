@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-system/icons-system.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-design/icons-design.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-map/icons-map.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261118z">
+  <link rel="stylesheet" href="src/style.css?v=20261118za">
   <!-- API de plugin Grist. Si possible, remplacer par celle de votre instance
        (https://<votre-instance-grist>/grist-plugin-api.js) : le script ne reçoit aucune donnée,
        mais on évite ainsi toute requête vers un serveur tiers. -->
@@ -58,9 +58,9 @@
           </form>
           <div id="etab-results" class="fr-mt-2w"></div>
           <div class="fr-mt-4w">
-            <h3 class="fr-h5">Par secteur</h3>
-            <p class="fr-hint-text">Parcourir les établissements avec ULIS, filtrés par secteur, type d'établissement et ERS.</p>
-            <button class="fr-btn fr-btn--secondary" type="button" id="btn-secteur" title="Ouvrir la liste des établissements avec ULIS, avec des sélecteurs de secteur, de type et d'ERS">Parcourir les établissements par secteur</button>
+            <h3 class="fr-h5">Tous les dispositifs</h3>
+            <p class="fr-hint-text">Parcourir tous les dispositifs ULIS : recherche, secteur, type d'établissement, ERS, occupation.</p>
+            <button class="fr-btn fr-btn--secondary" type="button" id="btn-secteur" title="Ouvrir la liste des établissements avec ULIS, avec des sélecteurs de secteur, de type et d'ERS">Tous les dispositifs</button>
           </div>
         </div>
       </div>
@@ -76,8 +76,8 @@
       </div>
     </section>
 
-    <!-- Page dédiée : établissements par secteur -->
-    <section id="step-secteur" aria-label="Établissements par secteur" hidden>
+    <!-- Page dédiée : tous les dispositifs -->
+    <section id="step-secteur" aria-label="Tous les dispositifs" hidden>
       <div id="secteur"></div>
     </section>
 
@@ -146,7 +146,7 @@
 
   <script type="module" src="vendor/dsfr/dsfr.module.min.js"></script>
   <script nomodule src="vendor/dsfr/dsfr.nomodule.min.js"></script>
-  <script src="src/garde.js?v=20261118z"></script>
-  <script type="module" src="src/app.js?v=20261118z"></script>
+  <script src="src/garde.js?v=20261118za"></script>
+  <script type="module" src="src/app.js?v=20261118za"></script>
 </body>
 </html>
