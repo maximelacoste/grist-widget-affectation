@@ -2,6 +2,11 @@
 
 ## [Non publié]
 
+- Accueil refait : deux recherches côte à côte, « Un élève » et « Un établissement avec ULIS » (nom, commune ou UAI, avec suggestions). Un clic sur une suggestion mène directement au dossier de l'élève ou à la page du dispositif ; Entrée ou « Rechercher » affiche la liste des résultats (plusieurs établissements : liste de boutons).
+- Nouvelle page « Dispositif ULIS » : effectifs (présents, liste d'attente, autres situations), informations de l'établissement lues dans `Etablissements_avec_ULIS` quand les colonnes existent (UAI, adresse, code postal, commune, téléphone, courriel, directeur, ERS, capacité, effectif), et liste des élèves présents (ligne de scolarité en cours = cet établissement, situation « En ULIS », hors liste d'attente) triable par nom, classe, première notification et fin de droits. Un clic sur un élève ouvre son dossier, avec retour au dispositif (tri conservé).
+- Le nom de l'établissement est cliquable (ouvre le dispositif) dans les résultats, l'historique du dossier et la liste des affectations ; le bouton de retour porte le nom de la page d'origine.
+- Badge « Liste d'attente » à côté de « En cours » sur la ligne actuelle (dossier, affectations, résultats).
+- Dossier ouvert depuis l'accueil ou le dispositif : bouton de retour adapté (« Revenir à l'accueil », « Revenir au dispositif »).
 - Dossier : un seul bouton « Modifier » ouvre tous les champs modifiables à la fois ; une seule barre « Valider / Annuler » (collante, en bas de l'écran) et une seule fenêtre de confirmation « avant → après » listant les seuls champs réellement saisis (un champ laissé tel quel n'est ni normalisé ni écrit) ; une seule écriture dans `Individus`. Remplace les crayons par champ.
 - Dossier : fenêtre « Abandonner les modifications en cours ? » dès qu'on quitte la page (retour, Affecter) ou qu'on annule avec des champs modifiés ; avertissement du navigateur à la fermeture de l'onglet.
 - Documentation : schéma de la navigation complète (`docs/navigation.md`).

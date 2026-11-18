@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -180,4 +180,40 @@ test('rechercheLibre : nom, prénom et date dans le désordre', () => {
   assert.equal(rechercheLibre(rows, 'd').total, 0);
   assert.equal(libelleEleve(rows[0]), 'DUPONT Léa, né(e) le 12/03/2015');
   assert.match(libelleEleve(rows[2]), /non renseignée/);
+});
+
+test('elevesDuDispositif : seule la ligne en cours compte ; attente et autres situations écartées', () => {
+  const L = (eleve, id, date, affectation, situation = 'En ULIS', attente = false, niveau = 'CM2') => ({ eleve, id, date, affectation, situation, attente, niveau });
+  const lignes = [
+    L(1, 1, '2025-09-01', 7), L(1, 2, '2026-09-01', 8), // 1 : parti vers 8
+    L(2, 3, '2025-09-01', 7), // 2 : présent
+    L(3, 4, '2026-09-01', 7, 'En ULIS', true), // 3 : liste d'attente
+    L(4, 5, '2026-09-01', 7, 'Retour classe ordinaire'), // 4 : autre situation
+    L(5, 6, '2027-09-01', 7), // 5 : affectation future, pas encore en cours
+    L(6, 7, '2024-09-01', 7), L(6, 8, '2026-01-01', 7, 'Exclusion'), // 6 : en cours = exclusion
+  ];
+  const r = elevesDuDispositif(lignes, 7, '2026-11-18');
+  assert.deepEqual(r.rows.map((x) => x.eleve), [2]);
+  assert.equal(r.attente, 1);
+  assert.equal(r.autres, 2);
+  const tout = elevesDuDispositif(lignes, 7, '2026-11-18', { inclure: true });
+  assert.deepEqual(tout.rows.map((x) => x.eleve).sort(), [2, 3, 4, 6]);
+  assert.deepEqual(elevesDuDispositif(lignes, 8, '2026-11-18').rows.map((x) => x.eleve), [1]);
+});
+
+test('trierEleves : nom, classe (ordre des choix), date de première notification (vides à la fin)', () => {
+  const rows = [
+    { nom: 'MARTIN', prenom: 'Zoé', niveau: 'CM2', premiere: '2022-09-01', fin: '' },
+    { nom: 'DUPONT', prenom: 'Léa', niveau: 'CP', premiere: '', fin: '2027-06-30' },
+    { nom: 'DURAND', prenom: 'Éli', niveau: '6G', premiere: '2020-09-01', fin: '2026-06-30' },
+    { nom: 'ABEL', prenom: 'Ann', niveau: 'Inconnu', premiere: '2021-09-01', fin: '' },
+  ];
+  const niveaux = ['CP', 'CE1', 'CM2', '6G'];
+  const noms = (k, d) => trierEleves(rows, k, d, niveaux).map((r) => r.nom);
+  assert.deepEqual(noms('nom', 1), ['ABEL', 'DUPONT', 'DURAND', 'MARTIN']);
+  assert.deepEqual(noms('nom', -1), ['MARTIN', 'DURAND', 'DUPONT', 'ABEL']);
+  assert.deepEqual(noms('classe', 1), ['DUPONT', 'MARTIN', 'DURAND', 'ABEL']);
+  assert.deepEqual(noms('premiere', 1), ['DURAND', 'ABEL', 'MARTIN', 'DUPONT']);
+  assert.deepEqual(noms('premiere', -1), ['MARTIN', 'ABEL', 'DURAND', 'DUPONT']); // sans date toujours en dernier
+  assert.deepEqual(noms('fin', 1), ['DURAND', 'DUPONT', 'ABEL', 'MARTIN']);
 });

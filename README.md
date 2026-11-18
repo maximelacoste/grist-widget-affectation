@@ -2,17 +2,20 @@
 
 Widget Grist « Affectation » pour le document ULIS centralisé (écosystème Éducation nationale), construit avec le [Système de design de l'État (DSFR)](https://www.systeme-de-design.gouv.fr/).
 
-Parcours en trois étapes :
+Une page d'accueil avec deux recherches, puis deux parcours (schéma complet : [docs/navigation.md](docs/navigation.md)) :
 
-1. **Rechercher** l'élève (nom, prénom, date de naissance facultative), sans tenir compte des accents, de la casse ni des tirets.
-2. **Choisir** la fiche trouvée dans `Individus`, ou **en créer une** si aucune ne convient. La création est refusée si la clé `Cle` (même normalisation que la formule Grist) existe déjà.
-3. **Saisir ou modifier** une ligne de `Scolarite` : date d'effet, affectation, niveau, situation, liste d'attente.
+- **Un établissement avec ULIS** : la page *Dispositif* affiche effectifs, informations de l'établissement (colonnes reconnues dans `Etablissements_avec_ULIS` : UAI, adresse, code postal, commune, téléphone, courriel, directeur, ERS, capacité, effectif) et élèves présents, triables ; un clic sur un élève ouvre son dossier.
+- **Un élève**, en trois étapes :
+  1. **Rechercher** (nom, prénom, date de naissance, dans l'ordre voulu), sans tenir compte des accents, de la casse ni des tirets. Une suggestion ouvre directement le dossier.
+  2. **Choisir** la fiche trouvée dans `Individus`, ou **en créer une** si aucune ne convient. La création est refusée si la clé `Cle` (même normalisation que la formule Grist) existe déjà.
+  3. **Saisir ou modifier** une ligne de `Scolarite` : date d'effet, affectation, niveau, situation, liste d'attente.
 
 ## Hypothèses sur le document Grist
 
 | Table | Colonnes utilisées |
 |---|---|
-| `Individus` | `Nom`, `Prenom`, `Date_de_naissance` (écrites à la création) ; `Cle` (lue) ; `Id_app` (lue) |
+| `Individus` | `Nom`, `Prenom`, `Date_de_naissance` (écrites à la création) ; `Cle` (lue) ; `Id_app` (lue) ; `Premiere_notif_ULIS` et `Fin_droits_ULIS` (lues, page Dispositif) |
+| `Etablissements_avec_ULIS` | colonne affichée (réf. de `Scolarite.Affectation`), `Commune`, `Type` ; pour la page Dispositif, lues si elles existent : UAI, adresse, code postal, commune, téléphone, courriel, directeur, ERS, capacité, effectif |
 | `Scolarite` | `Eleve_Identite_` (réf. vers `Individus`), `Affectation` (réf. vers `Etablissements_avec_ULIS`), `Date_effet`, `Niveau_saisi` (Choice), `Situation` (Choice), `Liste_d_attente` (Bascule) |
 
 À la création d'une fiche, le formulaire propose aussi, en facultatif, toutes les colonnes de données d'`Individus` dont l'identifiant finit par `_manuel` ou `_manuelle` (début/fin de notification, représentants légaux, adresse, code postal, commune…). Elles sont découvertes dans les métadonnées Grist : ajouter une telle colonne suffit à la voir apparaître.

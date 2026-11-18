@@ -1,25 +1,4 @@
-import {
-  banUrl,
-  cellText,
-  cle,
-  filterOptions,
-  formatDateFr,
-  isInvalidCell,
-  isoToSec,
-  ligneEnCours,
-  niveauxPour,
-  typeEtab,
-  libelleEtab,
-  norm,
-  normSearch,
-  parseBan,
-  searchIndividus,
-  rechercheLibre,
-  libelleEleve,
-  secToIso,
-  tableToRows,
-  toIndividus,
-} from './lib.js';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves } from './lib.js';
 import { attachSuggest } from './suggest.js';
 import { activerCalendriers } from './calendrier.js';
 
@@ -62,7 +41,7 @@ const MANUEL_MULTILIGNE = /adresse|repr|legal/i; // champs texte affichés sur p
 const ADRESSE_SUGGESTIONS = true;
 
 const STEPS = [
-  { title: "Rechercher l'élève", next: "Choisir ou créer la fiche de l'élève" },
+  { title: 'Accueil', next: "Choisir ou créer la fiche de l'élève" },
   { title: "Choisir ou créer la fiche de l'élève", next: 'Saisir ou modifier une affectation' },
   { title: 'Saisir ou modifier une affectation', next: null },
 ];
@@ -165,6 +144,18 @@ function navButton(target, direction) {
 function renderStepper() {
   const n = state.step;
   const s = STEPS[n - 1];
+  if (n === 1) {
+    $('#stepper').replaceChildren(
+      h(
+        'div',
+        { class: 'fr-stepper' },
+        h('h1', { class: 'fr-stepper__title' }, 'Accueil'),
+        h('p', { class: 'fr-stepper__details' }, "Cherche un élève pour consulter son dossier ou saisir son affectation, ou un établissement pour voir son dispositif ULIS."),
+      ),
+      ...(reachable(2) ? [h('nav', { 'aria-label': 'Navigation entre les étapes', class: 'step-nav fr-mb-2w' }, navButton(2, 'next'))] : []),
+    );
+    return;
+  }
   $('#stepper').replaceChildren(
     h(
       'div',
@@ -187,6 +178,7 @@ function masquerPages() {
   for (let i = 1; i <= STEPS.length; i += 1) $(`#step-${i}`).hidden = true;
   $('#step-create').hidden = true;
   $('#step-dossier').hidden = true;
+  $('#step-dispo').hidden = true;
 }
 
 function goto(step, { focus = true } = {}) {
@@ -249,6 +241,9 @@ async function loadMeta() {
   const aff = need(T_SCOLARITE, COL.affectation);
   if (!aff.type.startsWith('Ref:')) throw new Error(`${T_SCOLARITE}.${COL.affectation} n'est pas une colonne Référence`);
   const refTable = aff.type.slice(4);
+  state.etabTable = refTable;
+  state.colById = colById;
+  state.etabCols = [...colById.values()].filter((c) => c.tableId === refTable).sort((a, b) => a.pos - b.pos);
   const visible = colById.get(aff.visibleCol)?.colId;
   const t = await grist.docApi.fetchTable(refTable);
   const etabs = t.id.map((id, i) => {
@@ -358,28 +353,29 @@ attachSuggest($('#q'), {
   minChars: 2,
   fetchItems: (query) =>
     rechercheLibre(state.individus, query, 8).rows.map((r) => ({ value: String(r.id), label: libelleEleve(r), row: r })),
-  onPick: async (item) => {
-    // Un clic sur une suggestion mène à la page des résultats, avec cette seule fiche : Affecter ou Dossier.
+  onPick: (item) => {
+    // Un clic sur une suggestion ouvre directement le dossier ; Entrée ou « Rechercher » affiche la liste des résultats.
     $('#q').value = `${item.row.nom} ${item.row.prenom}`;
-    clearNotice();
-    state.query = { texte: $('#q').value };
-    state.searched = true;
-    state.eleve = null;
-    $('#form-scol').hidden = true;
-      state.results = { total: 1, rows: [item.row] };
-    await renderResults();
-    goto(2);
+    openDossier(item.row, 'accueil');
   },
 });
 
 /* ------------------------------------------------------------------ */
 /* Étape 2 : choisir ou créer                                          */
 /* ------------------------------------------------------------------ */
+/** Pastilles de la ligne en cours : « En cours », et « Liste d'attente » si l'élève n'est pas encore affecté. */
+function badgesEnCours(l) {
+  return [
+    h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'En cours'),
+    l.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "L'élève est sur liste d'attente pour cet établissement (pas encore affecté)" }, "Liste d'attente")] : null,
+  ];
+}
+
 /** Cellule « Affectation en cours » : établissement, puis niveau et situation en petit. */
-function celluleEnCours(l) {
+function celluleEnCours(l, retour) {
   if (!l) return '—';
   const detail = [l.niveau, l.situation].filter(Boolean).join(' · ');
-  return [affectationCell(l), detail ? h('br') : null, detail ? h('span', { class: 'fr-text--sm fr-hint-text' }, detail) : null];
+  return [lienEtab(l, retour), detail || l.attente ? h('br') : null, detail ? h('span', { class: 'fr-text--sm fr-hint-text' }, detail) : null, l.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, "Liste d'attente")] : null];
 }
 
 async function renderResults() {
@@ -425,7 +421,7 @@ async function renderResults() {
                     h('td', {}, r.nom),
                     h('td', {}, r.prenom),
                     h('td', { class: 'nowrap' }, formatDateFr(r.ddn) || 'non renseignée'),
-                    h('td', {}, celluleEnCours(enCours.get(r.id))),
+                    h('td', {}, celluleEnCours(enCours.get(r.id), retourResultats())),
                     h(
                       'td',
                       {},
@@ -948,8 +944,8 @@ async function openDossier(row, origine = 2) {
           'Affectations, de la plus récente à la plus ancienne',
           ["Date d'effet", 'Affectation', 'Niveau', 'Situation'],
           scol.map((l) => [
-            [dateLabel(l), ' ', enCours && enCours.id === l.id ? h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'En cours') : null],
-            affectationCell(l),
+            [dateLabel(l), ' ', enCours && enCours.id === l.id ? badgesEnCours(l) : null],
+            lienEtab(l, retourDossierDe(row, origine)),
             l.niveau || '—',
             l.situation || '—',
           ]),
@@ -970,8 +966,8 @@ async function openDossier(row, origine = 2) {
     h(
       'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
-      origine === 2 ? h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève', onclick: () => chooseEleve(row) }, 'Affecter') : null,
-      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, origine === 3 ? "Revenir aux affectations" : 'Revenir à la page de résultats'),
+      origine !== 3 ? h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève', onclick: () => chooseEleve(row) }, 'Affecter') : null,
+      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
     ),
   );
   state.step = 0;
@@ -990,20 +986,26 @@ async function openDossier(row, origine = 2) {
       h(
         'button',
         { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter le dossier', onclick: () => retourDossier(row, origine) },
-        origine === 3 ? 'Revenir aux affectations' : 'Revenir à la page de résultats',
+        libelleRetourDossier(origine),
       ),
     ),
   );
   $('#h-dossier').focus();
 }
 
+const libelleRetourDossier = (origine) => (origine === 3 ? 'Revenir aux affectations' : origine === 'dispo' ? 'Revenir au dispositif' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la page de résultats');
+
 function retourDossier(row, origine) {
   clearNotice();
+  if (origine === 'dispo' && state.dispo) {
+    openDispositif(state.dispo.etabId, state.dispo.retour, { garder: true });
+    return;
+  }
   if (origine === 3 && state.eleve) {
     goto(3);
     return;
   }
-  goto(2);
+  goto(origine === 'accueil' ? 1 : 2);
 }
 
 $('#btn-dossier-3').addEventListener('click', () => openDossier(state.eleve, 3));
@@ -1250,9 +1252,9 @@ function renderScolList() {
                       {},
                       dateLabel(l),
                       ' ',
-                      enCours && enCours.id === l.id ? h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'En cours') : null,
+                      enCours && enCours.id === l.id ? badgesEnCours(l) : null,
                     ),
-                    h('td', {}, affectationCell(l)),
+                    h('td', {}, lienEtab(l, retourAffectations())),
                     h('td', {}, l.niveau || '—'),
                     h('td', {}, l.situation || '—'),
                     h('td', {}, l.attente ? 'Oui' : 'Non'),
@@ -1715,6 +1717,269 @@ $('#form-scol').addEventListener('submit', async (e) => {
   }
   await ecrireAffectation(fields);
 });
+
+/* ------------------------------------------------------------------ */
+/* Accueil : recherche d'un établissement ; page du dispositif          */
+/* ------------------------------------------------------------------ */
+const retourAccueil = () => ({ libelle: "Revenir à l'accueil", action: () => goto(1) });
+const retourResultats = () => ({ libelle: 'Revenir à la page de résultats', action: () => goto(2) });
+const retourAffectations = () => ({ libelle: 'Revenir aux affectations', action: () => goto(3) });
+const retourDossierDe = (row, origine) => ({ libelle: 'Revenir au dossier', action: () => openDossier(row, origine) });
+
+/** Nom d'établissement cliquable (ouvre la page du dispositif) ; sans établissement, la cellule habituelle. */
+function lienEtab(l, retour) {
+  if (!l || !l.affectation) return affectationCell(l || {});
+  return h(
+    'button',
+    {
+      type: 'button',
+      class: 'fr-link lien-etab',
+      title: "Ouvrir le dispositif de cet établissement : élèves présents, effectifs, coordonnées",
+      onclick: () => openDispositif(l.affectation, retour),
+    },
+    state.etabLabel.get(l.affectation) || `#${l.affectation}`,
+  );
+}
+
+const optionsEtab = () => state.etabs.map((e) => ({ value: e.id, label: e.label }));
+
+$('#form-etab').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearNotice();
+  clearFieldErrors($('#form-etab'));
+  const box = $('#etab-results');
+  box.replaceChildren();
+  const q = $('#qe').value.trim();
+  if (norm(q).length < 2) {
+    setFieldError('qe', "Saisis au moins 2 lettres du nom, de la commune ou de l'UAI.");
+    $('#qe').focus();
+    return;
+  }
+  const { total, rows } = filterOptions(optionsEtab(), q, 20);
+  if (total === 0) {
+    box.replaceChildren(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucun établissement avec ULIS ne correspond.')));
+    return;
+  }
+  if (total === 1) {
+    openDispositif(rows[0].value, retourAccueil());
+    return;
+  }
+  box.replaceChildren(
+    h('p', { role: 'status', class: 'fr-mb-1w' }, `${total} établissements correspondent${total > rows.length ? ` (les ${rows.length} premiers sont affichés : précise la recherche)` : ''} :`),
+    h('ul', { class: 'liste-etabs' }, rows.map((r) => h('li', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir le dispositif de cet établissement', onclick: () => openDispositif(r.value, retourAccueil()) }, r.label)))),
+  );
+});
+$('#qe').addEventListener('input', () => $('#etab-results').replaceChildren());
+
+attachSuggest($('#qe'), {
+  minChars: 2,
+  fetchItems: (query) => filterOptions(optionsEtab(), query, 8).rows,
+  onPick: (item) => {
+    $('#qe').value = item.label;
+    openDispositif(item.value, retourAccueil());
+  },
+});
+
+// Colonnes de `Etablissements_avec_ULIS` affichées s'il en existe une qui convient (repérées par leur nom ou leur libellé).
+const INFOS_ETAB = [
+  /(^|[^a-z])(uai|rne)([^a-z]|$)/i,
+  /adresse/i,
+  /(^|[^a-z])cp([^a-z]|$)|postal/i,
+  /^commune|ville/i,
+  /t[eé]l/i,
+  /mail|courriel/i,
+  /direct|chef/i,
+  /(^|[^a-z])ers([^a-z]|$)|r[eé]f[eé]rent/i,
+  /capacit|places/i,
+  /effectif/i,
+];
+
+async function valeurColonne(col, v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (isInvalidCell(v)) return cellText(v);
+  const t = col.type || '';
+  if (t === 'Date' || t.startsWith('DateTime')) return typeof v === 'number' ? formatDateFr(secToIso(v)) : cellText(v);
+  if (t === 'Bool') return v ? 'Oui' : 'Non';
+  if (t.startsWith('Ref:') || t.startsWith('RefList:')) {
+    const ids = (Array.isArray(v) ? v : [v]).filter((x) => typeof x === 'number');
+    if (!ids.length) return '';
+    const tab = await lireTable(t.slice(t.indexOf(':') + 1));
+    const vis = state.colById.get(col.visibleCol)?.colId;
+    return ids.map((id) => {
+      const i = tab.id.indexOf(id);
+      return i >= 0 && vis && tab[vis] ? cellText(tab[vis][i]) : `#${id}`;
+    }).join(', ');
+  }
+  return cellText(v);
+}
+
+/** Informations de l'établissement : [{ libelle, valeur }] pour les colonnes reconnues et renseignées. */
+async function infosEtab(etabId) {
+  const t = await lireTable(state.etabTable);
+  const i = t.id.indexOf(etabId);
+  if (i < 0) return [];
+  const pris = new Set();
+  const out = [];
+  for (const re of INFOS_ETAB) {
+    const col = state.etabCols.find((c) => !pris.has(c.colId) && c.colId !== COL_TYPE_ETAB && t[c.colId] && c.type !== 'Attachments' && re.test(`${c.colId} ${c.label || ''}`));
+    if (!col) continue;
+    pris.add(col.colId);
+    const valeur = await valeurColonne(col, t[col.colId][i]);
+    out.push({ libelle: (col.label || col.colId).replace(/_/g, ' '), valeur });
+  }
+  return out;
+}
+
+async function chargerDispositif(etabId) {
+  const [tScol, tInd, infos] = await Promise.all([lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS), infosEtab(etabId)]);
+  state.individus = toIndividus(tInd);
+  const lignes = tableToRows(tScol, Object.values(COL)).map((r) => ({ eleve: r[COL.eleve], ...mapLigne(r) }));
+  return { lignes, tInd, infos, parId: new Map(state.individus.map((r) => [r.id, r])), idx: new Map(tInd.id.map((id, i) => [id, i])) };
+}
+
+async function openDispositif(etabId, retour, { garder = false } = {}) {
+  if (state.edition) return gardeSortie(() => openDispositif(etabId, retour, { garder }));
+  clearNotice();
+  let data;
+  try {
+    data = await chargerDispositif(etabId);
+  } catch (err) {
+    notify('error', `Lecture du dispositif impossible : ${err.message}`);
+    return;
+  }
+  const prec = garder && state.dispo && state.dispo.etabId === etabId ? state.dispo : null;
+  state.dispo = { etabId, retour, data, tri: prec ? prec.tri : { cle: 'nom', dir: 1 }, inclure: prec ? prec.inclure : false };
+  const label = state.etabLabel.get(etabId) || `#${etabId}`;
+  state.step = 0;
+  masquerPages();
+  $('#step-dispo').hidden = false;
+  $('#stepper').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-stepper' },
+      h('h1', { class: 'fr-stepper__title', id: 'h-dispo', tabindex: '-1' }, `Dispositif ULIS : ${label}`),
+      h('p', { class: 'fr-stepper__details' }, "Élèves présents d'après leur affectation en cours dans Scolarite. Un clic sur un nom ouvre le dossier."),
+    ),
+    h(
+      'nav',
+      { 'aria-label': 'Navigation', class: 'step-nav fr-mb-2w' },
+      h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter la page du dispositif', onclick: () => { clearNotice(); retour.action(); } }, retour.libelle),
+    ),
+  );
+  rendreDispositif();
+  $('#h-dispo').focus();
+}
+
+function enteteTri(libelle, cle, onTri) {
+  const { tri } = state.dispo;
+  const actif = tri.cle === cle;
+  return h(
+    'th',
+    { scope: 'col', 'aria-sort': actif ? (tri.dir === 1 ? 'ascending' : 'descending') : 'none' },
+    h(
+      'button',
+      { type: 'button', class: 'fr-link btn-tri', 'data-tri': cle, title: `Trier par ${libelle.toLowerCase()} ; un second clic inverse l'ordre`, onclick: () => onTri(cle) },
+      libelle,
+      h('span', { 'aria-hidden': 'true' }, actif ? (tri.dir === 1 ? ' ▲' : ' ▼') : ''),
+    ),
+  );
+}
+
+function rendreDispositif() {
+  const d = state.dispo;
+  const { lignes, tInd, infos, parId, idx } = d.data;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const { rows, attente, autres } = elevesDuDispositif(lignes, d.etabId, todayIso, { inclure: d.inclure, situationPresent: SITUATION_PAR_DEFAUT });
+  const presents = rows.filter(({ ligne }) => ligne.situation === SITUATION_PAR_DEFAUT && !ligne.attente).length;
+  const eleves = [];
+  for (const { eleve, ligne } of rows) {
+    const row = parId.get(eleve);
+    const i = idx.get(eleve);
+    if (!row || i === undefined) continue; // fiche supprimée d'Individus
+    eleves.push({
+      row,
+      nom: row.nom,
+      prenom: row.prenom,
+      niveau: ligne.niveau,
+      situation: ligne.situation,
+      attente: ligne.attente,
+      premiere: secToIso(tInd.Premiere_notif_ULIS ? tInd.Premiere_notif_ULIS[i] : undefined),
+      fin: secToIso(tInd.Fin_droits_ULIS ? tInd.Fin_droits_ULIS[i] : undefined),
+    });
+  }
+  const tries = trierEleves(eleves, d.tri.cle, d.tri.dir, state.niveaux);
+  const onTri = (cle) => {
+    d.tri = { cle, dir: d.tri.cle === cle ? -d.tri.dir : 1 };
+    rendreDispositif();
+    $(`#dispo [data-tri="${cle}"]`)?.focus();
+  };
+  const typeLibelle = { ECO: 'École', CLG: 'Collège', LYC: 'Lycée' }[state.etabType.get(d.etabId)] || state.etabTypeBrut.get(d.etabId) || '';
+  const effectifs = [`${presents} élève${presents > 1 ? 's' : ''} présent${presents > 1 ? 's' : ''}`, attente ? `${attente} en liste d'attente` : null, autres ? `${autres} dans une autre situation` : null].filter(Boolean).join(' · ');
+  const box = $('#dispo');
+  box.replaceChildren(
+    h('h4', { class: 'fr-h6' }, "Informations sur l'établissement"),
+    listeInfos([
+      ['Effectifs', effectifs],
+      typeLibelle ? ['Type', typeLibelle] : null,
+      ...infos.map((x) => [x.libelle, x.valeur]),
+    ].filter(Boolean)),
+    infos.length === 0
+      ? h('p', { class: 'fr-hint-text fr-mb-2w' }, `Aucune colonne d'information (UAI, adresse, téléphone, courriel, ERS, capacité…) reconnue dans ${state.etabTable}.`)
+      : h('span'),
+    h('h4', { class: 'fr-h6 fr-mt-2w' }, 'Élèves du dispositif'),
+    h(
+      'div',
+      { class: 'fr-toggle fr-mb-2w' },
+      h('input', { type: 'checkbox', class: 'fr-toggle__input', id: 'dispo-inclure', checked: d.inclure, onchange: (e) => { d.inclure = e.target.checked; rendreDispositif(); $('#dispo-inclure').focus(); } }),
+      h('label', { class: 'fr-toggle__label', for: 'dispo-inclure', 'data-fr-checked-label': 'Oui', 'data-fr-unchecked-label': 'Non', title: "Ajouter les élèves en liste d'attente ou dans une autre situation (sortie, exclusion…) dont l'affectation en cours est cet établissement" }, "Inclure la liste d'attente et les autres situations"),
+    ),
+    eleves.length === 0
+      ? h('p', {}, d.inclure ? "Aucun élève n'a cet établissement pour affectation en cours." : "Aucun élève présent dans ce dispositif.")
+      : h(
+          'div',
+          { class: 'fr-table fr-table--no-caption' },
+          h(
+            'div',
+            { class: 'fr-table__wrapper' },
+            h(
+              'div',
+              { class: 'fr-table__container' },
+              h(
+                'div',
+                { class: 'fr-table__content' },
+                h(
+                  'table',
+                  {},
+                  h('caption', {}, `Élèves du dispositif, triés par ${{ nom: 'nom', classe: 'classe', premiere: 'date de première notification', fin: 'fin de droits' }[d.tri.cle]}`),
+                  h('thead', {}, h('tr', {},
+                    enteteTri('Élève', 'nom', onTri),
+                    enteteTri('Classe', 'classe', onTri),
+                    h('th', { scope: 'col' }, 'Situation'),
+                    enteteTri('Première notification', 'premiere', onTri),
+                    enteteTri('Fin de droits', 'fin', onTri),
+                  )),
+                  h(
+                    'tbody',
+                    {},
+                    tries.map((e) =>
+                      h(
+                        'tr',
+                        {},
+                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${e.nom} ${e.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'dispo') }, `${e.nom} ${e.prenom}`)),
+                        h('td', {}, e.niveau || '—'),
+                        h('td', {}, e.situation || '—', e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, "Liste d'attente")] : null),
+                        h('td', { class: 'nowrap' }, formatDateFr(e.premiere) || '—'),
+                        h('td', { class: 'nowrap' }, formatDateFr(e.fin) || '—'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Démarrage                                                           */

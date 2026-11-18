@@ -87,3 +87,9 @@ body { background: transparent; }
 .dossier-champs { width: 100%; max-width: 28rem; }
 .dossier-barre-edition { position: sticky; bottom: 0; z-index: 5; background: var(--background-default-grey, #fff); border-top: 2px solid var(--border-action-high-blue-france, #000091); padding: 0.75rem 0 0.25rem; margin-top: 1rem; }
 .dossier-barre-edition ul { margin-bottom: 0; }
+
+/* Liens-boutons (établissement, élève) et tri des colonnes */
+.lien-etab, .btn-tri { text-align: left; }
+.btn-tri { font-weight: 700; }
+.liste-etabs { list-style: none; margin: 0; padding: 0; }
+.liste-etabs > li { padding: 0.25rem 0; margin: 0; }

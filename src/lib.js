@@ -240,3 +240,58 @@ export function libelleEleve(r) {
   const d = formatDateFr(r.ddn);
   return `${r.nom} ${r.prenom}, ${d ? `né(e) le ${d}` : 'date de naissance non renseignée'}`.replace(/\s+,/, ',');
 }
+
+/**
+ * Élèves d'un dispositif : pour chaque élève, seule sa ligne « en cours » compte (la plus récente dont la date est
+ * passée). `lignes` : [{ eleve, id, date, affectation, niveau, situation, attente }].
+ * Par défaut, seuls les élèves en situation `situationPresent` et hors liste d'attente sont « présents » ;
+ * `inclure: true` ramène aussi la liste d'attente et les autres situations de cet établissement.
+ * Renvoie `[{ eleve, ligne }]` ; `attente` et `autres` comptent ce qui est écarté.
+ */
+export function elevesDuDispositif(lignes, etabId, todayIso, { inclure = false, situationPresent = 'En ULIS' } = {}) {
+  const parEleve = new Map();
+  for (const l of lignes) {
+    if (!parEleve.has(l.eleve)) parEleve.set(l.eleve, []);
+    parEleve.get(l.eleve).push(l);
+  }
+  const presents = [];
+  let attente = 0;
+  let autres = 0;
+  for (const [eleve, ls] of parEleve) {
+    const l = ligneEnCours(ls, todayIso);
+    if (!l || l.affectation !== etabId) continue;
+    const present = l.situation === situationPresent && !l.attente;
+    if (!present) {
+      if (l.attente) attente += 1;
+      else autres += 1;
+    }
+    if (present || inclure) presents.push({ eleve, ligne: l });
+  }
+  return { rows: presents, attente, autres };
+}
+
+/**
+ * Tri d'une liste d'élèves du dispositif. `cle` : nom | classe | premiere | fin ; `dir` : 1 ou -1.
+ * La classe suit l'ordre des choix de `niveaux` (inconnus à la fin) ; une date absente passe toujours après les autres.
+ * `rows` : [{ nom, prenom, niveau, premiere, fin }].
+ */
+export function trierEleves(rows, cle, dir = 1, niveaux = []) {
+  const parNom = (a, b) => a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr');
+  const rang = (n) => {
+    const i = niveaux.indexOf(n);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const date = (k) => (a, b) => {
+    if (!a[k] && !b[k]) return 0;
+    if (!a[k]) return 1; // sans date : toujours en dernier
+    if (!b[k]) return -1;
+    return dir * a[k].localeCompare(b[k]);
+  };
+  const cmp = {
+    nom: (a, b) => dir * parNom(a, b),
+    classe: (a, b) => dir * (rang(a.niveau) - rang(b.niveau) || (a.niveau || '').localeCompare(b.niveau || '', 'fr')),
+    premiere: date('premiere'),
+    fin: date('fin'),
+  }[cle] || ((a, b) => parNom(a, b));
+  return [...rows].sort((a, b) => cmp(a, b) || parNom(a, b));
+}
