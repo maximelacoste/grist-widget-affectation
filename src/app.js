@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118o';
-import { attachSuggest } from './suggest.js?v=20261118o';
-import { activerCalendriers } from './calendrier.js?v=20261118o';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118p';
+import { attachSuggest } from './suggest.js?v=20261118p';
+import { activerCalendriers } from './calendrier.js?v=20261118p';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -365,11 +365,30 @@ $('#form-search').addEventListener('submit', (e) => {
   lancerRecherche($('#q').value.trim());
 });
 
-// Recherche prédictive : « NOM Prénom, né(e) le … » dès 2 caractères ; un clic ouvre directement l'élève.
+/** Scolarité actuelle en condensé : « Établissement · niveau · situation », ou « sans affectation en cours ». */
+function scolariteCondensee(l) {
+  if (!l) return 'sans affectation en cours';
+  const etab = typeof affectationCell(l) === 'string' && affectationCell(l) !== '—' ? affectationCell(l) : l.affectationInvalide || '';
+  const texte = [etab, l.niveau, l.situation].filter(Boolean).join(' · ');
+  return (texte || 'affectation en cours') + (l.attente ? " (liste d'attente)" : '');
+}
+
+/** Suggestions d'élèves : « NOM Prénom, né(e) le … — scolarité actuelle ». */
+async function suggestionsEleves(query) {
+  const { rows } = rechercheLibre(state.individus, query, 8);
+  let enCours = new Map();
+  try {
+    enCours = enCoursDe(await lireTable(T_SCOLARITE), new Set(rows.map((r) => r.id)));
+  } catch {
+    /* la scolarité est un confort : les suggestions restent utilisables sans elle */
+  }
+  return rows.map((r) => ({ value: String(r.id), label: `${libelleEleve(r)} — ${scolariteCondensee(enCours.get(r.id))}`, row: r }));
+}
+
+// Recherche prédictive : « NOM Prénom, né(e) le … — scolarité actuelle » dès 2 caractères ; un clic ouvre directement l'élève.
 attachSuggest($('#q'), {
   minChars: 2,
-  fetchItems: (query) =>
-    rechercheLibre(state.individus, query, 8).rows.map((r) => ({ value: String(r.id), label: libelleEleve(r), row: r })),
+  fetchItems: suggestionsEleves,
   onPick: (item) => {
     // Un clic sur une suggestion ouvre directement le dossier ; Entrée ou « Rechercher » affiche la liste des résultats.
     $('#q').value = `${item.row.nom} ${item.row.prenom}`;
@@ -941,10 +960,15 @@ function elementsNote(ctx) {
   if (!cols.has('Note') || cols.get('Note').isFormula) return { bouton: null, panneau: null };
   const panneau = h('div', { id: 'dossier-note', class: 'fr-mb-3w', hidden: true });
   const bouton = h('button', { class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-add-line', type: 'button', id: 'btn-note', title: "Écrire une note dans le dossier de l'élève (table Notes_sur_l_eleve)", onclick: () => ouvrirPanneauNote(ctx, panneau, cols) }, 'Ajouter une note');
-  return { bouton, panneau };
+  const actions = (n) =>
+    actionsLigne({
+      modifier: { onclick: () => ouvrirPanneauNote(ctx, panneau, cols, n), aria: `Modifier la note du ${formatDateFr(n.date) || 'dossier'}`, title: 'Modifier le texte (et le type) de cette note' },
+      supprimer: { onclick: () => demanderSuppressionNote(ctx, n), aria: `Supprimer la note du ${formatDateFr(n.date) || 'dossier'}` },
+    });
+  return { bouton, panneau, actions };
 }
 
-function ouvrirPanneauNote(ctx, panneau, cols) {
+function ouvrirPanneauNote(ctx, panneau, cols, existante = null) {
   if (state.edition) {
     notify('warning', "Validez ou annulez d'abord la modification du dossier en cours.");
     return;
@@ -966,15 +990,15 @@ function ouvrirPanneauNote(ctx, panneau, cols) {
   const form = h(
     'form',
     { novalidate: true, class: 'ajout-eleve' },
-    h('h4', { class: 'fr-h6', id: 'h-note', tabindex: '-1' }, 'Nouvelle note'),
-    h('div', { class: 'fr-input-group fr-mb-2w' }, h('label', { class: 'fr-label', for: 'note-texte' }, 'Note', h('span', { class: 'fr-hint-text' }, "Texte libre, ajouté à l'historique des notes de l'élève.")), h('textarea', { class: 'fr-input', id: 'note-texte', rows: 4, required: true })),
+    h('h4', { class: 'fr-h6', id: 'h-note', tabindex: '-1' }, existante ? 'Modifier la note' : 'Nouvelle note'),
+    h('div', { class: 'fr-input-group fr-mb-2w' }, h('label', { class: 'fr-label', for: 'note-texte' }, 'Note', h('span', { class: 'fr-hint-text' }, "Texte libre, ajouté à l'historique des notes de l'élève.")), h('textarea', { class: 'fr-input', id: 'note-texte', rows: 4, required: true }, existante ? existante.note : '')),
     choix.length
       ? h('div', { class: 'fr-select-group fr-mb-2w' }, h('label', { class: 'fr-label', for: 'note-type' }, 'Type de note (facultatif)'), h('select', { class: 'fr-select', id: 'note-type' }, h('option', { value: '' }, '— aucun —'), choix.map((c) => h('option', { value: c }, c))))
       : h('span'),
     h(
       'ul',
       { class: 'fr-btns-group fr-btns-group--inline' },
-      h('li', {}, h('button', { class: 'fr-btn', type: 'submit', title: 'Enregistrer cette note dans Notes_sur_l_eleve' }, 'Enregistrer la note')),
+      h('li', {}, h('button', { class: 'fr-btn', type: 'submit', title: existante ? 'Enregistrer la modification (une confirmation montre ce qui change)' : 'Enregistrer cette note dans Notes_sur_l_eleve' }, existante ? 'Enregistrer la modification' : 'Enregistrer la note')),
       h('li', {}, h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer ce panneau sans rien enregistrer', onclick: fermer }, 'Annuler')),
     ),
   );
@@ -987,11 +1011,22 @@ function ouvrirPanneauNote(ctx, panneau, cols) {
       $('#note-texte').focus();
       return;
     }
-    await ecrireNote(ctx, cols, texte, $('#note-type')?.value || '');
+    const type = $('#note-type')?.value || '';
+    if (!existante) return ecrireNote(ctx, cols, texte, type);
+    const modifs = [];
+    if (texte !== existante.note) modifs.push(['Note', existante.note, texte]);
+    if ($('#note-type') && type !== (existante.type || '')) modifs.push(['Type', existante.type || '—', type || '—']);
+    if (modifs.length === 0) {
+      notify('info', 'Aucune modification à enregistrer.');
+      return;
+    }
+    confirmerModification(modifs, () => modifierNote(ctx, existante, texte, type, cols));
   });
   panneau.replaceChildren(form);
   panneau.hidden = false;
+  if (existante && $('#note-type')) $('#note-type').value = existante.type || '';
   $('#note-texte').focus();
+  panneau.scrollIntoView?.({ block: 'center' });
 }
 
 /** Ajoute la note : seules les colonnes existantes et non calculées sont renseignées ; le lien vers l'élève suit la structure de la table. */
@@ -1029,6 +1064,50 @@ async function ecrireNote(ctx, cols, texte, type) {
     notify('success', 'Note ajoutée au dossier.');
   } catch (err) {
     notify('error', `Ajout de la note impossible : ${err.message}`);
+  }
+}
+
+/** Met à jour le texte (et le type, s'il est modifiable) d'une note existante. */
+async function modifierNote(ctx, n, texte, type, cols) {
+  try {
+    const f = { Note: texte };
+    if (cols.has('Type') && !cols.get('Type').isFormula) f.Type = type;
+    viderCache();
+    await grist.docApi.applyUserActions([['UpdateRecord', T_NOTES, n.id, f]]);
+    await openDossier(ctx.row, ctx.origine);
+    notify('success', 'Note modifiée.');
+  } catch (err) {
+    notify('error', `Modification de la note impossible : ${err.message}`);
+  }
+}
+
+function demanderSuppressionNote(ctx, n) {
+  if (state.edition) {
+    notify('warning', "Validez ou annulez d'abord la modification du dossier en cours.");
+    return;
+  }
+  ouvrirModale({
+    titre: 'Supprimer cette note ?',
+    corps: [
+      h('div', { class: 'fr-callout fr-callout--sm fr-mb-2w' }, h('p', { class: 'fr-callout__text' }, h('strong', {}, formatDateFr(n.date) || 'Note'), n.type ? ` — ${n.type}` : '', ' — ', n.note.length > 200 ? `${n.note.slice(0, 200)}…` : n.note)),
+      h('p', { class: 'fr-text--sm fr-mb-0' }, "Dans Grist, le panneau Activité permet d'annuler la suppression."),
+    ],
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, supprimer', info: 'Supprimer définitivement cette note (annulable dans le panneau Activité de Grist)', onClick: () => supprimerNote(ctx, n) },
+      { id: 'dlg-non', libelle: 'Non, garder', info: "Fermer cette fenêtre : rien n'est supprimé", secondaire: true },
+    ],
+    focus: 'dlg-non',
+  });
+}
+
+async function supprimerNote(ctx, n) {
+  try {
+    viderCache();
+    await grist.docApi.applyUserActions([['RemoveRecord', T_NOTES, n.id]]);
+    await openDossier(ctx.row, ctx.origine);
+    notify('success', 'Note supprimée.');
+  } catch (err) {
+    notify('error', `Suppression de la note impossible : ${err.message}`);
   }
 }
 
@@ -1120,16 +1199,20 @@ async function openDossier(row, origine = 2) {
             l.situation || '—',
           ]),
         ),
+    origine !== 3
+      ? h('div', { class: 'fr-mt-2w' }, h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève pour ajouter ou modifier une ligne', onclick: () => chooseEleve(row) }, 'Affecter'))
+      : h('span'),
     h('h4', { class: 'fr-h6 fr-mt-3w' }, 'Notes sur l\'élève'),
     notes.length === 0
       ? h('p', {}, 'Aucune note.')
       : tableSimple(
           "Notes, de la plus récente à la plus ancienne",
-          ['Date', 'Type', 'Note'],
+          note.actions ? ['Date', 'Type', 'Note', 'Action'] : ['Date', 'Type', 'Note'],
           notes.map((n) => [
             formatDateFr(n.date) || '—',
             n.type || '—',
             h('span', { class: 'note-texte' }, n.note),
+            ...(note.actions ? [note.actions(n)] : []),
           ]),
         ),
     note.bouton ? h('div', { class: 'fr-mt-2w' }, note.bouton) : h('span'),
@@ -1138,8 +1221,7 @@ async function openDossier(row, origine = 2) {
     h(
       'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-mt-2w' },
-      origine !== 3 ? h('button', { class: 'fr-btn', type: 'button', title: 'Passer aux affectations de cet élève', onclick: () => chooseEleve(row) }, 'Affecter') : null,
-      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
+      h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
     ),
   );
   state.step = 0;
@@ -1385,6 +1467,16 @@ function affectationCell(l) {
   return '—';
 }
 
+/** Boutons d'action de fin de ligne (crayon et corbeille), identiques pour les affectations et les notes. */
+function actionsLigne({ modifier, supprimer }) {
+  return h(
+    'ul',
+    { class: 'actions-ligne' },
+    h('li', {}, h('button', { class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-pencil-line', type: 'button', onclick: modifier.onclick, 'aria-label': modifier.aria, title: modifier.title || 'Modifier' }, 'Modifier')),
+    h('li', {}, h('button', { class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-delete-line', type: 'button', onclick: supprimer.onclick, title: 'Supprimer', 'aria-label': supprimer.aria }, 'Supprimer')),
+  );
+}
+
 function renderScolList() {
   const box = $('#scol-list');
   if (state.scol.length === 0) {
@@ -1436,40 +1528,10 @@ function renderScolList() {
                     h(
                       'td',
                       {},
-                      h(
-                        'ul',
-                        { class: 'actions-ligne' },
-                        h(
-                          'li',
-                          {},
-                          h(
-                            'button',
-                            {
-                              class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-pencil-line',
-                              type: 'button',
-                              onclick: () => openScolForm(l),
-                              'aria-label': `Modifier l'affectation du ${dateLabel(l)}`,
-                              title: "Modifier cette ligne d'affectation (date, établissement, niveau, situation, liste d'attente)",
-                            },
-                            'Modifier',
-                          ),
-                        ),
-                        h(
-                          'li',
-                          {},
-                          h(
-                            'button',
-                            {
-                              class: 'fr-btn fr-btn--sm fr-btn--tertiary fr-icon-delete-line',
-                              type: 'button',
-                              onclick: () => demanderSuppression(l),
-                              title: 'Supprimer',
-                              'aria-label': `Supprimer l'affectation du ${dateLabel(l)}`,
-                            },
-                            'Supprimer',
-                          ),
-                        ),
-                      ),
+                      actionsLigne({
+                        modifier: { onclick: () => openScolForm(l), aria: `Modifier l'affectation du ${dateLabel(l)}`, title: "Modifier cette ligne d'affectation (date, établissement, niveau, situation, liste d'attente)" },
+                        supprimer: { onclick: () => demanderSuppression(l), aria: `Supprimer l'affectation du ${dateLabel(l)}` },
+                      }),
                     ),
                   ),
                 ),
@@ -2357,7 +2419,7 @@ function rendreDispositif() {
   if (d.ajout) {
     attachSuggest($('#dispo-q'), {
       minChars: 2,
-      fetchItems: (query) => rechercheLibre(state.individus, query, 8).rows.map((r) => ({ value: String(r.id), label: libelleEleve(r), row: r })),
+      fetchItems: suggestionsEleves,
       onPick: (item) => ajouterAuDispositif(item.row),
     });
   }

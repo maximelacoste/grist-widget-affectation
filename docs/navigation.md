@@ -13,7 +13,7 @@ flowchart TD
     PS["<b>Établissements par secteur</b><br/>filtres : type, secteur, ERS, alertes<br/>effectifs et fins de droits par établissement"]
 
     P1 -->|"Entrée / Rechercher (élève)"| P2
-    P1 -->|"clic sur une suggestion élève"| PD
+    P1 -->|"clic sur une suggestion élève<br/>(identité + scolarité actuelle)"| PD
     P1 -->|"clic sur une suggestion établissement<br/>ou Rechercher (1 résultat)"| PE
     P1 -->|"Rechercher (plusieurs établissements)<br/>puis clic dans la liste"| PE
     P1 -->|"Par secteur"| PS
@@ -77,3 +77,8 @@ La nouvelle affectation (ajout) et la création de fiche s'enregistrent sans fen
 ## Sorties gardées de la page Dossier
 
 Toutes les sorties passent par la même garde : retour (quelle que soit l'origine), « Affecter », clic sur un établissement de l'historique. Si l'édition est ouverte mais inchangée, on sort sans fenêtre.
+
+## Notes et boutons d'action du dossier
+
+- Chaque note a, en fin de ligne, un crayon (modifier, avec confirmation avant → après) et une corbeille (confirmation, focus sur « Non, garder »). La suppression d'une note ne change pas de page : le dossier est rechargé.
+- « Affecter » se trouve sous l'historique des affectations ; le bouton « retour » reste en bas du dossier.

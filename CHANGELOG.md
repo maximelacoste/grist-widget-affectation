@@ -2,6 +2,9 @@
 
 ## [Non publié]
 
+- Dossier : la liste des notes a une colonne « Action » avec un crayon (modifier le texte et le type, avec confirmation avant → après) et une corbeille (confirmation, annulable dans le panneau Activité de Grist), comme les affectations. Le bouton « Affecter » est placé juste sous l'historique des affectations.
+- Harmonisation des boutons d'action : crayon et corbeille de fin de ligne produits par une même fonction (affectations et notes) ; « Affecter » toujours en bouton principal ; boutons « retour » tous en tertiaire petit avec flèche.
+- Suggestions de recherche d'élève (accueil et « Ajouter un élève ») : la scolarité actuelle est affichée en condensé après l'identité (« Établissement · niveau · situation », ou « sans affectation en cours »).
 - Dossier : le bouton « Modifier » est placé après les informations de la fiche, juste avant l'historique des affectations ; « Ajouter une note » est placé sous le tableau des notes (son formulaire s'ouvre dessous).
 - Page par secteur : menu et colonne « ERS » homogènes, au format « Secteur 011 (NOM Prénom) » (code sur 3 chiffres extrait de `Secteur_ERS`, nom de l'ERSH), un seul choix par secteur d'ERS, toujours limité au secteur choisi.
 - Pop-up d'accueil : le mode de consultation est lu dans le paramètre `readonly` que Grist ajoute à l'adresse du widget (`true` en vue intégrée `?embed=true` et pour les lecteurs, `false` pour les éditeurs) ; la table `Droits_widget` ne sert plus que de repli si le paramètre est absent.
