@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zi';
-import { attachSuggest } from './suggest.js?v=20261118zi';
-import { activerCalendriers } from './calendrier.js?v=20261118zi';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zk';
+import { attachSuggest } from './suggest.js?v=20261118zk';
+import { activerCalendriers } from './calendrier.js?v=20261118zk';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2658,16 +2658,16 @@ function rendreSecteur() {
   $('#secteur').replaceChildren(
     h(
       'div',
-      { class: 'fr-input-group fr-mb-2w' },
-      h('label', { class: 'fr-label', for: 'f-q' }, 'Rechercher un dispositif', h('span', { class: 'fr-hint-text' }, "Nom de l'établissement, commune ou UAI.")),
-      recherche,
-    ),
-    h(
-      'div',
       { class: 'fr-grid-row fr-grid-row--gutters fr-mb-2w' },
-      aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', SECTEURS, 'Ne garder que les établissements du secteur 1, 2 ou 3') : h('span'),
+      h(
+        'div',
+        { class: 'fr-input-group fr-col-12 fr-col-md-4' },
+        h('label', { class: 'fr-label', for: 'f-q' }, 'Rechercher un dispositif'),
+        recherche,
+      ),
+      aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', SECTEURS, 'Ne garder que les établissements du secteur 1, 2 ou 3') : null,
       selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
-      aErs ? selecteur('f-ers', 'ers', 'ERS', ersProposes, f.secteur ? `ERS du secteur ${f.secteur} seulement (secteur d'enseignant référent)` : "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : h('span'),
+      aErs ? selecteur('f-ers', 'ers', 'ERS', ersProposes, f.secteur ? `ERS du secteur ${f.secteur} seulement (secteur d'enseignant référent)` : "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : null,
       selecteur('f-occup', 'occup', 'Occupation', [['libre', 'Places libres'], ['presque', 'Presque plein'], ['plein', 'Plein'], ['depassement', 'Dépassement']], 'Ne garder que les établissements dont le dispositif a des places libres, est presque plein, plein ou en dépassement'),
       selecteur('f-alerte', 'alerte', 'Fins de droits', ['Échues ou proches'], 'Ne garder que les établissements qui ont au moins un élève dont la fin de droits est échue ou proche'),
     ),
