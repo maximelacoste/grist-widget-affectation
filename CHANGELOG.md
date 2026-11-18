@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Page par secteur : le menu « Secteur » ne propose que 1, 2 et 3 (le numéro est lu dans `Secteur_CDOEA`, à défaut dans sa colonne calculée puis dans `Secteur`) ; le menu « ERS » ne propose que les ERS du secteur choisi et se remet sur « Tous » si l'ERS retenu n'en fait plus partie. Une ligne signale les établissements dont le numéro de secteur n'est pas reconnu.
 - Page par secteur : le filtre « Secteur » propose tous les secteurs (repli sur `Secteur_ERS_Secteurs_CDOEA` quand `Secteur_CDOEA` est vide, idem pour l'ERS) et le filtre « Type » propose toujours École, Collège et Lycée.
 - Page par secteur : tri par clic sur chaque colonne (un second clic inverse l'ordre), conservé au retour depuis un dispositif.
 - Coordonnées du dispositif : colonnes réelles d'`Etablissements_ERS` (code postal, téléphone, courriel du secteur et de l'ERSH).

@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js?v=20261118c';
-import { attachSuggest } from './suggest.js?v=20261118c';
-import { activerCalendriers } from './calendrier.js?v=20261118c';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js?v=20261118d';
+import { attachSuggest } from './suggest.js?v=20261118d';
+import { activerCalendriers } from './calendrier.js?v=20261118d';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2198,6 +2198,12 @@ async function chargerSecteur() {
     }
     let secteur = texte('Secteur_CDOEA', i);
     if (!secteur && cdoeaCalc) secteur = (await valeurColonne(cdoeaCalc, t[cdoeaCalc.colId][i])).trim();
+    // Numéro de secteur CDOEA (1, 2 ou 3) : premier nombre trouvé dans la colonne de données, puis dans la colonne calculée, puis dans `Secteur`.
+    const nombreDans = (v) => {
+      const m = /\d+/.exec(v || '');
+      return m ? Number(m[0]) : null;
+    };
+    const secteurNum = nombreDans(texte('Secteur_CDOEA', i)) ?? nombreDans(secteur) ?? nombreDans(texte('Secteur', i));
     let ers = texte('Secteur_ERS', i);
     if (!ers && ersCalc) {
       const v = t[ersCalc.colId][i];
@@ -2209,6 +2215,7 @@ async function chargerSecteur() {
       type: TYPE_LIBELLE[e.type] || e.typeBrut || 'Autre',
       commune: texte('Commune', i),
       secteur,
+      secteurNum,
       ers,
       ersh: texte('Uai_ERSH', i),
       places,
@@ -2257,7 +2264,11 @@ function rendreSecteur() {
   const sc = state.secteur;
   const { etabs, aSecteur, aErs } = sc.data;
   const f = sc.filtres;
-  const distinct = (k) => [...new Set(etabs.map((e) => e[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  const SECTEURS = ['1', '2', '3'];
+  const dansSecteur = (e) => !f.secteur || String(e.secteurNum) === f.secteur;
+  // Les ERS proposés dépendent du secteur choisi ; un ERS qui n'en fait plus partie est abandonné.
+  const ersProposes = [...new Set(etabs.filter(dansSecteur).map((e) => e.ers).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  if (f.ers && !ersProposes.includes(f.ers)) f.ers = '';
   const tri = sc.tri || (sc.tri = { cle: 'label', dir: 1 });
   const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, fins: (e) => e.finEchues * 1000 + e.finProches };
   const onTri = (cle) => {
@@ -2265,7 +2276,7 @@ function rendreSecteur() {
     rendreSecteur();
     $(`#secteur [data-tri="${cle}"]`)?.focus();
   };
-  const liste0 = etabs.filter((e) => (!f.secteur || e.secteur === f.secteur) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0));
+  const liste0 = etabs.filter((e) => dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0));
   const val = clesTri[tri.cle];
   const liste = [...liste0].sort((a, b) => {
     const x = val(a);
@@ -2294,11 +2305,12 @@ function rendreSecteur() {
     h(
       'div',
       { class: 'fr-grid-row fr-grid-row--gutters fr-mb-2w' },
-      aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', distinct('secteur'), 'Ne garder que les établissements de ce secteur') : h('span'),
+      aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', SECTEURS, 'Ne garder que les établissements du secteur 1, 2 ou 3') : h('span'),
       selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
-      aErs ? selecteur('f-ers', 'ers', 'ERS', distinct('ers'), "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : h('span'),
+      aErs ? selecteur('f-ers', 'ers', 'ERS', ersProposes, f.secteur ? `ERS du secteur ${f.secteur} seulement (secteur d'enseignant référent)` : "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : h('span'),
       selecteur('f-alerte', 'alerte', 'Fins de droits', ['Échues ou proches'], 'Ne garder que les établissements qui ont au moins un élève dont la fin de droits est échue ou proche'),
     ),
+    etabs.some((e) => e.secteurNum === null) ? h('p', { class: 'fr-hint-text', id: 'secteur-inconnu' }, `${etabs.filter((e) => e.secteurNum === null).length} établissement(s) sans numéro de secteur reconnu : ils n'apparaissent pas quand un secteur est choisi.`) : h('span'),
     h('p', { role: 'status' }, `${liste.length} établissement${liste.length > 1 ? 's' : ''} · ${totalPresents} élève${totalPresents > 1 ? 's' : ''} présent${totalPresents > 1 ? 's' : ''}${totalPlaces ? ` sur ${totalPlaces} places` : ''}`),
     liste.length === 0
       ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucun établissement ne correspond à ces filtres.'))
@@ -2329,7 +2341,7 @@ function rendreSecteur() {
                         h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir le dispositif de cet établissement', onclick: () => openDispositif(e.id, retourSecteur()) }, e.label)),
                         h('td', {}, e.type),
                         h('td', {}, e.commune || '—'),
-                        aSecteur ? h('td', {}, e.secteur || '—') : null,
+                        aSecteur ? h('td', {}, e.secteurNum !== null ? String(e.secteurNum) : e.secteur || '—') : null,
                         aErs ? h('td', {}, e.ers || '—', e.ersh ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, e.ersh)] : null) : null,
                         h('td', { class: 'nowrap' }, `${e.presents}${e.places !== null ? ` / ${e.places}` : ''}`, e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "Élèves sur liste d'attente pour cet établissement" }, `${e.attente} en attente`)] : null),
                         h('td', {}, e.finEchues || e.finProches ? [e.finEchues ? h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits est dépassée' }, `${e.finEchues} échue${e.finEchues > 1 ? 's' : ''}`) : null, e.finEchues && e.finProches ? ' ' : null, e.finProches ? h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits approche' }, `${e.finProches} proche${e.finProches > 1 ? 's' : ''}`) : null] : '—'),
