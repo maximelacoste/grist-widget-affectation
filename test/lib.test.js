@@ -252,6 +252,10 @@ test('alerteFinDroits : échue, proche, ok, sans date', () => {
 test('infosManquantes : nom, prénom, date de naissance', () => {
   assert.deepEqual(infosManquantes({ nom: 'A', prenom: 'B', ddn: '2014-05-01' }), []);
   assert.deepEqual(infosManquantes({ nom: '', prenom: ' ', ddn: null }), ['nom', 'prénom', 'date de naissance']);
+  const ok = { nom: 'A', prenom: 'B', ddn: '2014-05-01' };
+  assert.deepEqual(infosManquantes(ok, { affecte: true, niveau: '' }), ['niveau']);
+  assert.deepEqual(infosManquantes(ok, { affecte: true, niveau: 'CM2' }), []);
+  assert.deepEqual(infosManquantes(ok, { affecte: false, niveau: '' }), [], 'liste d\'attente ou sans affectation : niveau non exigé');
   assert.deepEqual(infosManquantes({ nom: 'A', prenom: 'B', ddn: 'pas une date' }), ['date de naissance']);
   assert.deepEqual(infosManquantes({ nom: 'A', prenom: null, ddn: '2014-05-01' }), ['prénom']);
   assert.deepEqual(infosManquantes(null), []);

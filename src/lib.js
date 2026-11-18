@@ -361,12 +361,14 @@ export function libelleAlerteFin(a) {
  * Informations d'état civil manquantes d'une fiche Individus (`{ nom, prenom, ddn }`) : tableau de libellés,
  * vide si la fiche est complète. `ddn` est la date ISO 'AAAA-MM-JJ' (voir `secToIso`) ; une valeur vide ou qui n'est pas une vraie date compte comme manquante.
  */
-export function infosManquantes(row) {
+export function infosManquantes(row, affectation = null) {
   if (!row) return [];
   const out = [];
   if (!String(row.nom ?? '').trim()) out.push('nom');
   if (!String(row.prenom ?? '').trim()) out.push('prénom');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.ddn ?? ''))) out.push('date de naissance');
+  // `affectation` = { affecte, niveau } : le niveau n'est exigé que pour un élève réellement affecté (ni liste d'attente, ni sans affectation)
+  if (affectation && affectation.affecte && !String(affectation.niveau ?? '').trim()) out.push('niveau');
   return out;
 }
 

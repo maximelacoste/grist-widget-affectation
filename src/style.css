@@ -95,3 +95,7 @@ body { background: transparent; }
 .liste-etabs > li { padding: 0.25rem 0; margin: 0; }
 
 .ajout-eleve { border-left: 4px solid var(--border-action-high-blue-france, #000091); padding: 0.5rem 0 0.5rem 1rem; }
+
+/* Titre de l'application */
+.app-titre { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
+.app-titre-sous { font-size: 0.875rem; font-weight: 400; }

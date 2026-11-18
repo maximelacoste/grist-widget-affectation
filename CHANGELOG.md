@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Titre de l'application « 🫏 ANESH » (onglet et en-tête de la page), avec un slogan discret ; l'acronyme développé est en infobulle.
+- Dossier incomplet : l'absence de niveau est signalée pour les élèves réellement affectés (établissement renseigné, hors liste d'attente) : dans les résultats, le dossier et le panneau du dispositif.
 - Dossier : la liste des notes a une colonne « Action » avec un crayon (modifier le texte et le type, avec confirmation avant → après) et une corbeille (confirmation, annulable dans le panneau Activité de Grist), comme les affectations. Le bouton « Affecter » est placé juste sous l'historique des affectations.
 - Harmonisation des boutons d'action : crayon et corbeille de fin de ligne produits par une même fonction (affectations et notes) ; « Affecter » toujours en bouton principal ; boutons « retour » tous en tertiaire petit avec flèche.
 - Suggestions de recherche d'élève (accueil et « Ajouter un élève ») : la scolarité actuelle est affichée en condensé après l'identité (« Établissement · niveau · situation », ou « sans affectation en cours »).

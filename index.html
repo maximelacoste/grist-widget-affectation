@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Affectation ULIS</title>
+  <title>🫏 ANESH</title>
   <!-- DSFR auto-hébergé : voir README (npm install && npm run vendor). -->
   <link rel="stylesheet" href="vendor/dsfr/dsfr.min.css">
   <!-- Icônes du DSFR : les classes fr-icon-* ne sont pas dans dsfr.min.css, il faut ces feuilles. -->
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-arrows/icons-arrows.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-system/icons-system.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-design/icons-design.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261118p">
+  <link rel="stylesheet" href="src/style.css?v=20261118q">
   <!-- API de plugin Grist. Si possible, remplacer par celle de votre instance
        (https://<votre-instance-grist>/grist-plugin-api.js) : le script ne reçoit aucune donnée,
        mais on évite ainsi toute requête vers un serveur tiers. -->
@@ -18,6 +18,7 @@
 </head>
 <body>
   <main class="fr-container fr-py-2w" id="app">
+    <p class="app-titre fr-h4 fr-mb-1w" title="ANESH : Affectations et Notifications des Élèves en Situation de Handicap"><span aria-hidden="true">🫏</span> ANESH <span class="fr-hint-text app-titre-sous">Aucune Notification d'Élève Sans Historique</span></p>
     <div id="stepper"></div>
     <div id="notice" aria-live="polite"></div>
 
@@ -145,6 +146,6 @@
       document.body.prepend(d);
     }, 5000);
   </script>
-  <script type="module" src="src/app.js?v=20261118p"></script>
+  <script type="module" src="src/app.js?v=20261118q"></script>
 </body>
 </html>

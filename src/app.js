@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118p';
-import { attachSuggest } from './suggest.js?v=20261118p';
-import { activerCalendriers } from './calendrier.js?v=20261118p';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118q';
+import { attachSuggest } from './suggest.js?v=20261118q';
+import { activerCalendriers } from './calendrier.js?v=20261118q';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -456,7 +456,7 @@ async function renderResults() {
                     {},
                     h('td', {}, r.nom || '—'),
                     h('td', {}, r.prenom || '—'),
-                    h('td', { class: 'nowrap' }, formatDateFr(r.ddn) || 'non renseignée', badgeIncomplet(r) ? [h('br'), badgeIncomplet(r)] : null),
+                    h('td', { class: 'nowrap' }, formatDateFr(r.ddn) || 'non renseignée', badgeIncomplet(r, enCours.get(r.id)) ? [h('br'), badgeIncomplet(r, enCours.get(r.id))] : null),
                     h('td', {}, celluleEnCours(enCours.get(r.id), retourResultats())),
                     h(
                       'td',
@@ -676,8 +676,11 @@ function badgeOccupation(presents, places) {
 }
 
 /** Pastille « Dossier incomplet » (avec la liste de ce qui manque) ; `null` si nom, prénom et date de naissance sont renseignés. */
-function badgeIncomplet(row) {
-  const m = infosManquantes(row);
+/** Élève réellement affecté (établissement renseigné, hors liste d'attente) et son niveau, pour l'alerte « dossier incomplet ». */
+const affectationPour = (l) => ({ affecte: !!l && l.affectation > 0 && !l.attente, niveau: l ? l.niveau : '' });
+
+function badgeIncomplet(row, ligne = null) {
+  const m = infosManquantes(row, ligne ? affectationPour(ligne) : null);
   if (!m.length) return null;
   return h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: `Information manquante : ${m.join(', ')}` }, 'Dossier incomplet');
 }
@@ -1163,8 +1166,8 @@ async function openDossier(row, origine = 2) {
   const note = elementsNote(ctx);
   box.replaceChildren(
     ctx.ui.aide,
-    infosManquantes(row).length
-      ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row).join(', ')}. Utilisez « Modifier » pour la compléter.`))
+    infosManquantes(row, affectationPour(enCours)).length
+      ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row, affectationPour(enCours)).join(', ')}. ${infosManquantes(row, affectationPour(enCours)).some((m) => m !== 'niveau') ? 'Utilisez « Modifier » pour la compléter' : "Le niveau se renseigne dans la ligne d'affectation (bouton « Affecter »)"}.`))
       : h('span'),
     h('h4', { class: 'fr-h6' }, 'État civil'),
     listeInfos([
@@ -2153,9 +2156,9 @@ function enteteTri(libelle, cle, onTri, tri = state.dispo.tri) {
 
 /** Panneau d'alerte sur les fins de droits des élèves affichés (rouge si l'une est échue, orange sinon). */
 function panneauIncomplets(eleves) {
-  const n = eleves.filter((e) => infosManquantes(e.row).length).length;
+  const n = eleves.filter((e) => infosManquantes(e.row, { affecte: e.statut === 'present', niveau: e.niveau }).length).length;
   if (!n) return h('span');
-  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} sans nom, prénom ou date de naissance : ouvrez le dossier pour compléter.`));
+  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} dont le nom, le prénom, la date de naissance ou le niveau (élèves affectés) est manquant : ouvrez le dossier pour compléter.`));
 }
 
 function panneauAlertes(eleves, d, onTri) {
