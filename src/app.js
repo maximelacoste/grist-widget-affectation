@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js?v=20261118d';
-import { attachSuggest } from './suggest.js?v=20261118d';
-import { activerCalendriers } from './calendrier.js?v=20261118d';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js?v=20261118e';
+import { attachSuggest } from './suggest.js?v=20261118e';
+import { activerCalendriers } from './calendrier.js?v=20261118e';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -19,6 +19,7 @@ const COL = {
   attente: 'Liste_d_attente', // Bascule
 };
 const SITUATION_PAR_DEFAUT = 'En ULIS';
+const COL_ACTUEL = 'Actuellement_en_ULIS'; // formule Grist de Scolarite : « en ULIS aujourd'hui »
 // Alerte « fin de droits » : une fin passée est signalée en rouge, une fin dans les N prochains jours en orange.
 // 120 jours (≈ 4 mois) laissent le temps de préparer un renouvellement ; à ajuster ici.
 const FIN_DROITS_ALERTE_JOURS = 120;
@@ -286,6 +287,15 @@ async function refreshIndividus() {
 }
 
 const triScol = (a, b) => (b.date || '').localeCompare(a.date || '') || b.id - a.id;
+
+/**
+ * Toutes les lignes de Scolarite. Si la table a la colonne `Actuellement_en_ULIS` (formule de Grist, la même que celle de
+ * `Effectif` dans Etablissements_avec_ULIS), `actuel` la reprend : c'est elle qui décide qui est présent dans un dispositif.
+ */
+function lignesDe(tScol) {
+  const actuel = tScol[COL_ACTUEL] ? new Map(tScol.id.map((id, i) => [id, tScol[COL_ACTUEL][i] === true])) : null;
+  return tableToRows(tScol, Object.values(COL)).map((r) => ({ eleve: r[COL.eleve], ...mapLigne(r), ...(actuel ? { actuel: actuel.get(r.id) === true } : {}) }));
+}
 
 function mapLigne(r) {
   return {
@@ -1906,7 +1916,7 @@ async function infosEtab(etabId) {
 async function chargerDispositif(etabId) {
   const [tScol, tInd, etab] = await Promise.all([lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS), infosEtab(etabId)]);
   state.individus = toIndividus(tInd);
-  const lignes = tableToRows(tScol, Object.values(COL)).map((r) => ({ eleve: r[COL.eleve], ...mapLigne(r) }));
+  const lignes = lignesDe(tScol);
   return { lignes, tInd, etab, parId: new Map(state.individus.map((r) => [r.id, r])), idx: new Map(tInd.id.map((id, i) => [id, i])) };
 }
 
@@ -1921,7 +1931,7 @@ async function openDispositif(etabId, retour, { garder = false } = {}) {
     return;
   }
   const prec = garder && state.dispo && state.dispo.etabId === etabId ? state.dispo : null;
-  state.dispo = { etabId, retour, data, tri: prec ? prec.tri : { cle: 'nom', dir: 1 }, inclure: prec ? prec.inclure : false, ajout: false };
+  state.dispo = { etabId, retour, data, tri: prec ? prec.tri : { cle: 'nom', dir: 1 }, inclureAttente: prec ? prec.inclureAttente : false, inclureAutres: prec ? prec.inclureAutres : false, ajout: false };
   const label = state.etabLabel.get(etabId) || `#${etabId}`;
   state.step = 0;
   masquerPages();
@@ -2037,12 +2047,22 @@ function ajouterAuDispositif(row) {
   return chooseEleve(row, { affecterA: state.dispo.etabId });
 }
 
+/** Bascule DSFR d'affichage des élèves de la liste d'attente / des autres situations (option conservée au retour). */
+function basculeDispo(id, cle, libelle, aide) {
+  const d = state.dispo;
+  return h(
+    'div',
+    { class: 'fr-toggle fr-mb-1w' },
+    h('input', { type: 'checkbox', class: 'fr-toggle__input', id, checked: d[cle], onchange: (e) => { d[cle] = e.target.checked; rendreDispositif(); $(`#${id}`)?.focus(); } }),
+    h('label', { class: 'fr-toggle__label', for: id, 'data-fr-checked-label': 'Oui', 'data-fr-unchecked-label': 'Non', title: aide }, libelle),
+  );
+}
+
 function rendreDispositif() {
   const d = state.dispo;
   const { lignes, tInd, etab, parId, idx } = d.data;
   const todayIso = new Date().toISOString().slice(0, 10);
-  const { rows, attente, autres } = elevesDuDispositif(lignes, d.etabId, todayIso, { inclure: d.inclure, situationPresent: SITUATION_PAR_DEFAUT });
-  const presents = rows.filter(({ ligne }) => ligne.situation === SITUATION_PAR_DEFAUT && !ligne.attente).length;
+  const { rows, presents, attente, autres } = elevesDuDispositif(lignes, d.etabId, todayIso, { inclureAttente: d.inclureAttente, inclureAutres: d.inclureAutres, situationPresent: SITUATION_PAR_DEFAUT });
   const eleves = [];
   for (const { eleve, ligne } of rows) {
     const row = parId.get(eleve);
@@ -2106,12 +2126,12 @@ function rendreDispositif() {
     d.ajout ? panneauAjout(d) : h('span'),
     h(
       'div',
-      { class: 'fr-toggle fr-mb-2w' },
-      h('input', { type: 'checkbox', class: 'fr-toggle__input', id: 'dispo-inclure', checked: d.inclure, onchange: (e) => { d.inclure = e.target.checked; rendreDispositif(); $('#dispo-inclure').focus(); } }),
-      h('label', { class: 'fr-toggle__label', for: 'dispo-inclure', 'data-fr-checked-label': 'Oui', 'data-fr-unchecked-label': 'Non', title: "Ajouter les élèves en liste d'attente ou dans une autre situation (sortie, exclusion…) dont l'affectation en cours est cet établissement" }, "Inclure la liste d'attente et les autres situations"),
+      { class: 'fr-mb-2w' },
+      basculeDispo('dispo-attente', 'inclureAttente', `Liste d'attente (${attente})`, "Afficher aussi, dans la liste, les élèves en liste d'attente pour cet établissement"),
+      basculeDispo('dispo-autres', 'inclureAutres', `Autres situations (${autres})`, 'Afficher aussi les élèves dont la situation en cours est une sortie, une exclusion… avec cet établissement'),
     ),
     eleves.length === 0
-      ? h('p', {}, d.inclure ? "Aucun élève n'a cet établissement pour affectation en cours." : "Aucun élève présent dans ce dispositif.")
+      ? h('p', {}, d.inclureAttente || d.inclureAutres ? "Aucun élève à afficher avec ces options." : "Aucun élève présent dans ce dispositif.")
       : h(
           'div',
           { class: 'fr-table fr-table--no-caption' },
@@ -2175,7 +2195,7 @@ async function chargerSecteur() {
   const [t, tScol, tInd] = await Promise.all([lireTable(state.etabTable), lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS)]);
   const idxInd = new Map(tInd.id.map((id, i) => [id, i]));
   const todayIso = new Date().toISOString().slice(0, 10);
-  const lignes = tableToRows(tScol, Object.values(COL)).map((r) => ({ eleve: r[COL.eleve], ...mapLigne(r) }));
+  const lignes = lignesDe(tScol);
   const eff = effectifsParEtab(lignes, todayIso, SITUATION_PAR_DEFAUT);
   const texte = (col, i) => (t[col] ? cellText(t[col][i]).trim() : '');
   // Secteur_CDOEA et Secteur_ERS (colonnes de données) ne sont remplis que pour une partie des établissements :

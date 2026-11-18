@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, statutsEleves, alerteFinDroits, libelleAlerteFin, infosManquantes } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -255,4 +255,27 @@ test('infosManquantes : nom, prénom, date de naissance', () => {
   assert.deepEqual(infosManquantes({ nom: 'A', prenom: 'B', ddn: 'pas une date' }), ['date de naissance']);
   assert.deepEqual(infosManquantes({ nom: 'A', prenom: null, ddn: '2014-05-01' }), ['prénom']);
   assert.deepEqual(infosManquantes(null), []);
+});
+
+test('Actuellement_en_ULIS (Grist) décide du statut quand la colonne existe', () => {
+  const L = (id, eleve, date, affectation, o = {}) => ({ id, eleve, date, affectation, situation: 'En ULIS', attente: false, ...o });
+  const lignes = [
+    // élève 1 : ancienne ligne et ligne récente, Grist ne marque que la récente
+    L(1, 1, '2024-09-01', 7, { actuel: false }), L(2, 1, '2026-09-01', 8, { actuel: true }),
+    // élève 2 : « En ULIS » à la date mais Grist dit non (ex. notification échue) → pas présent
+    L(3, 2, '2025-09-01', 7, { actuel: false }),
+    // élève 3 : liste d'attente marquée actuelle
+    L(4, 3, '2026-09-01', 7, { actuel: true, attente: true }),
+    // élève 4 : présent à 7
+    L(5, 4, '2025-09-01', 7, { actuel: true }),
+  ];
+  const m = effectifsParEtab(lignes, '2026-11-18');
+  assert.deepEqual(m.get(7), { presents: 1, attente: 1, ids: [4] });
+  assert.deepEqual(m.get(8), { presents: 1, attente: 0, ids: [1] });
+  const r = elevesDuDispositif(lignes, 7, '2026-11-18', { inclureAttente: true });
+  assert.deepEqual(r.rows.map((x) => [x.eleve, x.statut]), [[3, 'attente'], [4, 'present']]);
+  assert.equal(r.autres, 1);
+  assert.deepEqual(elevesDuDispositif(lignes, 7, '2026-11-18').rows.map((x) => x.eleve), [4]);
+  assert.deepEqual(elevesDuDispositif(lignes, 7, '2026-11-18', { inclureAutres: true }).rows.map((x) => x.eleve).sort(), [2, 4]);
+  assert.equal(statutsEleves(lignes, '2026-11-18').length, 4);
 });

@@ -242,32 +242,55 @@ export function libelleEleve(r) {
 }
 
 /**
- * Élèves d'un dispositif : pour chaque élève, seule sa ligne « en cours » compte (la plus récente dont la date est
- * passée). `lignes` : [{ eleve, id, date, affectation, niveau, situation, attente }].
- * Par défaut, seuls les élèves en situation `situationPresent` et hors liste d'attente sont « présents » ;
- * `inclure: true` ramène aussi la liste d'attente et les autres situations de cet établissement.
- * Renvoie `[{ eleve, ligne }]` ; `attente` et `autres` comptent ce qui est écarté.
+ * Statut de chaque élève : `[{ eleve, ligne, statut }]`, `statut` = 'present' | 'attente' | 'autre'.
+ * Si les lignes portent `actuel` (colonne `Actuellement_en_ULIS` de Grist, la même que celle de la colonne `Effectif`),
+ * c'est elle qui décide : la ligne la plus récente marquée « actuellement en ULIS » donne l'établissement, « attente »
+ * si `Liste_d_attente`, sinon « présent ». Sans cette colonne, on retombe sur la ligne « en cours » (la plus récente
+ * dont la date est passée) : présent si la situation est `situationPresent` et hors liste d'attente.
  */
-export function elevesDuDispositif(lignes, etabId, todayIso, { inclure = false, situationPresent = 'En ULIS' } = {}) {
+export function statutsEleves(lignes, todayIso, situationPresent = 'En ULIS') {
   const parEleve = new Map();
   for (const l of lignes) {
     if (!parEleve.has(l.eleve)) parEleve.set(l.eleve, []);
     parEleve.get(l.eleve).push(l);
   }
-  const presents = [];
-  let attente = 0;
-  let autres = 0;
+  const grist = lignes.some((l) => l.actuel !== undefined);
+  const plusRecente = (ls) => ls.reduce((b, l) => (!b || (l.date || '') > (b.date || '') || ((l.date || '') === (b.date || '') && l.id > b.id) ? l : b), null);
+  const out = [];
   for (const [eleve, ls] of parEleve) {
-    const l = ligneEnCours(ls, todayIso);
-    if (!l || l.affectation !== etabId) continue;
-    const present = l.situation === situationPresent && !l.attente;
-    if (!present) {
-      if (l.attente) attente += 1;
-      else autres += 1;
+    if (grist) {
+      const actuelles = ls.filter((l) => l.actuel === true && l.affectation);
+      if (actuelles.length) {
+        const l = plusRecente(actuelles);
+        out.push({ eleve, ligne: l, statut: l.attente ? 'attente' : 'present' });
+        continue;
+      }
+      const l = ligneEnCours(ls, todayIso);
+      if (l && l.affectation) out.push({ eleve, ligne: l, statut: l.attente ? 'attente' : 'autre' });
+      continue;
     }
-    if (present || inclure) presents.push({ eleve, ligne: l });
+    const l = ligneEnCours(ls, todayIso);
+    if (!l || !l.affectation) continue;
+    out.push({ eleve, ligne: l, statut: l.attente ? 'attente' : l.situation === situationPresent ? 'present' : 'autre' });
   }
-  return { rows: presents, attente, autres };
+  return out;
+}
+
+/**
+ * Élèves d'un dispositif. Par défaut, seuls les « présents » sont renvoyés ; `inclureAttente` ajoute la liste d'attente,
+ * `inclureAutres` les autres situations (sortie, exclusion…) dont l'affectation en cours est cet établissement ;
+ * `inclure: true` ajoute les deux. Renvoie `{ rows: [{ eleve, ligne, statut }], presents, attente, autres }` :
+ * les trois compteurs portent sur tout l'établissement, affichés ou non.
+ */
+export function elevesDuDispositif(lignes, etabId, todayIso, { inclure = false, inclureAttente = inclure, inclureAutres = inclure, situationPresent = 'En ULIS' } = {}) {
+  const rows = [];
+  const n = { present: 0, attente: 0, autre: 0 };
+  for (const x of statutsEleves(lignes, todayIso, situationPresent)) {
+    if (x.ligne.affectation !== etabId) continue;
+    n[x.statut] += 1;
+    if (x.statut === 'present' || (x.statut === 'attente' && inclureAttente) || (x.statut === 'autre' && inclureAutres)) rows.push(x);
+  }
+  return { rows, presents: n.present, attente: n.attente, autres: n.autre };
 }
 
 /**
@@ -301,21 +324,15 @@ export function trierEleves(rows, cle, dir = 1, niveaux = []) {
  * { presents, attente, ids }), `ids` = élèves présents. « Présent » = situation `situationPresent` hors liste d'attente (même règle que `elevesDuDispositif`).
  */
 export function effectifsParEtab(lignes, todayIso, situationPresent = 'En ULIS') {
-  const parEleve = new Map();
-  for (const l of lignes) {
-    if (!parEleve.has(l.eleve)) parEleve.set(l.eleve, []);
-    parEleve.get(l.eleve).push(l);
-  }
   const out = new Map();
-  for (const ls of parEleve.values()) {
-    const l = ligneEnCours(ls, todayIso);
-    if (!l || !l.affectation) continue;
-    if (!out.has(l.affectation)) out.set(l.affectation, { presents: 0, attente: 0, ids: [] });
-    const e = out.get(l.affectation);
-    if (l.attente) e.attente += 1;
-    else if (l.situation === situationPresent) {
+  for (const x of statutsEleves(lignes, todayIso, situationPresent)) {
+    const etab = x.ligne.affectation;
+    if (!out.has(etab)) out.set(etab, { presents: 0, attente: 0, ids: [] });
+    const e = out.get(etab);
+    if (x.statut === 'attente') e.attente += 1;
+    else if (x.statut === 'present') {
       e.presents += 1;
-      e.ids.push(l.eleve);
+      e.ids.push(x.eleve);
     }
   }
   return out;

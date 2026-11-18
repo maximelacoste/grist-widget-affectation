@@ -51,7 +51,7 @@ Le bouton de retour de la page Dossier et de la page Dispositif porte le nom de 
 ## Page Dispositif
 
 - Informations : effectifs calculés (présents sur `Places_max`, liste d'attente, autres situations) ; colonnes de `Etablissements_avec_ULIS` (UAI, commune, secteur ERS, ERSH, secteur et coordonnateur CDOEA, nombre de dispositifs, ouverture) ; coordonnées (adresse, code postal, téléphone, courriel, directeur) cherchées dans `Etablissements_ERS`, la table liée par `Uai`.
-- Élèves présents : ceux dont la ligne de scolarité en cours (la plus récente dont la date est passée) désigne cet établissement, avec la situation « En ULIS » et hors liste d'attente. Un interrupteur ajoute la liste d'attente et les autres situations.
+- Élèves présents : ceux que la colonne `Actuellement_en_ULIS` de Scolarite (formule Grist, la même que pour `Effectif`) marque pour cet établissement, hors liste d'attente. Sans cette colonne : ligne de scolarité en cours (la plus récente dont la date est passée), situation « En ULIS », hors liste d'attente. Deux bascules affichent aussi la liste d'attente et les autres situations.
 - Tri : élève (nom, prénom), classe (ordre des choix de `Niveau_saisi`), première notification, fin de droits ; un second clic inverse l'ordre ; une date absente reste toujours en dernier.
 
 - Ajouter un élève : bouton en tête de la liste ; recherche d'une fiche (suggestions, Entrée) ou création d'une nouvelle fiche. L'élève arrive à l'étape 3 avec le formulaire de nouvelle affectation déjà rempli avec l'établissement (niveaux limités à son type).

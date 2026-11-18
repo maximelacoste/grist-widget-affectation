@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Effectifs et listes d'élèves par établissement : « présent » suit désormais la colonne `Actuellement_en_ULIS` de Scolarite (la même que celle qui alimente `Effectif` dans Etablissements_avec_ULIS), au lieu d'un recalcul à partir de la date et de la situation, qui comptait des dizaines d'élèves en trop. Sans cette colonne, l'ancien calcul sert de secours.
+- Dispositif : deux bascules distinctes, « Liste d'attente (n) » et « Autres situations (n) », à la place de l'option unique ; les compteurs portent sur tout l'établissement.
 - Page par secteur : le menu « Secteur » ne propose que 1, 2 et 3 (le numéro est lu dans `Secteur_CDOEA`, à défaut dans sa colonne calculée puis dans `Secteur`) ; le menu « ERS » ne propose que les ERS du secteur choisi et se remet sur « Tous » si l'ERS retenu n'en fait plus partie. Une ligne signale les établissements dont le numéro de secteur n'est pas reconnu.
 - Page par secteur : le filtre « Secteur » propose tous les secteurs (repli sur `Secteur_ERS_Secteurs_CDOEA` quand `Secteur_CDOEA` est vide, idem pour l'ERS) et le filtre « Type » propose toujours École, Collège et Lycée.
 - Page par secteur : tri par clic sur chaque colonne (un second clic inverse l'ordre), conservé au retour depuis un dispositif.
