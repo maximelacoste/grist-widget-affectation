@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes } from './lib.js?v=20261118f';
-import { attachSuggest } from './suggest.js?v=20261118f';
-import { activerCalendriers } from './calendrier.js?v=20261118f';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118g';
+import { attachSuggest } from './suggest.js?v=20261118g';
+import { activerCalendriers } from './calendrier.js?v=20261118g';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -23,6 +23,8 @@ const COL_ACTUEL = 'Actuellement_en_ULIS'; // formule Grist de Scolarite : « en
 // Alerte « fin de droits » : une fin passée est signalée en rouge, une fin dans les N prochains jours en orange.
 // 120 jours (≈ 4 mois) laissent le temps de préparer un renouvellement ; à ajuster ici.
 const FIN_DROITS_ALERTE_JOURS = 120;
+// Occupation d'un dispositif : « presque plein » dès 85 % de la capacité (`Places_max`) ; plein à 100 % ; dépassement au-delà.
+const SEUIL_PRESQUE_PLEIN = 0.85;
 // Niveaux proposés selon le type de l'établissement choisi (colonne `Type` de Etablissements_avec_ULIS :
 // ECO, CLG, LYC ou Autre). Un type absent de cette table (« Autre », vide) laisse tous les niveaux.
 // Seuls les niveaux qui existent dans les choix de `Niveau_saisi` sont proposés.
@@ -642,6 +644,18 @@ function tableSimple(legende, entetes, lignes) {
 }
 
 /** Liste « libellé : valeur » (état civil, coordonnées, notification). */
+const LIBELLE_OCCUPATION = { libre: 'Places libres', presque: 'Presque plein', plein: 'Plein', depassement: 'Dépassement' };
+
+/** Pastille d'occupation (texte + couleur) : « 3 places libres », « Presque plein · 1 libre », « Plein », « Dépassement +2 ». */
+function badgeOccupation(presents, places) {
+  const o = occupation(presents, places, SEUIL_PRESQUE_PLEIN);
+  if (!o) return null;
+  const pluriel = (n) => `${n} place${n > 1 ? 's' : ''}`;
+  const texte = { libre: `${pluriel(o.libres)} libre${o.libres > 1 ? 's' : ''}`, presque: `Presque plein · ${o.libres} libre${o.libres > 1 ? 's' : ''}`, plein: 'Plein', depassement: `Dépassement +${-o.libres}` }[o.niveau];
+  const couleur = { libre: 'success', presque: 'new', plein: 'warning', depassement: 'error' }[o.niveau];
+  return h('p', { class: `fr-badge fr-badge--${couleur} fr-badge--sm fr-badge--no-icon`, title: `${presents} élève${presents > 1 ? 's' : ''} présent${presents > 1 ? 's' : ''} pour ${pluriel(places)} (${LIBELLE_OCCUPATION[o.niveau].toLowerCase()})` }, texte);
+}
+
 /** Pastille « Dossier incomplet » (avec la liste de ce qui manque) ; `null` si nom, prénom et date de naissance sont renseignés. */
 function badgeIncomplet(row) {
   const m = infosManquantes(row);
@@ -2091,7 +2105,7 @@ function rendreDispositif() {
   box.replaceChildren(
     h('h4', { class: 'fr-h6' }, "Informations sur l'établissement"),
     listeInfos([
-      ['Effectifs', effectifs],
+      ['Effectifs', badgeOccupation(presents, etab.places) ? [effectifs, ' ', badgeOccupation(presents, etab.places)] : effectifs],
       etab.effectifGrist !== null && etab.effectifGrist !== presents ? ['Effectif calculé par Grist', `${etab.effectifGrist} (colonne ${COL_EFFECTIF_GRIST}, différent du décompte ci-dessus)`] : null,
       typeLibelle ? ['Type', typeLibelle] : null,
       ...etab.infos.map((x) => [x.libelle, x.valeur]),
@@ -2259,7 +2273,7 @@ async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
     return;
   }
   const prec = garder && state.secteur ? state.secteur : null;
-  state.secteur = { retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { secteur: '', type: '', ers: '', alerte: '' } };
+  state.secteur = { retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { secteur: '', type: '', ers: '', alerte: '', occup: '' } };
   state.step = 0;
   masquerPages();
   $('#step-secteur').hidden = false;
@@ -2290,13 +2304,13 @@ function rendreSecteur() {
   const ersProposes = [...new Set(etabs.filter(dansSecteur).map((e) => e.ers).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
   if (f.ers && !ersProposes.includes(f.ers)) f.ers = '';
   const tri = sc.tri || (sc.tri = { cle: 'label', dir: 1 });
-  const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, fins: (e) => e.finEchues * 1000 + e.finProches };
+  const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, libres: (e) => (e.places === null ? '' : e.places - e.presents), fins: (e) => e.finEchues * 1000 + e.finProches };
   const onTri = (cle) => {
     sc.tri = { cle, dir: tri.cle === cle ? -tri.dir : 1 };
     rendreSecteur();
     $(`#secteur [data-tri="${cle}"]`)?.focus();
   };
-  const liste0 = etabs.filter((e) => dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0));
+  const liste0 = etabs.filter((e) => dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0) && (!f.occup || (occupation(e.presents, e.places, SEUIL_PRESQUE_PLEIN) || {}).niveau === f.occup));
   const val = clesTri[tri.cle];
   const liste = [...liste0].sort((a, b) => {
     const x = val(a);
@@ -2315,12 +2329,15 @@ function rendreSecteur() {
         'select',
         { class: 'fr-select', id, title: aide, onchange: (e) => { f[cle] = e.target.value; rendreSecteur(); $(`#${id}`)?.focus(); } },
         h('option', { value: '', selected: !f[cle] }, 'Tous'),
-        options.map((o) => h('option', { value: o, selected: o === f[cle] }, o)),
+        options.map((o) => {
+          const [valeur, texte] = Array.isArray(o) ? o : [o, o];
+          return h('option', { value: valeur, selected: valeur === f[cle] }, texte);
+        }),
       ),
     );
   const totalPresents = liste.reduce((n, e) => n + e.presents, 0);
   const totalPlaces = liste.reduce((n, e) => n + (e.places || 0), 0);
-  const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], ['Fins de droits', 'fins']];
+  const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], ['Places libres', 'libres'], ['Fins de droits', 'fins']];
   $('#secteur').replaceChildren(
     h(
       'div',
@@ -2328,10 +2345,11 @@ function rendreSecteur() {
       aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', SECTEURS, 'Ne garder que les établissements du secteur 1, 2 ou 3') : h('span'),
       selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
       aErs ? selecteur('f-ers', 'ers', 'ERS', ersProposes, f.secteur ? `ERS du secteur ${f.secteur} seulement (secteur d'enseignant référent)` : "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : h('span'),
+      selecteur('f-occup', 'occup', 'Occupation', [['libre', 'Places libres'], ['presque', 'Presque plein'], ['plein', 'Plein'], ['depassement', 'Dépassement']], 'Ne garder que les établissements dont le dispositif a des places libres, est presque plein, plein ou en dépassement'),
       selecteur('f-alerte', 'alerte', 'Fins de droits', ['Échues ou proches'], 'Ne garder que les établissements qui ont au moins un élève dont la fin de droits est échue ou proche'),
     ),
     etabs.some((e) => e.secteurNum === null) ? h('p', { class: 'fr-hint-text', id: 'secteur-inconnu' }, `${etabs.filter((e) => e.secteurNum === null).length} établissement(s) sans numéro de secteur reconnu : ils n'apparaissent pas quand un secteur est choisi.`) : h('span'),
-    h('p', { role: 'status' }, `${liste.length} établissement${liste.length > 1 ? 's' : ''} · ${totalPresents} élève${totalPresents > 1 ? 's' : ''} présent${totalPresents > 1 ? 's' : ''}${totalPlaces ? ` sur ${totalPlaces} places` : ''}`),
+    h('p', { role: 'status' }, `${liste.length} établissement${liste.length > 1 ? 's' : ''} · ${totalPresents} élève${totalPresents > 1 ? 's' : ''} présent${totalPresents > 1 ? 's' : ''}${totalPlaces ? ` sur ${totalPlaces} places (${totalPlaces - totalPresents >= 0 ? `${totalPlaces - totalPresents} libre${totalPlaces - totalPresents > 1 ? 's' : ''}` : `dépassement de ${totalPresents - totalPlaces}`})` : ''}`),
     liste.length === 0
       ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucun établissement ne correspond à ces filtres.'))
       : h(
@@ -2363,7 +2381,8 @@ function rendreSecteur() {
                         h('td', {}, e.commune || '—'),
                         aSecteur ? h('td', {}, e.secteurNum !== null ? String(e.secteurNum) : e.secteur || '—') : null,
                         aErs ? h('td', {}, e.ers || '—', e.ersh ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, e.ersh)] : null) : null,
-                        h('td', { class: 'nowrap' }, `${e.presents}${e.places !== null ? ` / ${e.places}` : ''}`, e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "Élèves sur liste d'attente pour cet établissement" }, `${e.attente} en attente`)] : null),
+                        h('td', { class: 'nowrap' }, `${e.presents}${e.places !== null ? ` / ${e.places}` : ''}`, e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "Élèves sur liste d'attente pour cet établissement" }, `${e.attente} en attente`)] : null, badgeOccupation(e.presents, e.places) ? [h('br'), badgeOccupation(e.presents, e.places)] : null),
+                        h('td', { class: 'nowrap' }, e.places === null ? '—' : String(e.places - e.presents)),
                         h('td', {}, e.finEchues || e.finProches ? [e.finEchues ? h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits est dépassée' }, `${e.finEchues} échue${e.finEchues > 1 ? 's' : ''}`) : null, e.finEchues && e.finProches ? ' ' : null, e.finProches ? h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits approche' }, `${e.finProches} proche${e.finProches > 1 ? 's' : ''}`) : null] : '—'),
                       ),
                     ),

@@ -369,3 +369,15 @@ export function infosManquantes(row) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(row.ddn ?? ''))) out.push('date de naissance');
   return out;
 }
+
+/**
+ * Taux d'occupation d'un dispositif : `null` si la capacité est inconnue ; sinon `{ niveau, libres }` avec `niveau` =
+ * 'libre' (places disponibles), 'presque' (au moins `seuil` de la capacité, sans être plein), 'plein' ou 'depassement'.
+ * `libres` est négatif en cas de dépassement.
+ */
+export function occupation(presents, places, seuil = 0.85) {
+  if (typeof places !== 'number' || !Number.isFinite(places) || places <= 0) return null;
+  const libres = places - presents;
+  const niveau = libres < 0 ? 'depassement' : libres === 0 ? 'plein' : presents / places >= seuil ? 'presque' : 'libre';
+  return { niveau, libres };
+}

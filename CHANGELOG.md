@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Occupation des dispositifs : pastille avec texte et couleur (vert « n places libres », jaune « Presque plein · n libre » dès 85 % de `Places_max`, orange « Plein », rouge « Dépassement +n »), dans la page par secteur et dans les effectifs du dispositif. Page par secteur : colonne « Places libres » triable, filtre « Occupation », places libres dans le récapitulatif.
 - Accueil : le bloc « Par secteur » est aligné sous la recherche d'établissement (colonne de droite).
 - Effectifs et listes d'élèves par établissement : « présent » suit désormais la colonne `Actuellement_en_ULIS` de Scolarite (la même que celle qui alimente `Effectif` dans Etablissements_avec_ULIS), au lieu d'un recalcul à partir de la date et de la situation, qui comptait des dizaines d'élèves en trop. Sans cette colonne, l'ancien calcul sert de secours.
 - Dispositif : deux bascules distinctes, « Liste d'attente (n) » et « Autres situations (n) », à la place de l'option unique ; les compteurs portent sur tout l'établissement.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, statutsEleves, alerteFinDroits, libelleAlerteFin, infosManquantes } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, statutsEleves, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -278,4 +278,15 @@ test('Actuellement_en_ULIS (Grist) décide du statut quand la colonne existe', (
   assert.deepEqual(elevesDuDispositif(lignes, 7, '2026-11-18').rows.map((x) => x.eleve), [4]);
   assert.deepEqual(elevesDuDispositif(lignes, 7, '2026-11-18', { inclureAutres: true }).rows.map((x) => x.eleve).sort(), [2, 4]);
   assert.equal(statutsEleves(lignes, '2026-11-18').length, 4);
+});
+
+test('occupation : libre, presque plein, plein, dépassement', () => {
+  assert.equal(occupation(3, null), null);
+  assert.equal(occupation(3, 0), null);
+  assert.deepEqual(occupation(5, 10), { niveau: 'libre', libres: 5 });
+  assert.deepEqual(occupation(8, 10), { niveau: 'libre', libres: 2 }); // 80 % < 85 %
+  assert.deepEqual(occupation(9, 10), { niveau: 'presque', libres: 1 });
+  assert.deepEqual(occupation(10, 10), { niveau: 'plein', libres: 0 });
+  assert.deepEqual(occupation(12, 10), { niveau: 'depassement', libres: -2 });
+  assert.equal(occupation(14, 16).niveau, 'presque'); // 87,5 %
 });
