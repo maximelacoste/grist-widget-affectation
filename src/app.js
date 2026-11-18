@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118h';
-import { attachSuggest } from './suggest.js?v=20261118h';
-import { activerCalendriers } from './calendrier.js?v=20261118h';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118i';
+import { attachSuggest } from './suggest.js?v=20261118i';
+import { activerCalendriers } from './calendrier.js?v=20261118i';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2456,9 +2456,36 @@ $('#btn-secteur').addEventListener('click', () => openSecteur(retourAccueil()));
 /* ------------------------------------------------------------------ */
 /* Démarrage                                                           */
 /* ------------------------------------------------------------------ */
+/**
+ * Pop-up d'accueil : les flèches « précédent / suivant » du navigateur ne pilotent pas le widget (elles agissent sur la
+ * page Grist qui l'entoure, surtout en mode intégré). Affichée une fois par session de navigation ; si le navigateur
+ * refuse le stockage de session, elle s'affiche à chaque ouverture.
+ */
+function accueilNavigation() {
+  const CLE = 'affectation-accueil-vu';
+  try {
+    if (sessionStorage.getItem(CLE)) return;
+    sessionStorage.setItem(CLE, '1');
+  } catch {
+    /* stockage indisponible : on affiche quand même */
+  }
+  ouvrirModale({
+    titre: 'Avant de commencer',
+    icone: 'fr-icon-information-line',
+    corps: [
+      h('p', {}, h('strong', {}, 'N\'utilise pas les flèches « précédent » et « suivant » de ton navigateur.')),
+      h('p', {}, "Elles ne pilotent pas cette page : elles te feraient quitter la page Grist, ou perdre ta recherche et une modification en cours."),
+      h('p', { class: 'fr-mb-0' }, "Pour revenir en arrière, utilise les boutons « Revenir à… » en haut de chaque page."),
+    ],
+    actions: [{ id: 'dlg-ok', libelle: "J'ai compris", info: 'Fermer ce message et commencer' }],
+    focus: 'dlg-ok',
+  });
+}
+
 async function init() {
   grist.ready({ requiredAccess: 'full' });
   goto(1, { focus: false });
+  accueilNavigation();
   try {
     await loadMeta();
     await refreshIndividus();
