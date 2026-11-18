@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Résultats de recherche d'élèves : le bouton « Affecter » est retiré (doublon avec le dossier) ; il ne reste que « Dossier », d'où l'on affecte.
 - Mise en page : plus d'espace entre le texte d'introduction de l'accueil et les deux blocs de recherche, et avant le pied de page. Correction : le libellé du bouton retour du dossier et celui de « Supprimer cette affectation » (formulaire) étaient réduits à leur icône.
 - Dossier : « Affecter » harmonisé avec « Modifier » et « Ajouter une note » (bouton secondaire avec icône ; épingle de lieu du DSFR, feuille `icons-map` ajoutée).
 - Toute écriture est confirmée : en plus des modifications, les ajouts (nouvelle affectation, nouvelle note, création de fiche) ouvrent une fenêtre de récapitulatif (« Oui, ajouter » / « Revenir au formulaire ») avant d'écrire dans Grist. Les suppressions et le basculement en liste d'attente avaient déjà leur confirmation.

@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118u';
-import { attachSuggest } from './suggest.js?v=20261118u';
-import { activerCalendriers } from './calendrier.js?v=20261118u';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118v';
+import { attachSuggest } from './suggest.js?v=20261118v';
+import { activerCalendriers } from './calendrier.js?v=20261118v';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -464,15 +464,6 @@ async function renderResults() {
                       h(
                         'ul',
                         { class: 'actions-ligne' },
-                        h(
-                          'li',
-                          {},
-                          h(
-                            'button',
-                            { class: 'fr-btn fr-btn--sm', type: 'button', onclick: () => chooseEleve(r), 'aria-label': `Affecter ${r.nom} ${r.prenom}`, title: "Ouvrir les affectations de cet élève pour en ajouter ou en modifier une" },
-                            'Affecter',
-                          ),
-                        ),
                         h(
                           'li',
                           {},

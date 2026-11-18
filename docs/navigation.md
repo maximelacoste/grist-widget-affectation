@@ -5,7 +5,7 @@ Sept pages, une seule visible à la fois. Les flèches pleines sont des boutons 
 ```mermaid
 flowchart TD
     P1["<b>Accueil</b><br/>deux recherches côte à côte :<br/>un élève · un établissement avec ULIS"]
-    P2["<b>Résultats élèves</b><br/>Nom · Prénom · Naissance · Affectation en cours<br/>boutons Affecter / Dossier par ligne"]
+    P2["<b>Résultats élèves</b><br/>Nom · Prénom · Naissance · Affectation en cours<br/>bouton Dossier par ligne (l'affectation se fait depuis le dossier)"]
     P3["<b>Affectations de l'élève</b><br/>liste des lignes, ✎ modifier, 🗑 supprimer<br/>formulaire d'affectation (ajout / modification)"]
     PC["<b>Création de fiche</b><br/>nom, prénom, naissance, coordonnées<br/>fiches proches affichées pendant la saisie"]
     PD["<b>Dossier</b><br/>lecture seule ; bouton Modifier<br/>tous les champs → Valider / Annuler"]
@@ -24,7 +24,6 @@ flowchart TD
     PE -->|"Ajouter un élève : créer la fiche"| PC
     PC -->|"Créer la fiche (depuis un dispositif)<br/>→ affectation à cet établissement"| P3
     P3 -->|"Revenir au dispositif"| PE
-    P2 -->|"Affecter"| P3
     P2 -->|"Dossier"| PD
     P2 -->|"clic sur l'établissement"| PE
     P2 -->|"Créer une nouvelle fiche"| PC
