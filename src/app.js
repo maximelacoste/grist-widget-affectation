@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118k';
-import { attachSuggest } from './suggest.js?v=20261118k';
-import { activerCalendriers } from './calendrier.js?v=20261118k';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118l';
+import { attachSuggest } from './suggest.js?v=20261118l';
+import { activerCalendriers } from './calendrier.js?v=20261118l';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -927,6 +927,111 @@ async function ecrireIndividu(row, champsEls, nouveau, ctx) {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Dossier : ajout d'une note                                          */
+/* ------------------------------------------------------------------ */
+/** Colonnes de Notes_sur_l_eleve (par identifiant) ; vide si la table n'existe pas dans le document. */
+function colonnesNotes() {
+  return new Map([...state.colById.values()].filter((c) => c.tableId === T_NOTES).map((c) => [c.colId, c]));
+}
+
+/** Bouton « Ajouter une note » et son panneau ; `null` si la table de notes ou sa colonne Note manque. */
+function elementsNote(ctx) {
+  const cols = colonnesNotes();
+  if (!cols.has('Note') || cols.get('Note').isFormula) return { bouton: null, panneau: null };
+  const panneau = h('div', { id: 'dossier-note', class: 'fr-mb-3w', hidden: true });
+  const bouton = h('button', { class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-add-line', type: 'button', id: 'btn-note', title: "Écrire une note dans le dossier de l'élève (table Notes_sur_l_eleve)", onclick: () => ouvrirPanneauNote(ctx, panneau, cols) }, 'Ajouter une note');
+  return { bouton, panneau };
+}
+
+function ouvrirPanneauNote(ctx, panneau, cols) {
+  if (state.edition) {
+    notify('warning', "Validez ou annulez d'abord la modification du dossier en cours.");
+    return;
+  }
+  const typeCol = cols.get('Type');
+  let choix = [];
+  if (typeCol && !typeCol.isFormula && typeCol.type === 'Choice') {
+    try {
+      choix = JSON.parse(typeCol.widgetOptions || '{}').choices || [];
+    } catch {
+      choix = [];
+    }
+  }
+  const fermer = () => {
+    panneau.hidden = true;
+    panneau.replaceChildren();
+    $('#btn-note')?.focus();
+  };
+  const form = h(
+    'form',
+    { novalidate: true, class: 'ajout-eleve' },
+    h('h4', { class: 'fr-h6', id: 'h-note', tabindex: '-1' }, 'Nouvelle note'),
+    h('div', { class: 'fr-input-group fr-mb-2w' }, h('label', { class: 'fr-label', for: 'note-texte' }, 'Note', h('span', { class: 'fr-hint-text' }, "Texte libre, ajouté à l'historique des notes de l'élève.")), h('textarea', { class: 'fr-input', id: 'note-texte', rows: 4, required: true })),
+    choix.length
+      ? h('div', { class: 'fr-select-group fr-mb-2w' }, h('label', { class: 'fr-label', for: 'note-type' }, 'Type de note (facultatif)'), h('select', { class: 'fr-select', id: 'note-type' }, h('option', { value: '' }, '— aucun —'), choix.map((c) => h('option', { value: c }, c))))
+      : h('span'),
+    h(
+      'ul',
+      { class: 'fr-btns-group fr-btns-group--inline' },
+      h('li', {}, h('button', { class: 'fr-btn', type: 'submit', title: 'Enregistrer cette note dans Notes_sur_l_eleve' }, 'Enregistrer la note')),
+      h('li', {}, h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer ce panneau sans rien enregistrer', onclick: fermer }, 'Annuler')),
+    ),
+  );
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearFieldErrors(form);
+    const texte = $('#note-texte').value.trim();
+    if (!texte) {
+      setFieldError('note-texte', 'Saisissez le texte de la note.');
+      $('#note-texte').focus();
+      return;
+    }
+    await ecrireNote(ctx, cols, texte, $('#note-type')?.value || '');
+  });
+  panneau.replaceChildren(form);
+  panneau.hidden = false;
+  $('#note-texte').focus();
+}
+
+/** Ajoute la note : seules les colonnes existantes et non calculées sont renseignées ; le lien vers l'élève suit la structure de la table. */
+async function ecrireNote(ctx, cols, texte, type) {
+  const ecrivable = (id) => cols.has(id) && !cols.get(id).isFormula;
+  try {
+    const f = { Note: texte };
+    let lie = false;
+    if (ecrivable('Individu')) {
+      f.Individu = ctx.row.id;
+      lie = true;
+    }
+    if (ecrivable('Eleve')) {
+      // Eleve pointe vers Eleves_ULIS : rapprochement par la clé nom|prénom|naissance, comme pour la lecture des notes
+      try {
+        const e = await lireTable('Eleves_ULIS');
+        const i = e.Cle ? e.Cle.findIndex((k) => k === ctx.row.cle) : -1;
+        if (i >= 0) {
+          f.Eleve = e.id[i];
+          lie = true;
+        }
+      } catch {
+        /* Eleves_ULIS absente : le lien par Individu suffit s'il existe */
+      }
+    }
+    if (!lie) throw new Error("aucune colonne de la table de notes ne permet de relier la note à l'élève");
+    if (ecrivable('Cree_le')) {
+      const t = cols.get('Cree_le').type || '';
+      f.Cree_le = t.startsWith('DateTime') ? Math.floor(Date.now() / 1000) : isoToSec(new Date().toISOString().slice(0, 10));
+    }
+    if (type && ecrivable('Type')) f.Type = type;
+    viderCache();
+    await grist.docApi.applyUserActions([['AddRecord', T_NOTES, null, f]]);
+    await openDossier(ctx.row, ctx.origine);
+    notify('success', 'Note ajoutée au dossier.');
+  } catch (err) {
+    notify('error', `Ajout de la note impossible : ${err.message}`);
+  }
+}
+
 async function openDossier(row, origine = 2) {
   if (state.edition) return gardeSortie(() => openDossier(row, origine));
   clearNotice();
@@ -976,8 +1081,10 @@ async function openDossier(row, origine = 2) {
       h('li', {}, h('button', { class: 'fr-btn fr-btn--tertiary fr-icon-close-line fr-btn--icon-left', type: 'button', title: 'Abandonner toutes les modifications en cours', onclick: () => gardeSortie(() => {}) }, 'Annuler')),
     ),
   );
+  const note = elementsNote(ctx);
   box.replaceChildren(
-    h('div', { class: 'fr-mb-2w' }, ctx.ui.modifier),
+    h('div', { class: 'fr-mb-2w' }, ctx.ui.modifier, note.bouton ? [' ', note.bouton] : null),
+    note.panneau || h('span'),
     ctx.ui.aide,
     infosManquantes(row).length
       ? h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dossier-incomplet', role: 'status' }, h('h5', { class: 'fr-alert__title' }, 'Dossier incomplet'), h('p', {}, `Information manquante : ${infosManquantes(row).join(', ')}. Utilisez « Modifier » pour la compléter.`))
