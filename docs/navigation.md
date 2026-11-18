@@ -68,6 +68,7 @@ Accessible depuis l'accueil. Tableau de tous les établissements avec ULIS : typ
 |---|---|---|---|
 | Affectations | corbeille ou « Supprimer cette affectation » | Supprimer cette affectation ? | Oui : `RemoveRecord` · Non : rien |
 | Affectations | « Enregistrer » une affectation modifiée | Enregistrer ces modifications ? (avant → après) | Oui : `UpdateRecord` · Revenir : formulaire conservé |
+| Dispositif | interrupteur « Liste d'attente » d'un élève | Mettre cet élève en liste d'attente ? / Retirer… | Oui : `UpdateRecord` de `Liste_d_attente` sur la ligne en cours · Non : rien |
 | Dossier | « Valider » | Enregistrer ces modifications ? (avant → après, avertissement si état civil) | Oui : un seul `UpdateRecord` sur `Individus` · Revenir : champs conservés |
 | Dossier | quitter ou « Annuler » avec des champs modifiés | Abandonner les modifications en cours ? | Oui : changements perdus, la navigation continue · Non : on reste |
 

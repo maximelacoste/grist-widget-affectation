@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118g';
-import { attachSuggest } from './suggest.js?v=20261118g';
-import { activerCalendriers } from './calendrier.js?v=20261118g';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118h';
+import { attachSuggest } from './suggest.js?v=20261118h';
+import { activerCalendriers } from './calendrier.js?v=20261118h';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2061,6 +2061,58 @@ function ajouterAuDispositif(row) {
   return chooseEleve(row, { affecterA: state.dispo.etabId });
 }
 
+/** Interrupteur « liste d'attente » d'un élève de la liste : demande confirmation, puis écrit dans sa ligne d'affectation en cours. */
+function basculeAttenteEleve(e) {
+  const id = `attente-${e.ligneId}`;
+  return h(
+    'div',
+    { class: 'fr-toggle' },
+    h('input', {
+      type: 'checkbox',
+      class: 'fr-toggle__input',
+      id,
+      checked: e.attente,
+      'aria-label': `Liste d'attente pour ${e.nom} ${e.prenom}`,
+      onchange: (ev) => {
+        const vers = ev.target.checked;
+        ev.target.checked = !vers; // l'état ne change qu'après confirmation et écriture
+        demanderBasculeAttente(e, vers);
+      },
+    }),
+    h('label', { class: 'fr-toggle__label', for: id, 'data-fr-checked-label': 'Oui', 'data-fr-unchecked-label': 'Non', title: e.attente ? "Retirer cet élève de la liste d'attente (il redevient présent)" : "Mettre cet élève en liste d'attente (il ne compte plus parmi les présents)" }, 'Liste d\'attente'),
+  );
+}
+
+function demanderBasculeAttente(e, vers) {
+  const d = state.dispo;
+  const etab = state.etabLabel.get(d.etabId) || 'cet établissement';
+  ouvrirModale({
+    titre: vers ? "Mettre cet élève en liste d'attente ?" : "Retirer cet élève de la liste d'attente ?",
+    corps: [
+      h('div', { class: 'fr-callout fr-callout--sm fr-mb-2w' }, h('p', { class: 'fr-callout__text' }, h('strong', {}, `${e.nom} ${e.prenom}`.trim()), ` — ${etab}`, e.niveau ? ` — ${e.niveau}` : '')),
+      h('p', {}, vers ? "L'élève ne sera plus compté parmi les présents de ce dispositif." : "L'élève sera compté parmi les présents de ce dispositif."),
+      h('p', { class: 'fr-text--sm fr-mb-0' }, "Seule la case « Liste d'attente » de sa ligne d'affectation en cours change ; Grist garde l'historique (panneau Activité)."),
+    ],
+    actions: [
+      { id: 'dlg-oui', libelle: vers ? "Oui, mettre en liste d'attente" : "Oui, retirer de la liste d'attente", info: "Enregistrer ce changement dans Scolarite", onClick: () => basculerAttente(d, e, vers) },
+      { id: 'dlg-non', libelle: 'Non, ne rien changer', info: "Fermer cette fenêtre : rien n'est modifié", secondaire: true },
+    ],
+    focus: 'dlg-non',
+  });
+}
+
+async function basculerAttente(d, e, vers) {
+  try {
+    viderCache();
+    await grist.docApi.applyUserActions([['UpdateRecord', T_SCOLARITE, e.ligneId, { [COL.attente]: vers }]]);
+    d.data = await chargerDispositif(d.etabId);
+    if (state.dispo === d) rendreDispositif();
+    notify('success', `${`${e.nom} ${e.prenom}`.trim()} ${vers ? "est en liste d'attente." : "n'est plus en liste d'attente."}`);
+  } catch (err) {
+    notify('error', `Modification impossible : ${err.message}`);
+  }
+}
+
 /** Bascule DSFR d'affichage des élèves de la liste d'attente / des autres situations (option conservée au retour). */
 function basculeDispo(id, cle, libelle, aide) {
   const d = state.dispo;
@@ -2078,12 +2130,14 @@ function rendreDispositif() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const { rows, presents, attente, autres } = elevesDuDispositif(lignes, d.etabId, todayIso, { inclureAttente: d.inclureAttente, inclureAutres: d.inclureAutres, situationPresent: SITUATION_PAR_DEFAUT });
   const eleves = [];
-  for (const { eleve, ligne } of rows) {
+  for (const { eleve, ligne, statut } of rows) {
     const row = parId.get(eleve);
     const i = idx.get(eleve);
     if (!row || i === undefined) continue; // fiche supprimée d'Individus
     eleves.push({
       row,
+      ligneId: ligne.id,
+      statut,
       nom: row.nom,
       prenom: row.prenom,
       niveau: ligne.niveau,
@@ -2166,6 +2220,7 @@ function rendreDispositif() {
                     enteteTri('Élève', 'nom', onTri),
                     enteteTri('Classe', 'classe', onTri),
                     h('th', { scope: 'col' }, 'Situation'),
+                    h('th', { scope: 'col' }, "Liste d'attente"),
                     enteteTri('Première notification', 'premiere', onTri),
                     enteteTri('Fin de droits', 'fin', onTri),
                   )),
@@ -2179,6 +2234,7 @@ function rendreDispositif() {
                         h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${e.nom} ${e.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'dispo') }, `${e.nom} ${e.prenom}`.trim() || 'Sans nom'), badgeIncomplet(e.row) ? [h('br'), badgeIncomplet(e.row)] : null),
                         h('td', {}, e.niveau || '—'),
                         h('td', {}, e.situation || '—', e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, "Liste d'attente")] : null),
+                        h('td', {}, e.statut === 'autre' ? '—' : basculeAttenteEleve(e)),
                         h('td', { class: 'nowrap' }, formatDateFr(e.premiere) || '—'),
                         h('td', {}, h('span', { class: 'nowrap' }, formatDateFr(e.fin) || '—'), badgeFin(e.fin) ? [h('br'), badgeFin(e.fin)] : null),
                       ),
