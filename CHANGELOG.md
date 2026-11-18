@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Dossier et suggestions de recherche : l'affectation « En cours » suit la même règle que les effectifs des dispositifs, la colonne `Actuellement_en_ULIS` de Scolarite. Une scolarité ancienne (par exemple de 2023) que Grist ne marque plus comme actuelle n'est plus affichée « En cours » ; l'élève apparaît « sans affectation en cours ». Sans cette colonne, l'ancienne règle (ligne datée la plus récente) sert de secours.
 - Tous les dispositifs : la recherche et les cinq filtres sont réunis en deux lignes de trois champs (la recherche d'abord), alignés ; l'aide sous le champ de recherche est retirée (l'introduction de la page dit déjà « nom, commune ou UAI »).
 - Dispositif : le bouton « Ajouter un élève » (et son panneau) passe sous le tableau des élèves, comme les autres boutons d'action ; il reste visible quand le tableau est vide.
 - Démarrage plus rapide : la lecture d'Individus se fait en même temps que celle des métadonnées, la table des établissements est lue une seule fois, et Scolarité est préchargée en arrière-plan ; les suggestions de recherche s'affichent aussitôt avec la dernière lecture de la scolarité, rafraîchie en arrière-plan.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, statutsEleves, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from '../src/lib.js';
+import { norm, cle, secToIso, isoToSec, formatDateFr, searchIndividus, ligneEnCours, ligneActuelle, filterOptions, cellText, isInvalidCell, suggestNoms, banUrl, parseBan, niveauxPour, typeEtab, libelleEtab, rechercheLibre, libelleEleve, elevesDuDispositif, trierEleves, effectifsParEtab, statutsEleves, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from '../src/lib.js';
 
 // Valeurs de référence produites par la formule Python de la colonne `Cle` d'Individus.
 const REFERENCE_PYTHON = [
@@ -282,6 +282,17 @@ test('Actuellement_en_ULIS (Grist) décide du statut quand la colonne existe', (
   assert.deepEqual(elevesDuDispositif(lignes, 7, '2026-11-18').rows.map((x) => x.eleve), [4]);
   assert.deepEqual(elevesDuDispositif(lignes, 7, '2026-11-18', { inclureAutres: true }).rows.map((x) => x.eleve).sort(), [2, 4]);
   assert.equal(statutsEleves(lignes, '2026-11-18').length, 4);
+});
+
+test('ligneActuelle : Actuellement_en_ULIS décide, sinon la ligne datée la plus récente', () => {
+  const L = (id, date, o = {}) => ({ id, date, affectation: 7, ...o });
+  // colonne Grist présente : une scolarité de 2023 que Grist ne marque pas n'est plus « en cours »
+  assert.equal(ligneActuelle([L(1, '2023-09-01', { actuel: false })], '2026-11-18'), null);
+  assert.equal(ligneActuelle([L(1, '2023-09-01', { actuel: false }), L(2, '2025-09-01', { actuel: true })], '2026-11-18').id, 2);
+  assert.equal(ligneActuelle([L(1, '2024-09-01', { actuel: true }), L(2, '2025-09-01', { actuel: true })], '2026-11-18').id, 2);
+  // colonne absente : repli sur la ligne la plus récente dont la date est passée
+  assert.equal(ligneActuelle([L(1, '2023-09-01')], '2026-11-18').id, 1);
+  assert.equal(ligneActuelle([L(1, '2023-09-01'), L(2, '2027-09-01')], '2026-11-18').id, 1);
 });
 
 test('occupation : libre, presque plein, plein, dépassement', () => {

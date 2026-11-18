@@ -128,6 +128,21 @@ export function ligneEnCours(lignes, todayIso) {
 }
 
 /**
+ * Ligne « en cours » à afficher dans le dossier et les suggestions. Si les lignes portent `actuel` (colonne
+ * `Actuellement_en_ULIS` de Grist, la même que celle de `Effectif`), c'est elle qui décide : la ligne la plus récente
+ * marquée actuelle, ou aucune (une scolarité de 2023 échue n'est plus « en cours »). Sans cette colonne : `ligneEnCours`.
+ */
+export function ligneActuelle(lignes, todayIso) {
+  if (!lignes.some((l) => l.actuel !== undefined)) return ligneEnCours(lignes, todayIso);
+  let best = null;
+  for (const l of lignes) {
+    if (l.actuel !== true) continue;
+    if (!best || (l.date || '') > (best.date || '') || ((l.date || '') === (best.date || '') && l.id > best.id)) best = l;
+  }
+  return best;
+}
+
+/**
  * Noms de famille déjà présents dans Individus dont le début correspond à la saisie (sans accents,
  * ni espaces, ni tirets). Un même nom n'apparaît qu'une fois, avec sa graphie la plus fréquente ;
  * les plus nombreux d'abord. Renvoie `[{ value, label }]`.

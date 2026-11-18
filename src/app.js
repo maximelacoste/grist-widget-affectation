@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zk';
-import { attachSuggest } from './suggest.js?v=20261118zk';
-import { activerCalendriers } from './calendrier.js?v=20261118zk';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zl';
+import { attachSuggest } from './suggest.js?v=20261118zl';
+import { activerCalendriers } from './calendrier.js?v=20261118zl';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -347,20 +347,19 @@ function mapLigne(r) {
 
 /** Lignes de Scolarite d'un élève, de la plus récente à la plus ancienne. */
 function lignesScolarite(t, eleveId) {
-  return tableToRows(t, Object.values(COL)).filter((r) => r[COL.eleve] === eleveId).map(mapLigne).sort(triScol);
+  return lignesDe(t).filter((l) => l.eleve === eleveId).sort(triScol);
 }
 
 /** Affectation en cours de plusieurs élèves en une seule passe : Map(id d'élève -> ligne en cours). */
 function enCoursDe(t, ids) {
   const groupes = new Map();
-  for (const r of tableToRows(t, Object.values(COL))) {
-    const e = r[COL.eleve];
-    if (!ids.has(e)) continue;
-    if (!groupes.has(e)) groupes.set(e, []);
-    groupes.get(e).push(mapLigne(r));
+  for (const l of lignesDe(t)) {
+    if (!ids.has(l.eleve)) continue;
+    if (!groupes.has(l.eleve)) groupes.set(l.eleve, []);
+    groupes.get(l.eleve).push(l);
   }
   const today = new Date().toISOString().slice(0, 10);
-  return new Map([...groupes].map(([e, l]) => [e, ligneEnCours(l.sort(triScol), today)]));
+  return new Map([...groupes].map(([e, l]) => [e, ligneActuelle(l.sort(triScol), today)]));
 }
 
 async function refreshScolarite(eleveId = state.eleve.id) {
@@ -1168,7 +1167,7 @@ async function openDossier(row, origine = 2) {
     return;
   }
   const todayIso = new Date().toISOString().slice(0, 10);
-  const enCours = ligneEnCours(scol, todayIso);
+  const enCours = ligneActuelle(scol, todayIso);
   const ctx = { row, origine, lignes: [], ui: {} };
   const ch = champsDossier(row, ind);
   ctx.ui.modifier = h(
@@ -1518,7 +1517,7 @@ function renderScolList() {
     return;
   }
   const todayIso = new Date().toISOString().slice(0, 10);
-  const enCours = ligneEnCours(state.scol, todayIso);
+  const enCours = ligneActuelle(state.scol, todayIso);
   box.replaceChildren(
     h(
       'div',
