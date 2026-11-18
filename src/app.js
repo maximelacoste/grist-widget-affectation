@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118y';
-import { attachSuggest } from './suggest.js?v=20261118y';
-import { activerCalendriers } from './calendrier.js?v=20261118y';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118z';
+import { attachSuggest } from './suggest.js?v=20261118z';
+import { activerCalendriers } from './calendrier.js?v=20261118z';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -9,7 +9,7 @@ activerCalendriers(); // clic n'importe où dans un champ date : calendrier int�
 /* Configuration : noms des tables et colonnes du document Grist       */
 /* ------------------------------------------------------------------ */
 const T_INDIVIDUS = 'Individus';
-const T_SCOLARITE = 'Scolarite';
+let T_SCOLARITE = 'Scolarite'; // identifiant de la table des affectations ; repris par détection si la table a été renommée
 const COL = {
   eleve: 'Eleve_Identite_', // référence Scolarite -> Individus
   affectation: 'Affectation', // référence vers Etablissements_avec_ULIS (colonne de données)
@@ -237,6 +237,13 @@ async function loadMeta() {
   };
 
   for (const col of ['Nom', 'Prenom', 'Date_de_naissance', 'Cle']) need(T_INDIVIDUS, col);
+  // Table des affectations renommée : on la reconnaît à ses colonnes (une seule table doit toutes les avoir).
+  const colonnesDe = (tid) => new Set([...colById.values()].filter((x) => x.tableId === tid).map((x) => x.colId));
+  if (![...colById.values()].some((x) => x.tableId === T_SCOLARITE)) {
+    const signature = [COL.affectation, COL.dateEffet, COL.niveau, COL.situation, COL.attente];
+    const candidates = [...new Set([...colById.values()].map((x) => x.tableId))].filter((tid) => tid && signature.every((c) => colonnesDe(tid).has(c)));
+    if (candidates.length === 1) T_SCOLARITE = candidates[0];
+  }
   // Colonne « élève » de Scolarite : si elle a été renommée, on reprend l'unique colonne de données qui référence Individus.
   if (![...colById.values()].some((x) => x.tableId === T_SCOLARITE && x.colId === COL.eleve)) {
     const candidates = [...colById.values()].filter((x) => x.tableId === T_SCOLARITE && x.type === `Ref:${T_INDIVIDUS}` && !x.isFormula);
