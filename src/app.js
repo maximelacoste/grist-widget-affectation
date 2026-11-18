@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118za';
-import { attachSuggest } from './suggest.js?v=20261118za';
-import { activerCalendriers } from './calendrier.js?v=20261118za';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isoToSec, ligneEnCours, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zb';
+import { attachSuggest } from './suggest.js?v=20261118zb';
+import { activerCalendriers } from './calendrier.js?v=20261118zb';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)

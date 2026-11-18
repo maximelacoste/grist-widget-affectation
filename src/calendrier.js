@@ -19,8 +19,28 @@ export function fermerCalendrier({ rendreFocus = false } = {}) {
   ouvert = null;
   popup.remove();
   document.removeEventListener('mousedown', surClicExterieur, true);
-  window.removeEventListener('resize', fermerCalendrier);
+  window.removeEventListener('resize', replacerCalendrier);
+  window.removeEventListener('scroll', replacerCalendrier, true);
   if (rendreFocus) input.focus();
+}
+
+/**
+ * Place la fenêtre sous le champ, ou au-dessus s'il n'y a pas la place, d'après la position actuelle du champ :
+ * appelée à l'ouverture puis à chaque défilement ou redimensionnement, pour que le calendrier suive son champ.
+ */
+function replacerCalendrier() {
+  if (!ouvert) return;
+  const { popup, input } = ouvert;
+  const r = input.getBoundingClientRect();
+  if (r.bottom < 0 || r.top > window.innerHeight) {
+    popup.style.visibility = 'hidden'; // le champ est sorti de l'écran : la fenêtre ne flotte pas seule
+    return;
+  }
+  popup.style.visibility = '';
+  const h = popup.offsetHeight;
+  const sous = r.bottom + 4 + h <= window.innerHeight || r.top - 4 - h < 0;
+  popup.style.left = `${Math.max(4, Math.min(r.left, window.innerWidth - popup.offsetWidth - 4))}px`;
+  popup.style.top = `${sous ? r.bottom + 4 : r.top - 4 - h}px`;
 }
 
 function surClicExterieur(e) {
@@ -102,6 +122,7 @@ export function ouvrirCalendrier(input) {
         el('button', { type: 'button', class: 'fr-btn fr-btn--sm fr-btn--tertiary', title: "Choisir la date d'aujourd'hui", onclick: () => choisir(todayIso) }, "Aujourd'hui"),
         el('button', { type: 'button', class: 'fr-btn fr-btn--sm fr-btn--tertiary', title: 'Vider le champ', onclick: () => choisir('') }, 'Effacer')),
     );
+    replacerCalendrier(); // la hauteur varie selon le mois (5 ou 6 semaines)
   };
 
   popup.addEventListener('keydown', (e) => {
@@ -112,15 +133,12 @@ export function ouvrirCalendrier(input) {
   });
   dessiner();
   document.body.append(popup);
-  // position : sous le champ, ou au-dessus s'il n'y a pas la place
-  const r = input.getBoundingClientRect();
-  const h = popup.offsetHeight;
-  const sous = r.bottom + 4 + h <= window.innerHeight || r.top - 4 - h < 0;
-  popup.style.left = `${Math.max(4, Math.min(r.left, window.innerWidth - popup.offsetWidth - 4))}px`;
-  popup.style.top = `${sous ? r.bottom + 4 : r.top - 4 - h}px`;
   ouvert = { popup, input };
+  replacerCalendrier();
   document.addEventListener('mousedown', surClicExterieur, true);
-  window.addEventListener('resize', fermerCalendrier);
+  window.addEventListener('resize', replacerCalendrier);
+  window.addEventListener('scroll', replacerCalendrier, true); // en capture : attrape aussi le défilement d'un conteneur
+
 }
 
 /**
