@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119e';
-import { attachSuggest } from './suggest.js?v=20261119e';
-import { activerCalendriers } from './calendrier.js?v=20261119e';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119f';
+import { attachSuggest } from './suggest.js?v=20261119f';
+import { activerCalendriers } from './calendrier.js?v=20261119f';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -188,6 +188,7 @@ function masquerPages() {
   $('#step-dispo').hidden = true;
   $('#step-secteur').hidden = true;
   $('#step-exclus').hidden = true;
+  $('#step-voeux').hidden = true;
 }
 
 function goto(step, { focus = true } = {}) {
@@ -1310,7 +1311,7 @@ async function openDossier(row, origine = 2) {
     h(
       'div',
       { class: 'fr-mt-2w' },
-      h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'exclus' ? 'Revenir à la liste des élèves exclus' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
+      h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'exclus' ? 'Revenir à la liste des élèves exclus' : origine === 'voeux' ? 'Revenir aux vœux de cet établissement' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
     ),
   );
   state.step = 0;
@@ -1336,7 +1337,7 @@ async function openDossier(row, origine = 2) {
   $('#h-dossier').focus();
 }
 
-const libelleRetourDossier = (origine) => (origine === 3 ? 'Revenir aux affectations' : origine === 'dispo' ? 'Revenir au dispositif' : origine === 'exclus' ? 'Revenir aux élèves exclus' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la page de résultats');
+const libelleRetourDossier = (origine) => (origine === 3 ? 'Revenir aux affectations' : origine === 'dispo' ? 'Revenir au dispositif' : origine === 'exclus' ? 'Revenir aux élèves exclus' : origine === 'voeux' ? 'Revenir aux vœux' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la page de résultats');
 
 function retourDossier(row, origine) {
   clearNotice();
@@ -1346,6 +1347,10 @@ function retourDossier(row, origine) {
   }
   if (origine === 'exclus' && state.exclus) {
     openExclus(state.exclus.retour, { garder: true });
+    return;
+  }
+  if (origine === 'voeux' && state.voeuxEtab) {
+    openVoeuxEtab(state.voeuxEtab.etabId, state.voeuxEtab.retour);
     return;
   }
   if (origine === 3 && state.eleve) {
@@ -2663,7 +2668,7 @@ async function openSecteur(retour = retourAccueil(), { garder = false, voeux = f
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title', id: 'h-secteur', tabindex: '-1' }, voeux ? `Vœux ULIS n+1 (rentrée ${anneeCible()})` : 'Tous les dispositifs'),
-      h('p', { class: 'fr-stepper__details' }, voeux ? "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. La colonne « Vœux » indique combien d'élèves présents n'ont pas encore de vœu pour la rentrée. Un clic sur un établissement ouvre son dispositif." : "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. Un clic sur un établissement ouvre son dispositif."),
+      h('p', { class: 'fr-stepper__details' }, voeux ? "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. La colonne « Vœux » indique combien d'élèves présents n'ont pas encore de vœu pour la rentrée. Un clic sur un établissement ouvre les vœux de ses élèves." : "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. Un clic sur un établissement ouvre son dispositif."),
     ),
     h(
       'nav',
@@ -2791,7 +2796,7 @@ function rendreSecteur() {
                       h(
                         'tr',
                         {},
-                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir le dispositif de cet établissement', onclick: () => openDispositif(e.id, retourSecteur()) }, e.label)),
+                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: sc.voeux ? "Ouvrir les vœux des élèves de cet établissement" : 'Ouvrir le dispositif de cet établissement', onclick: () => (sc.voeux ? openVoeuxEtab(e.id, retourSecteur()) : openDispositif(e.id, retourSecteur())) }, e.label)),
                         h('td', {}, e.type),
                         h('td', {}, e.commune || '—'),
                         aSecteur ? h('td', {}, e.secteurNum !== null ? String(e.secteurNum) : e.secteur || '—') : null,
@@ -2809,6 +2814,207 @@ function rendreSecteur() {
           ),
         ),
   );
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Vœux ULIS n+1 : page d'un établissement                             */
+/* ------------------------------------------------------------------ */
+const retourVoeuxEtab = (etabId, retour) => ({ libelle: "Revenir à l'établissement", action: () => openVoeuxEtab(etabId, retour) });
+
+/** Colonnes de `Voeux_ERS` réellement présentes : on n'écrit que celles-là. */
+function colonnesVoeux() {
+  const m = new Map();
+  for (const c of state.colById.values()) if (c.tableId === T_VOEUX) m.set(c.colId, c);
+  return m;
+}
+
+async function chargerVoeuxEtab(etabId) {
+  const base = await chargerDispositif(etabId);
+  const tv = await lireTable(T_VOEUX).catch(() => null);
+  if (!tv || !tv.Eleve) throw new Error(`la table ${T_VOEUX} est introuvable ou n'a pas de colonne Eleve`);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const cible = String(anneeCible());
+  const existants = new Map();
+  tv.id.forEach((id, i) => {
+    if (tv.Annee_cible && String(tv.Annee_cible[i]).trim() !== cible) return;
+    const num = (c) => (tv[c] && typeof tv[c][i] === 'number' && tv[c][i] > 0 ? tv[c][i] : 0);
+    existants.set(tv.Eleve[i], { id, niveau: tv.Niveau_n1 ? cellText(tv.Niveau_n1[i]).trim() : '', voeu1: num('Voeu_1'), voeu2: num('Voeu_2'), situation: tv.Situation ? cellText(tv.Situation[i]).trim() : '', statut: tv.Statut ? cellText(tv.Statut[i]).trim() : '' });
+  });
+  const eleves = elevesDuDispositif(base.lignes, etabId, todayIso, { situationPresent: SITUATION_PAR_DEFAUT }).rows
+    .filter((x) => base.parId.has(x.eleve))
+    .map((x) => {
+      const row = base.parId.get(x.eleve);
+      const niveau = (x.ligne.niveau || '').trim();
+      const ex = existants.get(x.eleve) || null;
+      const i = state.niveaux.indexOf(niveau);
+      const suivant = i >= 0 && i + 1 < state.niveaux.length ? state.niveaux[i + 1] : niveau;
+      const initial = { niveau1: ex && ex.niveau ? ex.niveau : suivant, voeu1: ex ? ex.voeu1 : 0, voeu2: ex ? ex.voeu2 : 0, situation: ex && ex.situation ? ex.situation : SITUATION_PAR_DEFAUT };
+      return { row, niveau, ex, initial, cur: { ...initial } };
+    })
+    .sort((a, b) => `${a.row.nom} ${a.row.prenom}`.localeCompare(`${b.row.nom} ${b.row.prenom}`, 'fr'));
+  return { eleves };
+}
+
+async function openVoeuxEtab(etabId, retour) {
+  if (state.edition) return gardeSortie(() => openVoeuxEtab(etabId, retour));
+  clearNotice();
+  let data;
+  try {
+    data = await chargerVoeuxEtab(etabId);
+  } catch (err) {
+    notify('error', `Lecture des vœux impossible : ${err.message}`);
+    return;
+  }
+  state.voeuxEtab = { etabId, retour, data };
+  const label = state.etabLabel.get(etabId) || `#${etabId}`;
+  state.step = 0;
+  masquerPages();
+  $('#step-voeux').hidden = false;
+  $('#stepper').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-stepper' },
+      h('h1', { class: 'fr-stepper__title', id: 'h-voeux', tabindex: '-1' }, `Vœux ULIS n+1 : ${label}`),
+      h('p', { class: 'fr-stepper__details' }, `Élèves présents d'après leur affectation en cours, pour la rentrée ${anneeCible()}. Cochez « Reste dans l'établissement » ou choisissez un autre vœu, puis validez une seule fois pour tout l'établissement.`),
+    ),
+    h(
+      'nav',
+      { 'aria-label': 'Navigation', class: 'step-nav fr-mb-2w' },
+      h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', title: 'Quitter cette page : les modifications non validées sont perdues', onclick: () => { clearNotice(); retour.action(); } }, retour.libelle),
+    ),
+  );
+  rendreVoeuxEtab();
+  $('#h-voeux').focus();
+}
+
+const voeuxChange = (e) => e.cur.niveau1 !== e.initial.niveau1 || e.cur.voeu1 !== e.initial.voeu1 || e.cur.voeu2 !== e.initial.voeu2 || e.cur.situation !== e.initial.situation;
+
+function rendreVoeuxEtab() {
+  const { etabId, data } = state.voeuxEtab;
+  const eleves = data.eleves;
+  const optsEtab = (vide) => [h('option', { value: '0' }, vide), ...state.etabs.map((e) => h('option', { value: String(e.id) }, e.label))];
+  const maj = () => {
+    const n = eleves.filter(voeuxChange).length;
+    $('#voeux-etat').textContent = n ? `${n} modification${n > 1 ? 's' : ''} à valider` : 'Aucune modification à valider';
+    $('#btn-valider-voeux').disabled = n === 0;
+  };
+  const ligne = (e, i) => {
+    const pre = `v${i}`;
+    const nom = `${e.row.nom} ${e.row.prenom}`.trim() || 'Sans nom';
+    const rest = h('input', { type: 'checkbox', id: `${pre}-reste`, checked: e.cur.voeu1 === etabId, disabled: lectureSeule() });
+    const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: lectureSeule() }, state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n)));
+    const v1 = h('select', { class: 'fr-select', id: `${pre}-v1`, 'aria-label': `Vœu 1 de ${nom}`, disabled: lectureSeule() }, optsEtab('Aucun vœu'));
+    const v2 = h('select', { class: 'fr-select', id: `${pre}-v2`, 'aria-label': `Vœu 2 de ${nom}`, disabled: lectureSeule() }, optsEtab('Aucun'));
+    const sit = h('select', { class: 'fr-select', id: `${pre}-sit`, 'aria-label': `Situation de ${nom}`, disabled: lectureSeule() }, state.situations.map((x) => h('option', { value: x, selected: x === e.cur.situation }, x)));
+    v1.value = String(e.cur.voeu1);
+    v2.value = String(e.cur.voeu2);
+    const redoublement = h('span', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', id: `${pre}-red`, hidden: e.cur.niveau1 !== e.niveau || !e.niveau }, 'Redoublement');
+    const rafraichir = () => {
+      redoublement.hidden = !(e.cur.niveau1 === e.niveau && e.niveau);
+      rest.checked = e.cur.voeu1 === etabId;
+      v1.value = String(e.cur.voeu1);
+      maj();
+    };
+    rest.addEventListener('change', () => {
+      if (rest.checked) {
+        e.cur.voeu1 = etabId;
+        e.cur.situation = SITUATION_PAR_DEFAUT;
+        sit.value = SITUATION_PAR_DEFAUT;
+      } else if (e.cur.voeu1 === etabId) e.cur.voeu1 = 0;
+      rafraichir();
+    });
+    niv.addEventListener('change', () => { e.cur.niveau1 = niv.value; rafraichir(); });
+    v1.addEventListener('change', () => { e.cur.voeu1 = Number(v1.value); rafraichir(); });
+    v2.addEventListener('change', () => { e.cur.voeu2 = Number(v2.value); rafraichir(); });
+    sit.addEventListener('change', () => { e.cur.situation = sit.value; rafraichir(); });
+    return h(
+      'tr',
+      {},
+      h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
+      h('td', {}, e.niveau || '—'),
+      h('td', {}, niv, ' ', redoublement),
+      h('td', {}, h('div', { class: 'fr-checkbox-group fr-checkbox-group--sm' }, rest, h('label', { class: 'fr-label', for: `${pre}-reste`, title: "Remplit le vœu 1 avec cet établissement et la situation « En ULIS »" }, h('span', { class: 'fr-sr-only' }, `${nom} : `), "Reste dans l'établissement"))),
+      h('td', {}, v1),
+      h('td', {}, v2),
+      h('td', {}, sit),
+    );
+  };
+  $('#voeux').replaceChildren(
+    h('p', { role: 'status' }, `${eleves.length} élève${eleves.length > 1 ? 's' : ''} présent${eleves.length > 1 ? 's' : ''}`),
+    eleves.length === 0
+      ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, "Aucun élève n'est présent dans ce dispositif."))
+      : h(
+          'div',
+          { class: 'fr-table fr-table--no-caption' },
+          h('div', { class: 'fr-table__wrapper' }, h('div', { class: 'fr-table__container' }, h('div', { class: 'fr-table__content' },
+            h('table', {},
+              h('caption', {}, `Vœux des élèves, rentrée ${anneeCible()}`),
+              h('thead', {}, h('tr', {}, ['Élève', 'Classe actuelle', 'Niveau n+1', "Reste dans l'établissement", 'Vœu 1', 'Vœu 2', 'Situation'].map((t) => h('th', { scope: 'col' }, t)))),
+              h('tbody', {}, eleves.map(ligne)),
+            ),
+          ))),
+        ),
+    h(
+      'div',
+      { class: 'fr-mt-3w bouton-ecriture' },
+      h('p', { id: 'voeux-etat', role: 'status', class: 'fr-hint-text' }),
+      h('button', { type: 'button', class: 'fr-btn', id: 'btn-valider-voeux', title: "Enregistrer d'un coup les vœux modifiés de tout cet établissement, après une confirmation", onclick: validerVoeuxEtab }, "Valider les vœux de l'établissement"),
+    ),
+  );
+  maj();
+}
+
+function validerVoeuxEtab() {
+  clearNotice();
+  const { etabId, data } = state.voeuxEtab;
+  const aEcrire = data.eleves.filter((e) => voeuxChange(e) && e.cur.voeu1 > 0);
+  const sansVoeu = data.eleves.filter((e) => voeuxChange(e) && e.cur.voeu1 === 0);
+  if (sansVoeu.length) {
+    notify('error', `${sansVoeu.length} élève${sansVoeu.length > 1 ? 's' : ''} modifié${sansVoeu.length > 1 ? 's' : ''} sans vœu 1 : ${sansVoeu.map((e) => `${e.row.nom} ${e.row.prenom}`.trim()).join(', ')}. Choisissez un vœu 1 (ou cochez « Reste dans l'établissement »).`);
+    return;
+  }
+  if (!aEcrire.length) return;
+  const nomEtab = (id) => (id ? state.etabLabel.get(id) || `#${id}` : 'Aucun');
+  ouvrirModale({
+    titre: `Valider ${aEcrire.length} vœu${aEcrire.length > 1 ? 'x' : ''} pour la rentrée ${anneeCible()}`,
+    icone: 'fr-icon-check-line',
+    corps: [
+      h(
+        'table',
+        { class: 'modale-diff' },
+        h('caption', { class: 'fr-sr-only' }, 'Vœux à enregistrer'),
+        h('thead', {}, h('tr', {}, ['Élève', 'Niveau n+1', 'Vœu 1', 'Vœu 2', 'Situation'].map((t) => h('th', { scope: 'col' }, t)))),
+        h('tbody', {}, aEcrire.map((e) => h('tr', {}, h('th', { scope: 'row' }, `${e.row.nom} ${e.row.prenom}`.trim()), h('td', { class: 'diff-apres' }, e.cur.niveau1), h('td', { class: 'diff-apres' }, nomEtab(e.cur.voeu1)), h('td', { class: 'diff-apres' }, nomEtab(e.cur.voeu2)), h('td', { class: 'diff-apres' }, e.cur.situation)))),
+      ),
+    ],
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, valider', info: 'Écrire ces vœux dans Grist', onClick: () => ecrireVoeuxEtab(aEcrire) },
+      { id: 'dlg-non', libelle: 'Revenir à la saisie', info: "Fermer cette fenêtre : rien n'est enregistré", secondaire: true },
+    ],
+    focus: 'dlg-oui',
+  });
+}
+
+async function ecrireVoeuxEtab(aEcrire) {
+  const cols = colonnesVoeux();
+  const typeAnnee = cols.get('Annee_cible') ? cols.get('Annee_cible').type : '';
+  const annee = /^(Int|Numeric)/.test(typeAnnee) ? anneeCible() : String(anneeCible());
+  const actions = aEcrire.map((e) => {
+    const f = { Niveau_n1: e.cur.niveau1, Voeu_1: e.cur.voeu1, Voeu_2: e.cur.voeu2, Situation: e.cur.situation };
+    const champs = Object.fromEntries(Object.entries(f).filter(([k]) => cols.has(k)));
+    if (e.ex) return ['UpdateRecord', T_VOEUX, e.ex.id, champs];
+    return ['AddRecord', T_VOEUX, null, { Eleve: e.row.id, ...(cols.has('Annee_cible') ? { Annee_cible: annee } : {}), ...(cols.has('Statut') ? { Statut: 'Saisi' } : {}), ...champs }];
+  });
+  try {
+    viderCache();
+    await grist.docApi.applyUserActions(actions);
+    const { etabId, retour } = state.voeuxEtab;
+    await openVoeuxEtab(etabId, retour);
+    notify('success', `${actions.length} vœu${actions.length > 1 ? 'x' : ''} enregistré${actions.length > 1 ? 's' : ''}.`);
+  } catch (err) {
+    notify('error', `Enregistrement impossible : ${err.message}`);
+  }
 }
 
 $('#btn-secteur').addEventListener('click', () => openSecteur(retourAccueil()));

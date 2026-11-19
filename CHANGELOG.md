@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Page « Vœux ULIS n+1 » d'un établissement (clic sur un établissement de la liste des vœux) : une ligne par élève présent, niveau n+1 (suivant par défaut, repère « Redoublement »), coche « Reste dans l'établissement » (vœu 1 = établissement, situation En ULIS), vœux 1 et 2, situation, et une seule validation confirmée pour tout l'établissement, écrite dans `Voeux_ERS`. Pas encore de restriction par ERS.
 - Nouvelle page « Vœux ULIS n+1 » (bouton sur l'accueil) : mêmes filtres que « Tous les dispositifs » (secteur, type, ERS, occupation), plus une colonne « Vœux » (élèves présents sans vœu pour la rentrée visée, lue dans la table `Voeux_ERS`) et un filtre « il manque des vœux / tous saisis ». Pas encore de restriction par ERS.
 - Sécurité : politique de sécurité de contenu (CSP) activée dans `index.html` : seuls les fichiers du dépôt s'exécutent, et le seul appel réseau autorisé est l'autocomplétion d'adresse (data.geopf.fr).
 - Sécurité : l'API de plugin Grist est maintenant chargée depuis une copie datée du dépôt (`vendor/grist/`, empreinte SHA-256 notée dans `VERSION`) et non plus depuis docs.getgrist.com : plus aucun script tiers exécuté avec l'accès complet au document.

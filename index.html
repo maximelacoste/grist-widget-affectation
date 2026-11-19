@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-map/icons-map.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-business/icons-business.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-device/icons-device.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261119e">
+  <link rel="stylesheet" href="src/style.css?v=20261119f">
   <!-- API de plugin Grist : copie datée de l'instance (vendor/grist/VERSION : source, date, empreinte SHA-256), pour ne charger
        aucun script depuis un site tiers. Mise à jour volontaire : sh scripts/vendor-grist-api.sh https://<instance> -->
   <script src="vendor/grist/grist-plugin-api.js"></script>
@@ -96,6 +96,11 @@
       <div id="secteur"></div>
     </section>
 
+    <!-- Page dédiée : vœux ULIS n+1 d'un établissement -->
+    <section id="step-voeux" aria-label="Vœux ULIS n+1 d'un établissement" hidden>
+      <div id="voeux"></div>
+    </section>
+
     <!-- Page dédiée : élèves exclus -->
     <section id="step-exclus" aria-label="Élèves exclus" hidden>
       <div id="exclus"></div>
@@ -166,7 +171,7 @@
 
   <script type="module" src="vendor/dsfr/dsfr.module.min.js"></script>
   <script nomodule src="vendor/dsfr/dsfr.nomodule.min.js"></script>
-  <script src="src/garde.js?v=20261119e"></script>
-  <script type="module" src="src/app.js?v=20261119e"></script>
+  <script src="src/garde.js?v=20261119f"></script>
+  <script type="module" src="src/app.js?v=20261119f"></script>
 </body>
 </html>
