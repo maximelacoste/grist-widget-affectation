@@ -3,7 +3,7 @@
 ## [Non publié]
 
 - Sécurité : quand Grist ouvre le widget en lecture seule (`readonly=true`), les boutons qui écrivent disparaissent (Modifier le dossier, Nouvelle affectation, Ajouter un élève, Créer une fiche, notes, crayons et corbeilles) et l'interrupteur de liste d'attente est désactivé. Sans le paramètre, rien n'est masqué ; la règle d'accès de Grist reste la vraie protection.
-- Sécurité : script `scripts/vendor-grist-api.sh` pour copier une version datée de l'API de plugin Grist dans `vendor/grist/` (pas encore activé dans `index.html`, voir docs/audit-securite-accessibilite.md).
+- Sécurité : script `scripts/vendor-grist-api.sh` pour copier une version datée de l'API de plugin Grist dans `vendor/grist/` (télécharge le fichier depuis l'instance Grist ; pas encore activé dans `index.html`, voir docs/audit-securite-accessibilite.md).
 - Accueil : les deux blocs du bas (« Élèves exclus » et « Tous les dispositifs ») sont plus écartés des recherches au-dessus (48 px, identiques dans les deux colonnes ; chacun reste aligné sur sa colonne).
 - Dossier : une ligne d'historique en situation « Exclusion » porte une pastille rouge bien visible (dans l'historique du dossier et dans la liste des affectations).
 - Élèves exclus : la colonne « Établissement » devient « Dernière affectation » (la ligne d'exclusion n'a généralement pas d'établissement : on affiche la ligne la plus récente qui en porte un, et sa classe si l'exclusion n'en a pas). Sur l'accueil, le bloc « Élèves exclus » passe sous la recherche d'un élève.
