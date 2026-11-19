@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119d';
-import { attachSuggest } from './suggest.js?v=20261119d';
-import { activerCalendriers } from './calendrier.js?v=20261119d';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119e';
+import { attachSuggest } from './suggest.js?v=20261119e';
+import { activerCalendriers } from './calendrier.js?v=20261119e';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2571,7 +2571,7 @@ const retourSecteur = () =>
 function anneeCible(d = new Date()) {
   return d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear();
 }
-const T_VOEUX = 'Voeux';
+const T_VOEUX = 'Voeux_ERS';
 
 async function chargerSecteur({ voeux = false } = {}) {
   const [t, tScol, tInd] = await Promise.all([lireTable(state.etabTable), lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS)]);
