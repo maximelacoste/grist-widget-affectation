@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119g';
-import { attachSuggest } from './suggest.js?v=20261119g';
-import { activerCalendriers } from './calendrier.js?v=20261119g';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119h';
+import { attachSuggest } from './suggest.js?v=20261119h';
+import { activerCalendriers } from './calendrier.js?v=20261119h';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2831,6 +2831,17 @@ function rendreSecteur() {
 /* ------------------------------------------------------------------ */
 /* Vœux ULIS n+1 : page d'un établissement                             */
 /* ------------------------------------------------------------------ */
+/** « Maintien en ULIS » : l'élève reste dans son niveau (pas de +1). */
+const estMaintien = (situation) => /^maintien/i.test(String(situation || '').trim());
+/** Niveau de 3e (« 3e », « 3ème », « 3eme »…) : un maintien y est signalé car il n'est pas de droit. */
+const est3e = (niveau) => /^3(g|pm|e|è|\s|$)/i.test(String(niveau || '').trim());
+/** Situation qui sort du dispositif (retour en classe ordinaire, sortie) : pas de vœu d'établissement ULIS à saisir. */
+const estSortie = (situation) => /^(sortie|retour)|ordinaire/i.test(String(situation || '').trim());
+const niveauSuivant = (niveau) => {
+  const i = state.niveaux.indexOf(niveau);
+  return i >= 0 && i + 1 < state.niveaux.length ? state.niveaux[i + 1] : niveau;
+};
+const alerteMaintien3e = (niveau, situation) => estMaintien(situation) && est3e(niveau);
 const retourVoeuxEtab = (etabId, retour) => ({ libelle: "Revenir à l'établissement", action: () => openVoeuxEtab(etabId, retour) });
 
 /** Colonnes de `Voeux_ERS` réellement présentes : on n'écrit que celles-là. */
@@ -2859,8 +2870,7 @@ async function chargerVoeuxEtab(etabId) {
       const row = base.parId.get(x.eleve);
       const niveau = (x.ligne.niveau || '').trim();
       const ex = existants.get(x.eleve) || null;
-      const i = state.niveaux.indexOf(niveau);
-      const suivant = i >= 0 && i + 1 < state.niveaux.length ? state.niveaux[i + 1] : niveau;
+      const suivant = niveauSuivant(niveau);
       const initial = { niveau1: ex && ex.niveau ? ex.niveau : suivant, voeu1: ex ? ex.voeu1 : 0, voeu2: ex ? ex.voeu2 : 0, situation: ex && ex.situation ? ex.situation : SITUATION_PAR_DEFAUT };
       return { row, niveau, ex, initial, cur: { ...initial }, gere: gereParErs(etabId, x.eleve) };
     })
@@ -2910,6 +2920,10 @@ function rendreVoeuxEtab() {
     const n = eleves.filter(voeuxChange).length;
     $('#voeux-etat').textContent = n ? `${n} modification${n > 1 ? 's' : ''} à valider` : 'Aucune modification à valider';
     $('#btn-valider-voeux').disabled = n === 0;
+    const na = nbAlertes();
+    const panneau = $('#voeux-alerte-globale');
+    panneau.hidden = na === 0;
+    panneau.querySelector('p:last-child').textContent = `${na} élève${na > 1 ? 's' : ''} en 3e avec un maintien en ULIS : ce maintien n'est pas de droit et sera examiné en commission.`;
   };
   const ligne = (e, i) => {
     const pre = `v${i}`;
@@ -2922,9 +2936,11 @@ function rendreVoeuxEtab() {
     const sit = h('select', { class: 'fr-select', id: `${pre}-sit`, 'aria-label': `Situation de ${nom}`, disabled: ro }, state.situations.map((x) => h('option', { value: x, selected: x === e.cur.situation }, x)));
     v1.value = String(e.cur.voeu1);
     v2.value = String(e.cur.voeu2);
-    const redoublement = h('span', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', id: `${pre}-red`, hidden: e.cur.niveau1 !== e.niveau || !e.niveau }, 'Redoublement');
+    const redoublement = h('span', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', id: `${pre}-red`, title: "Le niveau n+1 est le niveau actuel : pour un maintien, choisissez la situation « Maintien en ULIS »", hidden: true }, 'Même niveau');
+    const alerte = h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', id: `${pre}-alerte`, title: "Un maintien en 3e n'est pas de droit : à examiner en commission", hidden: true }, 'Maintien en 3e : pas de droit');
     const rafraichir = () => {
-      redoublement.hidden = !(e.cur.niveau1 === e.niveau && e.niveau);
+      redoublement.hidden = !(e.cur.niveau1 === e.niveau && e.niveau && !estMaintien(e.cur.situation));
+      alerte.hidden = !alerteMaintien3e(e.niveau, e.cur.situation);
       rest.checked = e.cur.voeu1 === etabId;
       v1.value = String(e.cur.voeu1);
       maj();
@@ -2940,20 +2956,34 @@ function rendreVoeuxEtab() {
     niv.addEventListener('change', () => { e.cur.niveau1 = niv.value; rafraichir(); });
     v1.addEventListener('change', () => { e.cur.voeu1 = Number(v1.value); rafraichir(); });
     v2.addEventListener('change', () => { e.cur.voeu2 = Number(v2.value); rafraichir(); });
-    sit.addEventListener('change', () => { e.cur.situation = sit.value; rafraichir(); });
+    sit.addEventListener('change', () => {
+      e.cur.situation = sit.value;
+      // Maintien en ULIS : même niveau (pas de +1) ; en le quittant, on revient au niveau suivant.
+      if (estSortie(sit.value)) {
+        e.cur.voeu1 = 0;
+        e.cur.voeu2 = 0;
+        v2.value = '0';
+      }
+      if (estMaintien(sit.value) && e.niveau) e.cur.niveau1 = e.niveau;
+      else if (e.cur.niveau1 === e.niveau && e.niveau) e.cur.niveau1 = niveauSuivant(e.niveau);
+      niv.value = e.cur.niveau1;
+      rafraichir();
+    });
     return h(
       'tr',
       { class: e.gere ? null : 'ligne-grisee' },
       h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.gere ? null : [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, 'Élève suivi par un autre ERS'), h('br'), h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: "Ajouter cet élève à votre liste : vous pourrez saisir ses vœux", onclick: () => demanderRattachement(e.row) }, "C'est mon élève")], e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
       h('td', {}, e.niveau || '—'),
-      h('td', {}, niv, ' ', redoublement),
+      h('td', {}, niv, ' ', redoublement, h('br'), alerte),
       h('td', {}, h('div', { class: 'fr-checkbox-group fr-checkbox-group--sm' }, rest, h('label', { class: 'fr-label', for: `${pre}-reste`, title: "Remplit le vœu 1 avec cet établissement et la situation « En ULIS »" }, h('span', { class: 'fr-sr-only' }, `${nom} : `), "Reste dans l'établissement"))),
       h('td', {}, v1),
       h('td', {}, v2),
       h('td', {}, sit),
     );
   };
+  const nbAlertes = () => eleves.filter((e) => alerteMaintien3e(e.niveau, e.cur.situation)).length;
   $('#voeux').replaceChildren(
+    h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'voeux-alerte-globale', role: 'status', hidden: true }, h('p', { class: 'fr-alert__title' }, 'Maintien en 3e'), h('p', {})),
     h('p', { role: 'status' }, `${eleves.length} élève${eleves.length > 1 ? 's' : ''} présent${eleves.length > 1 ? 's' : ''}`),
     eleves.length === 0
       ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, "Aucun élève n'est présent dans ce dispositif."))
@@ -2981,10 +3011,10 @@ function rendreVoeuxEtab() {
 function validerVoeuxEtab() {
   clearNotice();
   const { etabId, data } = state.voeuxEtab;
-  const aEcrire = data.eleves.filter((e) => e.gere && voeuxChange(e) && e.cur.voeu1 > 0);
-  const sansVoeu = data.eleves.filter((e) => voeuxChange(e) && e.cur.voeu1 === 0);
+  const aEcrire = data.eleves.filter((e) => e.gere && voeuxChange(e) && (e.cur.voeu1 > 0 || estSortie(e.cur.situation)));
+  const sansVoeu = data.eleves.filter((e) => e.gere && voeuxChange(e) && e.cur.voeu1 === 0 && !estSortie(e.cur.situation));
   if (sansVoeu.length) {
-    notify('error', `${sansVoeu.length} élève${sansVoeu.length > 1 ? 's' : ''} modifié${sansVoeu.length > 1 ? 's' : ''} sans vœu 1 : ${sansVoeu.map((e) => `${e.row.nom} ${e.row.prenom}`.trim()).join(', ')}. Choisissez un vœu 1 (ou cochez « Reste dans l'établissement »).`);
+    notify('error', `${sansVoeu.length} élève${sansVoeu.length > 1 ? 's' : ''} modifié${sansVoeu.length > 1 ? 's' : ''} sans vœu 1 : ${sansVoeu.map((e) => `${e.row.nom} ${e.row.prenom}`.trim()).join(', ')}. Choisissez un vœu 1 (ou cochez « Reste dans l'établissement »), ou une situation de sortie du dispositif.`);
     return;
   }
   if (!aEcrire.length) return;
@@ -2993,6 +3023,7 @@ function validerVoeuxEtab() {
     titre: `Valider ${aEcrire.length} vœu${aEcrire.length > 1 ? 'x' : ''} pour la rentrée ${anneeCible()}`,
     icone: 'fr-icon-check-line',
     corps: [
+      aEcrire.some((e) => alerteMaintien3e(e.niveau, e.cur.situation)) ? h('p', { class: 'fr-error-text' }, "Attention : au moins un maintien en 3e, qui n'est pas de droit. Il sera enregistré et signalé à la commission.") : null,
       h(
         'table',
         { class: 'modale-diff' },
