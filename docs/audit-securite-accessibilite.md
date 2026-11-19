@@ -28,7 +28,7 @@ default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';
 img-src 'self' data:; font-src 'self'; connect-src https://data.geopf.fr; base-uri 'none'; form-action 'none'
 ```
 
-Elle n'est **pas activée** : elle n'a pas pu être vérifiée avec le vrai script de Grist sur l'instance, et une règle trop stricte donnerait une page blanche. Pour l'essayer : ajouter `<meta http-equiv="Content-Security-Policy" content="…">` dans `index.html` sur une copie du widget, ouvrir la console, et vérifier l'absence de « Refused to … ». `frame-ancestors` ne peut pas se poser par balise `meta` (GitHub Pages ne permet pas les en-têtes).
+Elle est **activée depuis le 19 novembre** (balise `meta` dans `index.html`), après test avec le jeu fictif et avec l'API de plugin désormais hébergée dans le dépôt. Si le widget reste blanc après une modification, chercher « Refused to … » dans la console et ajuster la règle. Pour l'essayer : ajouter `<meta http-equiv="Content-Security-Policy" content="…">` dans `index.html` sur une copie du widget, ouvrir la console, et vérifier l'absence de « Refused to … ». `frame-ancestors` ne peut pas se poser par balise `meta` (GitHub Pages ne permet pas les en-têtes).
 
 ## Accessibilité
 

@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Sécurité : politique de sécurité de contenu (CSP) activée dans `index.html` : seuls les fichiers du dépôt s'exécutent, et le seul appel réseau autorisé est l'autocomplétion d'adresse (data.geopf.fr).
 - Sécurité : l'API de plugin Grist est maintenant chargée depuis une copie datée du dépôt (`vendor/grist/`, empreinte SHA-256 notée dans `VERSION`) et non plus depuis docs.getgrist.com : plus aucun script tiers exécuté avec l'accès complet au document.
 - Sécurité : quand Grist ouvre le widget en lecture seule (`readonly=true`), les boutons qui écrivent disparaissent (Modifier le dossier, Nouvelle affectation, Ajouter un élève, Créer une fiche, notes, crayons et corbeilles) et l'interrupteur de liste d'attente est désactivé. Sans le paramètre, rien n'est masqué ; la règle d'accès de Grist reste la vraie protection.
 - Sécurité : script `scripts/vendor-grist-api.sh` pour copier une version datée de l'API de plugin Grist dans `vendor/grist/` (télécharge le fichier depuis l'instance Grist ; pas encore activé dans `index.html`, voir docs/audit-securite-accessibilite.md).
