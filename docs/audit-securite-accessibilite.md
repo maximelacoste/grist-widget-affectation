@@ -14,7 +14,7 @@ Méthode : relecture du code, recherche des constructions à risque, parcours au
 
 ### Risques et recommandations (par ordre d'importance)
 1. **Chaîne d'approvisionnement du widget (important).** Le widget tourne avec l'accès `full` au document. Le dépôt est public, déployé par GitHub Pages, et la branche `main` n'est pas protégée : qui prend la main sur le compte GitHub peut publier du code lisant et écrivant tout le document. À faire : double authentification obligatoire, protection de `main` (pull request, pas de poussée forcée), et, si possible, héberger le widget sur l'infrastructure de l'incubateur plutôt que sur Pages.
-2. **Script externe `docs.getgrist.com/grist-plugin-api.js`**, exécuté avec ces mêmes droits, sans empreinte (SRI impossible sur un fichier qui change). Recommandation : en copier une version datée dans `vendor/` (comme le DSFR) et la mettre à jour volontairement. Le script `scripts/vendor-grist-api.sh` télécharge le fichier depuis l'instance Grist (le paquet npm `grist-plugin-api` n'est pas une source fiable : version 0.0.1) ; il reste à copier ce fichier, puis à changer la balise `script` de `index.html` après un test sur l'instance.
+2. **Script externe `docs.getgrist.com/grist-plugin-api.js` (traité le 19 novembre).** Le script, exécuté avec l'accès `full`, est désormais une copie datée de l'instance (`vendor/grist/`, provenance et empreinte SHA-256 dans `vendor/grist/VERSION`) : plus aucun script chargé depuis un site tiers. Mise à jour volontaire avec `scripts/vendor-grist-api.sh`. À contrôler une fois sur l'instance (le widget doit se charger et lire les tables). Le paquet npm `grist-plugin-api` n'est pas une source fiable (version 0.0.1).
 3. **Adresses envoyées à un service tiers.** Pendant la saisie d'une adresse (création de fiche, modification), le texte tapé part vers `data.geopf.fr` (Géoplateforme de l'IGN, service public). Le nom de l'élève n'est pas envoyé, mais l'adresse d'un élève mineur est une donnée personnelle : à inscrire au registre des traitements / à l'analyse d'impact et à valider avec le DPD.
 4. **Droits : seule la règle d'accès Grist protège.** Depuis le 19 novembre, `readonly=true` masque aussi les boutons d'écriture (sans le paramètre, rien n'est masqué) ; ce n'est qu'un confort d'affichage, et Grist refuse l'écriture si le compte n'a pas le droit. À vérifier une fois avec un compte lecteur et avec l'URL `?embed=true` (tentative d'ajout d'une note : elle doit être refusée).
 5. **Adresse professionnelle dans l'historique Git public.** Les commits portent `…@ac-toulouse.fr`. Pour les prochains, utiliser l'adresse `noreply` de GitHub (Settings > Emails > « Keep my email addresses private »). Réécrire l'historique existant n'est pas recommandé sans besoin.
@@ -24,7 +24,7 @@ Méthode : relecture du code, recherche des constructions à risque, parcours au
 La page fonctionne sous la politique ci-dessous (testée avec le jeu fictif : aucune violation) :
 
 ```
-default-src 'none'; script-src 'self' https://docs.getgrist.com; style-src 'self' 'unsafe-inline';
+default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';
 img-src 'self' data:; font-src 'self'; connect-src https://data.geopf.fr; base-uri 'none'; form-action 'none'
 ```
 
