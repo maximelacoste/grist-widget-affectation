@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119c';
-import { attachSuggest } from './suggest.js?v=20261119c';
-import { activerCalendriers } from './calendrier.js?v=20261119c';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119d';
+import { attachSuggest } from './suggest.js?v=20261119d';
+import { activerCalendriers } from './calendrier.js?v=20261119d';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2562,10 +2562,29 @@ function rendreDispositif() {
 /* Page « Tous les dispositifs »                                         */
 /* ------------------------------------------------------------------ */
 const TYPE_LIBELLE = { ECO: 'École', CLG: 'Collège', LYC: 'Lycée' };
-const retourSecteur = () => ({ libelle: 'Revenir à tous les dispositifs', action: () => openSecteur(state.secteur.retour, { garder: true }) });
+const retourSecteur = () =>
+  state.secteur && state.secteur.voeux
+    ? { libelle: 'Revenir aux vœux ULIS n+1', action: () => openSecteur(state.secteur.retour, { garder: true, voeux: true }) }
+    : { libelle: 'Revenir à tous les dispositifs', action: () => openSecteur(state.secteur.retour, { garder: true }) };
 
-async function chargerSecteur() {
+/** Année de la rentrée visée par les vœux : de septembre à décembre, l'année suivante ; de janvier à août, l'année en cours. */
+function anneeCible(d = new Date()) {
+  return d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear();
+}
+const T_VOEUX = 'Voeux';
+
+async function chargerSecteur({ voeux = false } = {}) {
   const [t, tScol, tInd] = await Promise.all([lireTable(state.etabTable), lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS)]);
+  // Vœux n+1 déjà saisis pour la rentrée visée : ensemble des élèves concernés (table `Voeux`, colonnes Eleve et Annee_cible).
+  let avecVoeu = new Set();
+  if (voeux) {
+    const tv = await lireTable(T_VOEUX).catch(() => null);
+    if (!tv || !tv.Eleve) throw new Error(`la table ${T_VOEUX} est introuvable ou n'a pas de colonne Eleve`);
+    const cible = String(anneeCible());
+    tv.id.forEach((_, i) => {
+      if (!tv.Annee_cible || String(tv.Annee_cible[i]).trim() === cible) avecVoeu.add(tv.Eleve[i]);
+    });
+  }
   const idxInd = new Map(tInd.id.map((id, i) => [id, i]));
   const todayIso = new Date().toISOString().slice(0, 10);
   const lignes = lignesDe(tScol);
@@ -2615,6 +2634,7 @@ async function chargerSecteur() {
       ersh: texte('Uai_ERSH', i).replace(/\s+/g, ' ').trim(),
       places,
       presents: n.presents,
+      sansVoeu: n.ids.filter((id) => !avecVoeu.has(id)).length,
       attente: n.attente,
       finEchues,
       finProches,
@@ -2623,18 +2643,18 @@ async function chargerSecteur() {
   return { etabs, aSecteur: Boolean(t.Secteur_CDOEA || cdoeaCalc), aErs: Boolean(t.Secteur_ERS || ersCalc) };
 }
 
-async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
-  if (state.edition) return gardeSortie(() => openSecteur(retour, { garder }));
+async function openSecteur(retour = retourAccueil(), { garder = false, voeux = false } = {}) {
+  if (state.edition) return gardeSortie(() => openSecteur(retour, { garder, voeux }));
   clearNotice();
   let data;
   try {
-    data = await chargerSecteur();
+    data = await chargerSecteur({ voeux });
   } catch (err) {
-    notify('error', `Lecture des établissements impossible : ${err.message}`);
+    notify('error', `Lecture des ${voeux ? 'vœux' : 'établissements'} impossible : ${err.message}`);
     return;
   }
   const prec = garder && state.secteur ? state.secteur : null;
-  state.secteur = { retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { q: '', secteur: '', type: '', ers: '', alerte: '', occup: '' } };
+  state.secteur = { voeux, retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { q: '', secteur: '', type: '', ers: '', alerte: '', occup: '', voeux: '' } };
   state.step = 0;
   masquerPages();
   $('#step-secteur').hidden = false;
@@ -2642,8 +2662,8 @@ async function openSecteur(retour = retourAccueil(), { garder = false } = {}) {
     h(
       'div',
       { class: 'fr-stepper' },
-      h('h1', { class: 'fr-stepper__title', id: 'h-secteur', tabindex: '-1' }, 'Tous les dispositifs'),
-      h('p', { class: 'fr-stepper__details' }, "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. Un clic sur un établissement ouvre son dispositif."),
+      h('h1', { class: 'fr-stepper__title', id: 'h-secteur', tabindex: '-1' }, voeux ? `Vœux ULIS n+1 (rentrée ${anneeCible()})` : 'Tous les dispositifs'),
+      h('p', { class: 'fr-stepper__details' }, voeux ? "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. La colonne « Vœux » indique combien d'élèves présents n'ont pas encore de vœu pour la rentrée. Un clic sur un établissement ouvre son dispositif." : "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, type, ERS et occupation. Un clic sur un établissement ouvre son dispositif."),
     ),
     h(
       'nav',
@@ -2673,7 +2693,7 @@ function rendreSecteur() {
     .map(([code, nom]) => [code, nom ? `Secteur ${code} (${nom})` : `Secteur ${code}`]);
   if (f.ers && !parCode.has(f.ers)) f.ers = '';
   const tri = sc.tri || (sc.tri = { cle: 'label', dir: 1 });
-  const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, fins: (e) => e.finEchues * 1000 + e.finProches };
+  const clesTri = { label: (e) => e.label, type: (e) => e.type, commune: (e) => e.commune, secteur: (e) => e.secteur, ers: (e) => e.ers, effectif: (e) => e.presents, fins: (e) => e.finEchues * 1000 + e.finProches, voeux: (e) => e.sansVoeu };
   const onTri = (cle) => {
     sc.tri = { cle, dir: tri.cle === cle ? -tri.dir : 1 };
     rendreSecteur();
@@ -2681,7 +2701,7 @@ function rendreSecteur() {
   };
   const jetons = normSearch(f.q || '').split(/\s+/).filter(Boolean);
   const correspond = (e) => !jetons.length || jetons.every((t) => normSearch(`${e.label} ${e.commune} ${e.uai} ${e.type}`).includes(t));
-  const liste0 = etabs.filter((e) => correspond(e) && dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0) && (!f.occup || (occupation(e.presents, e.places, SEUIL_PRESQUE_PLEIN) || {}).niveau === f.occup));
+  const liste0 = etabs.filter((e) => correspond(e) && dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.alerte || e.finEchues + e.finProches > 0) && (!f.voeux || (f.voeux === 'manque' ? e.sansVoeu > 0 : e.presents > 0 && e.sansVoeu === 0)) && (!f.occup || (occupation(e.presents, e.places, SEUIL_PRESQUE_PLEIN) || {}).niveau === f.occup));
   const val = clesTri[tri.cle];
   const liste = [...liste0].sort((a, b) => {
     const x = val(a);
@@ -2708,7 +2728,7 @@ function rendreSecteur() {
     );
   const totalPresents = liste.reduce((n, e) => n + e.presents, 0);
   const totalPlaces = liste.reduce((n, e) => n + (e.places || 0), 0);
-  const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], ['Fins de droits', 'fins']];
+  const colonnes = [['Établissement', 'label'], ['Type', 'type'], ['Commune', 'commune'], ...(aSecteur ? [['Secteur', 'secteur']] : []), ...(aErs ? [['ERS', 'ers']] : []), ['Effectif', 'effectif'], sc.voeux ? ['Vœux', 'voeux'] : ['Fins de droits', 'fins']];
   const recherche = h('input', {
     class: 'fr-input',
     id: 'f-q',
@@ -2738,6 +2758,9 @@ function rendreSecteur() {
       selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
       aErs ? selecteur('f-ers', 'ers', 'ERS', ersProposes, f.secteur ? `ERS du secteur ${f.secteur} seulement (secteur d'enseignant référent)` : "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : null,
       selecteur('f-occup', 'occup', 'Occupation', [['libre', 'Places libres'], ['presque', 'Presque plein'], ['plein', 'Plein'], ['depassement', 'Dépassement']], 'Ne garder que les établissements dont le dispositif a des places libres, est presque plein, plein ou en dépassement'),
+      sc.voeux
+        ? selecteur('f-voeux', 'voeux', 'Vœux n+1', [['manque', 'Il manque des vœux'], ['complet', 'Tous les vœux saisis']], 'Ne garder que les établissements où il manque encore des vœux, ou ceux où tous les élèves présents en ont un')
+        : null,
       selecteur('f-alerte', 'alerte', 'Fins de droits', ['Échues ou proches'], 'Ne garder que les établissements qui ont au moins un élève dont la fin de droits est échue ou proche'),
     ),
     etabs.some((e) => e.secteurNum === null) ? h('p', { class: 'fr-hint-text', id: 'secteur-inconnu' }, `${etabs.filter((e) => e.secteurNum === null).length} établissement(s) sans numéro de secteur reconnu : ils n'apparaissent pas quand un secteur est choisi.`) : h('span'),
@@ -2774,7 +2797,9 @@ function rendreSecteur() {
                         aSecteur ? h('td', {}, e.secteurNum !== null ? String(e.secteurNum) : e.secteur || '—') : null,
                         aErs ? h('td', {}, e.ers ? `Secteur ${e.ers}` : '—', e.ersh ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, e.ersh)] : null) : null,
                         h('td', { class: 'nowrap' }, `${e.presents}${e.places !== null ? ` / ${e.places}` : ''}`, e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', title: "Élèves sur liste d'attente pour cet établissement" }, `${e.attente} en attente`)] : null, badgeOccupation(e.presents, e.places) ? [h('br'), badgeOccupation(e.presents, e.places)] : null),
-                        h('td', {}, e.finEchues || e.finProches ? [e.finEchues ? h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits est dépassée' }, `${e.finEchues} échue${e.finEchues > 1 ? 's' : ''}`) : null, e.finEchues && e.finProches ? ' ' : null, e.finProches ? h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits approche' }, `${e.finProches} proche${e.finProches > 1 ? 's' : ''}`) : null] : '—'),
+                        sc.voeux
+                          ? h('td', {}, e.presents === 0 ? '—' : e.sansVoeu === 0 ? h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'Complets') : h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: "Élèves présents sans vœu pour la rentrée visée" }, `${e.sansVoeu} sans vœu`))
+                          : h('td', {}, e.finEchues || e.finProches ? [e.finEchues ? h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits est dépassée' }, `${e.finEchues} échue${e.finEchues > 1 ? 's' : ''}`) : null, e.finEchues && e.finProches ? ' ' : null, e.finProches ? h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: 'Élèves présents dont la fin de droits approche' }, `${e.finProches} proche${e.finProches > 1 ? 's' : ''}`) : null] : '—'),
                       ),
                     ),
                   ),
@@ -2787,6 +2812,7 @@ function rendreSecteur() {
 }
 
 $('#btn-secteur').addEventListener('click', () => openSecteur(retourAccueil()));
+$('#btn-voeux').addEventListener('click', () => openSecteur(retourAccueil(), { voeux: true }));
 
 /* ------------------------------------------------------------------ */
 /* Élèves exclus                                                       */

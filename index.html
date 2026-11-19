@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-map/icons-map.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-business/icons-business.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-device/icons-device.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261119c">
+  <link rel="stylesheet" href="src/style.css?v=20261119d">
   <!-- API de plugin Grist : copie datée de l'instance (vendor/grist/VERSION : source, date, empreinte SHA-256), pour ne charger
        aucun script depuis un site tiers. Mise à jour volontaire : sh scripts/vendor-grist-api.sh https://<instance> -->
   <script src="vendor/grist/grist-plugin-api.js"></script>
@@ -71,6 +71,11 @@
             <h3 class="fr-h5">Tous les dispositifs</h3>
             <p class="fr-hint-text">Parcourir tous les dispositifs ULIS : recherche, secteur, type d'établissement, ERS, occupation.</p>
             <button class="fr-btn" type="button" id="btn-secteur" title="Ouvrir la liste des établissements avec ULIS, avec des sélecteurs de secteur, de type et d'ERS">Tous les dispositifs</button>
+          </div>
+          <div class="fr-mt-6w accueil-bloc accueil-bloc--droite">
+            <h3 class="fr-h5">Vœux ULIS n+1</h3>
+            <p class="fr-hint-text">Suivre les vœux d'établissement pour la rentrée prochaine, établissement par établissement, avec les mêmes filtres que « Tous les dispositifs ».</p>
+            <button class="fr-btn" type="button" id="btn-voeux" title="Ouvrir la liste des établissements avec ULIS et le nombre d'élèves présents sans vœu pour la rentrée prochaine">Vœux ULIS n+1</button>
           </div>
         </div>
       </div>
@@ -161,7 +166,7 @@
 
   <script type="module" src="vendor/dsfr/dsfr.module.min.js"></script>
   <script nomodule src="vendor/dsfr/dsfr.nomodule.min.js"></script>
-  <script src="src/garde.js?v=20261119c"></script>
-  <script type="module" src="src/app.js?v=20261119c"></script>
+  <script src="src/garde.js?v=20261119d"></script>
+  <script type="module" src="src/app.js?v=20261119d"></script>
 </body>
 </html>
