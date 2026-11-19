@@ -144,3 +144,7 @@ body.lecture-seule .ajout-eleve,
 body.lecture-seule .bouton-ecriture {
   display: none !important;
 }
+
+/* Vœux : élèves qu'un ERS ne gère pas (non modifiables) */
+.ligne-grisee td { background: var(--background-alt-grey, #f6f6f6); color: var(--text-mention-grey, #666); }
+.liste-sans-puce { list-style: none; padding-left: 0; }

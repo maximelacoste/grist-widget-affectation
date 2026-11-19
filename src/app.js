@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119f';
-import { attachSuggest } from './suggest.js?v=20261119f';
-import { activerCalendriers } from './calendrier.js?v=20261119f';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119g';
+import { attachSuggest } from './suggest.js?v=20261119g';
+import { activerCalendriers } from './calendrier.js?v=20261119g';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -189,9 +189,11 @@ function masquerPages() {
   $('#step-secteur').hidden = true;
   $('#step-exclus').hidden = true;
   $('#step-voeux').hidden = true;
+  $('#step-ers').hidden = true;
 }
 
 function goto(step, { focus = true } = {}) {
+  if (step === 1 && state.ers) return openErsAccueil({ focus });
   if (state.edition) return gardeSortie(() => goto(step, { focus }));
   state.step = step;
   masquerPages();
@@ -1311,7 +1313,7 @@ async function openDossier(row, origine = 2) {
     h(
       'div',
       { class: 'fr-mt-2w' },
-      h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'exclus' ? 'Revenir à la liste des élèves exclus' : origine === 'voeux' ? 'Revenir aux vœux de cet établissement' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
+      h('button', { class: 'fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-left fr-icon-arrow-left-s-line', type: 'button', title: origine === 3 ? 'Revenir aux affectations de cet élève' : origine === 'dispo' ? 'Revenir à la liste des élèves du dispositif' : origine === 'exclus' ? 'Revenir à la liste des élèves exclus' : origine === 'voeux' ? 'Revenir aux vœux de cet établissement' : origine === 'ers' ? 'Revenir à ma page' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la liste des fiches trouvées', onclick: () => retourDossier(row, origine) }, libelleRetourDossier(origine)),
     ),
   );
   state.step = 0;
@@ -1337,7 +1339,7 @@ async function openDossier(row, origine = 2) {
   $('#h-dossier').focus();
 }
 
-const libelleRetourDossier = (origine) => (origine === 3 ? 'Revenir aux affectations' : origine === 'dispo' ? 'Revenir au dispositif' : origine === 'exclus' ? 'Revenir aux élèves exclus' : origine === 'voeux' ? 'Revenir aux vœux' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la page de résultats');
+const libelleRetourDossier = (origine) => (origine === 3 ? 'Revenir aux affectations' : origine === 'dispo' ? 'Revenir au dispositif' : origine === 'exclus' ? 'Revenir aux élèves exclus' : origine === 'voeux' ? 'Revenir aux vœux' : origine === 'ers' ? 'Revenir à ma page' : origine === 'accueil' ? "Revenir à l'accueil" : 'Revenir à la page de résultats');
 
 function retourDossier(row, origine) {
   clearNotice();
@@ -1347,6 +1349,10 @@ function retourDossier(row, origine) {
   }
   if (origine === 'exclus' && state.exclus) {
     openExclus(state.exclus.retour, { garder: true });
+    return;
+  }
+  if (origine === 'ers' && state.ers) {
+    openErsAccueil();
     return;
   }
   if (origine === 'voeux' && state.voeuxEtab) {
@@ -2577,6 +2583,10 @@ function anneeCible(d = new Date()) {
   return d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear();
 }
 const T_VOEUX = 'Voeux_ERS';
+// Entrée ERS : tables (à créer dans le document) et colonnes lues ou écrites.
+const T_ACCES_ERS = 'Acces_ERS'; // Email, Nom, Secteurs_ERS (codes séparés par des virgules : « 011, 012 »)
+const T_SUIVIS_ERS = 'Suivis_ERS'; // Eleve (Réf. Individus), Ers_email, Date_suivi, Actif
+const T_ACCUSES_ERS = 'Accuses_ERS'; // Ers_email, Date_demande, Etat
 
 async function chargerSecteur({ voeux = false } = {}) {
   const [t, tScol, tInd] = await Promise.all([lireTable(state.etabTable), lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS)]);
@@ -2640,12 +2650,13 @@ async function chargerSecteur({ voeux = false } = {}) {
       places,
       presents: n.presents,
       sansVoeu: n.ids.filter((id) => !avecVoeu.has(id)).length,
+      ids: n.ids,
       attente: n.attente,
       finEchues,
       finProches,
     });
   }
-  return { etabs, aSecteur: Boolean(t.Secteur_CDOEA || cdoeaCalc), aErs: Boolean(t.Secteur_ERS || ersCalc) };
+  return { etabs, avecVoeu, lignes, aSecteur: Boolean(t.Secteur_CDOEA || cdoeaCalc), aErs: Boolean(t.Secteur_ERS || ersCalc) };
 }
 
 async function openSecteur(retour = retourAccueil(), { garder = false, voeux = false } = {}) {
@@ -2830,6 +2841,7 @@ function colonnesVoeux() {
 }
 
 async function chargerVoeuxEtab(etabId) {
+  if (state.ers && !state.ers.data) await chargerErs();
   const base = await chargerDispositif(etabId);
   const tv = await lireTable(T_VOEUX).catch(() => null);
   if (!tv || !tv.Eleve) throw new Error(`la table ${T_VOEUX} est introuvable ou n'a pas de colonne Eleve`);
@@ -2850,7 +2862,7 @@ async function chargerVoeuxEtab(etabId) {
       const i = state.niveaux.indexOf(niveau);
       const suivant = i >= 0 && i + 1 < state.niveaux.length ? state.niveaux[i + 1] : niveau;
       const initial = { niveau1: ex && ex.niveau ? ex.niveau : suivant, voeu1: ex ? ex.voeu1 : 0, voeu2: ex ? ex.voeu2 : 0, situation: ex && ex.situation ? ex.situation : SITUATION_PAR_DEFAUT };
-      return { row, niveau, ex, initial, cur: { ...initial } };
+      return { row, niveau, ex, initial, cur: { ...initial }, gere: gereParErs(etabId, x.eleve) };
     })
     .sort((a, b) => `${a.row.nom} ${a.row.prenom}`.localeCompare(`${b.row.nom} ${b.row.prenom}`, 'fr'));
   return { eleves };
@@ -2902,11 +2914,12 @@ function rendreVoeuxEtab() {
   const ligne = (e, i) => {
     const pre = `v${i}`;
     const nom = `${e.row.nom} ${e.row.prenom}`.trim() || 'Sans nom';
-    const rest = h('input', { type: 'checkbox', id: `${pre}-reste`, checked: e.cur.voeu1 === etabId, disabled: lectureSeule() });
-    const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: lectureSeule() }, state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n)));
-    const v1 = h('select', { class: 'fr-select', id: `${pre}-v1`, 'aria-label': `Vœu 1 de ${nom}`, disabled: lectureSeule() }, optsEtab('Aucun vœu'));
-    const v2 = h('select', { class: 'fr-select', id: `${pre}-v2`, 'aria-label': `Vœu 2 de ${nom}`, disabled: lectureSeule() }, optsEtab('Aucun'));
-    const sit = h('select', { class: 'fr-select', id: `${pre}-sit`, 'aria-label': `Situation de ${nom}`, disabled: lectureSeule() }, state.situations.map((x) => h('option', { value: x, selected: x === e.cur.situation }, x)));
+    const ro = lectureSeule() || !e.gere;
+    const rest = h('input', { type: 'checkbox', id: `${pre}-reste`, checked: e.cur.voeu1 === etabId, disabled: ro });
+    const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: ro }, state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n)));
+    const v1 = h('select', { class: 'fr-select', id: `${pre}-v1`, 'aria-label': `Vœu 1 de ${nom}`, disabled: ro }, optsEtab('Aucun vœu'));
+    const v2 = h('select', { class: 'fr-select', id: `${pre}-v2`, 'aria-label': `Vœu 2 de ${nom}`, disabled: ro }, optsEtab('Aucun'));
+    const sit = h('select', { class: 'fr-select', id: `${pre}-sit`, 'aria-label': `Situation de ${nom}`, disabled: ro }, state.situations.map((x) => h('option', { value: x, selected: x === e.cur.situation }, x)));
     v1.value = String(e.cur.voeu1);
     v2.value = String(e.cur.voeu2);
     const redoublement = h('span', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', id: `${pre}-red`, hidden: e.cur.niveau1 !== e.niveau || !e.niveau }, 'Redoublement');
@@ -2930,8 +2943,8 @@ function rendreVoeuxEtab() {
     sit.addEventListener('change', () => { e.cur.situation = sit.value; rafraichir(); });
     return h(
       'tr',
-      {},
-      h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
+      { class: e.gere ? null : 'ligne-grisee' },
+      h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.gere ? null : [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, 'Élève suivi par un autre ERS'), h('br'), h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: "Ajouter cet élève à votre liste : vous pourrez saisir ses vœux", onclick: () => demanderRattachement(e.row) }, "C'est mon élève")], e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
       h('td', {}, e.niveau || '—'),
       h('td', {}, niv, ' ', redoublement),
       h('td', {}, h('div', { class: 'fr-checkbox-group fr-checkbox-group--sm' }, rest, h('label', { class: 'fr-label', for: `${pre}-reste`, title: "Remplit le vœu 1 avec cet établissement et la situation « En ULIS »" }, h('span', { class: 'fr-sr-only' }, `${nom} : `), "Reste dans l'établissement"))),
@@ -2968,7 +2981,7 @@ function rendreVoeuxEtab() {
 function validerVoeuxEtab() {
   clearNotice();
   const { etabId, data } = state.voeuxEtab;
-  const aEcrire = data.eleves.filter((e) => voeuxChange(e) && e.cur.voeu1 > 0);
+  const aEcrire = data.eleves.filter((e) => e.gere && voeuxChange(e) && e.cur.voeu1 > 0);
   const sansVoeu = data.eleves.filter((e) => voeuxChange(e) && e.cur.voeu1 === 0);
   if (sansVoeu.length) {
     notify('error', `${sansVoeu.length} élève${sansVoeu.length > 1 ? 's' : ''} modifié${sansVoeu.length > 1 ? 's' : ''} sans vœu 1 : ${sansVoeu.map((e) => `${e.row.nom} ${e.row.prenom}`.trim()).join(', ')}. Choisissez un vœu 1 (ou cochez « Reste dans l'établissement »).`);
@@ -3014,6 +3027,202 @@ async function ecrireVoeuxEtab(aEcrire) {
     notify('success', `${actions.length} vœu${actions.length > 1 ? 'x' : ''} enregistré${actions.length > 1 ? 's' : ''}.`);
   } catch (err) {
     notify('error', `Enregistrement impossible : ${err.message}`);
+  }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Entrée ERS (enseignant référent)                                    */
+/* ------------------------------------------------------------------ */
+/**
+ * Mode ERS : la table Acces_ERS ne renvoie à un ERS que sa propre ligne (règle d'accès Grist sur l'e-mail) ; une seule
+ * ligne lue = mode ERS, plusieurs (coordonnateur, administrateur) = affichage complet. Pour essayer : `?ers=adresse@…`
+ * choisit une ligne, `?coordo=1` force l'affichage complet. Ce choix n'est qu'un affichage : la protection des données
+ * est celle des règles d'accès Grist.
+ */
+async function chargerAccesErs() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('coordo') === '1') return null;
+  const t = await grist.docApi.fetchTable(T_ACCES_ERS).catch(() => null);
+  if (!t || !t.Email || t.id.length === 0) return null;
+  const voulu = (params.get('ers') || '').trim().toLowerCase();
+  let i = -1;
+  if (voulu) i = t.Email.findIndex((x) => String(x).trim().toLowerCase() === voulu);
+  else if (t.id.length === 1) i = 0;
+  if (i < 0) return null;
+  const codes = new Set(String(t.Secteurs_ERS ? cellText(t.Secteurs_ERS[i]) : '').split(/[^0-9]+/).filter(Boolean).map((c) => c.padStart(3, '0')));
+  return { email: String(t.Email[i]).trim(), nom: t.Nom ? cellText(t.Nom[i]).trim() : '', codes, data: null };
+}
+
+async function chargerErs() {
+  const data = await chargerSecteur({ voeux: true });
+  const ts = await lireTable(T_SUIVIS_ERS).catch(() => null);
+  const moi = state.ers.email.toLowerCase();
+  const suivis = new Set();
+  if (ts && ts.Eleve && ts.Ers_email) ts.id.forEach((_, i) => { if (String(ts.Ers_email[i]).trim().toLowerCase() === moi && (!ts.Actif || ts.Actif[i] !== false)) suivis.add(ts.Eleve[i]); });
+  const etabParEleve = new Map();
+  for (const x of statutsEleves(data.lignes, new Date().toISOString().slice(0, 10), SITUATION_PAR_DEFAUT)) if (x.statut === 'present') etabParEleve.set(x.eleve, x.ligne.affectation);
+  state.ers.data = { ...data, suivis, etabParEleve, suiviTable: Boolean(ts && ts.Eleve && ts.Ers_email) };
+  return state.ers.data;
+}
+
+/** Un élève est géré par l'ERS connecté s'il est dans un établissement de ses secteurs, ou s'il l'a « récupéré ». Hors mode ERS : toujours. */
+function gereParErs(etabId, eleveId) {
+  if (!state.ers || !state.ers.data) return true;
+  const e = state.ers.data.etabs.find((x) => x.id === etabId);
+  return Boolean((e && state.ers.codes.has(e.ers)) || state.ers.data.suivis.has(eleveId));
+}
+
+async function openErsAccueil({ focus = true } = {}) {
+  if (state.edition) return gardeSortie(() => openErsAccueil({ focus }));
+  clearNotice();
+  try {
+    await chargerErs();
+  } catch (err) {
+    notify('error', `Lecture de vos établissements impossible : ${err.message}`);
+    return;
+  }
+  const { etabs, suivis, avecVoeu } = state.ers.data;
+  const codes = [...state.ers.codes].sort();
+  const miens = etabs.filter((e) => state.ers.codes.has(e.ers));
+  const autres = etabs.filter((e) => !state.ers.codes.has(e.ers) && e.ids.some((id) => suivis.has(id)));
+  state.step = 0;
+  masquerPages();
+  $('#step-ers').hidden = false;
+  $('#stepper').replaceChildren(
+    h(
+      'div',
+      { class: 'fr-stepper' },
+      h('h1', { class: 'fr-stepper__title', id: 'h-ers', tabindex: '-1' }, `Vœux ULIS n+1 (rentrée ${anneeCible()})`),
+      h('p', { class: 'fr-stepper__details' }, `${state.ers.nom ? `${state.ers.nom} · ` : ''}${codes.length ? `Secteur${codes.length > 1 ? 's' : ''} ${codes.join(', ')}` : 'Aucun secteur renseigné'}`),
+    ),
+  );
+  const nSans = (e, filtre) => e.ids.filter((id) => (!filtre || filtre(id)) && !avecVoeu.has(id)).length;
+  const tableau = (liste, legende, filtre) =>
+    liste.length === 0
+      ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucun établissement.'))
+      : h(
+          'div',
+          { class: 'fr-table fr-table--no-caption' },
+          h('div', { class: 'fr-table__wrapper' }, h('div', { class: 'fr-table__container' }, h('div', { class: 'fr-table__content' },
+            h('table', {},
+              h('caption', {}, legende),
+              h('thead', {}, h('tr', {}, ['Établissement', 'Commune', 'Élèves présents', 'Vœux'].map((t) => h('th', { scope: 'col' }, t)))),
+              h('tbody', {}, liste.map((e) => {
+                const n = nSans(e, filtre);
+                return h('tr', {}, h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir les vœux des élèves de cet établissement', onclick: () => openVoeuxEtab(e.id, { libelle: 'Revenir à ma page', action: () => openErsAccueil() }) }, e.label)), h('td', {}, e.commune || '—'), h('td', {}, String(e.presents)), h('td', {}, e.presents === 0 ? '—' : n === 0 ? h('p', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, 'Complets') : h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon' }, `${n} sans vœu`)));
+              })),
+            ),
+          ))),
+        );
+  $('#ers').replaceChildren(
+    h('h2', { class: 'fr-h5' }, 'Mes établissements'),
+    h('p', { class: 'fr-hint-text' }, 'Les dispositifs ULIS de vos secteurs.'),
+    tableau(miens, 'Établissements de mes secteurs'),
+    h('h2', { class: 'fr-h5 fr-mt-4w' }, "Autres établissements où j'ai des élèves"),
+    h('p', { class: 'fr-hint-text' }, "Les établissements hors de vos secteurs où vous avez récupéré des élèves : seuls ces élèves y sont comptés."),
+    tableau(autres, 'Établissements hors secteur où je suis des élèves', (id) => suivis.has(id)),
+    h('h2', { class: 'fr-h5 fr-mt-4w' }, 'Un élève qui ne figure pas dans ma liste'),
+    h(
+      'form',
+      { id: 'form-ers-q', novalidate: true, onsubmit: (ev) => { ev.preventDefault(); chercherEleveErs($('#ers-q').value.trim()); } },
+      h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: 'ers-q' }, 'Rechercher un élève', h('span', { class: 'fr-hint-text' }, 'Nom, prénom ou année de naissance. Vous pourrez le récupérer pour saisir ses vœux.')), h('input', { class: 'fr-input', id: 'ers-q', type: 'text', autocomplete: 'off' })),
+      h('button', { class: 'fr-btn fr-mt-2w', type: 'submit', title: 'Lancer la recherche' }, 'Rechercher'),
+    ),
+    h('div', { id: 'ers-resultats', class: 'fr-mt-2w', 'aria-live': 'polite' }),
+    h('h2', { class: 'fr-h5 fr-mt-4w' }, 'Mon accusé'),
+    h('p', { class: 'fr-hint-text' }, `Récapitulatif de mes vœux (PDF et Excel) pour la rentrée ${anneeCible()}, envoyé à ${state.ers.email}.`),
+    h('button', { class: 'fr-btn fr-btn--secondary bouton-ecriture', type: 'button', id: 'btn-accuse', title: 'Demander l\'envoi du récapitulatif de mes vœux par mail', onclick: demanderAccuse }, 'Recevoir mon accusé'),
+  );
+  if (focus) $('#h-ers').focus();
+}
+
+async function chercherEleveErs(q) {
+  const box = $('#ers-resultats');
+  box.replaceChildren();
+  if (norm(q).length < 2 && !/\d{4}/.test(q)) {
+    box.append(h('p', { class: 'fr-error-text' }, 'Saisissez au moins 2 lettres, ou une année de naissance.'));
+    return;
+  }
+  await refreshIndividus();
+  const { total, rows } = rechercheLibre(state.individus, q, 20);
+  const { etabParEleve, suivis } = state.ers.data;
+  const present = rows.filter((r) => etabParEleve.has(r.id));
+  if (!present.length) {
+    box.append(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, total ? "Aucun élève trouvé n'est actuellement présent dans un dispositif ULIS." : 'Aucun élève trouvé.')));
+    return;
+  }
+  box.append(
+    h('ul', { class: 'liste-sans-puce' }, present.map((r) => {
+      const etab = etabParEleve.get(r.id);
+      const gere = gereParErs(etab, r.id);
+      return h('li', { class: 'fr-mb-1w' },
+        `${r.nom} ${r.prenom}`.trim(), ' · ', `${formatDateFr(r.ddn) || ''}`, ' · ', state.etabLabel.get(etab) || `#${etab}`, ' ',
+        h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm', title: "Ouvrir les vœux des élèves de cet établissement", onclick: () => openVoeuxEtab(etab, { libelle: 'Revenir à ma page', action: () => openErsAccueil() }) }, "Voir l'établissement"), ' ',
+        gere ? h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon' }, suivis.has(r.id) ? 'Dans ma liste' : 'Dans mon secteur') : h('button', { type: 'button', class: 'fr-btn fr-btn--sm bouton-ecriture', title: 'Ajouter cet élève à votre liste', onclick: () => demanderRattachement(r) }, "C'est mon élève"),
+      );
+    })),
+  );
+}
+
+function demanderRattachement(row) {
+  const nom = `${row.nom} ${row.prenom}`.trim();
+  ouvrirModale({
+    titre: "Récupérer cet élève ?",
+    icone: 'fr-icon-user-add-line',
+    corps: [h('p', {}, `${nom} sera ajouté à votre liste : vous pourrez saisir ses vœux. L'ERS du secteur de son établissement garde aussi l'accès. Le rattachement est enregistré et daté.`)],
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, récupérer', info: 'Enregistrer le rattachement dans Grist', onClick: () => rattacherEleve(row) },
+      { id: 'dlg-non', libelle: 'Annuler', info: "Fermer cette fenêtre : rien n'est enregistré", secondaire: true },
+    ],
+    focus: 'dlg-oui',
+  });
+}
+
+/** Ne garde de `champs` que les colonnes qui existent dans la table. */
+function champsExistants(tableId, champs) {
+  const cols = new Set([...state.colById.values()].filter((c) => c.tableId === tableId).map((c) => c.colId));
+  return Object.fromEntries(Object.entries(champs).filter(([k]) => cols.has(k)));
+}
+
+async function rattacherEleve(row) {
+  if (!state.ers.data.suiviTable) {
+    notify('error', `Rattachement impossible : la table ${T_SUIVIS_ERS} est introuvable (colonnes Eleve et Ers_email).`);
+    return;
+  }
+  try {
+    viderCache();
+    await grist.docApi.applyUserActions([['AddRecord', T_SUIVIS_ERS, null, champsExistants(T_SUIVIS_ERS, { Eleve: row.id, Ers_email: state.ers.email, Date_suivi: isoToSec(new Date().toISOString().slice(0, 10)), Actif: true })]]);
+    await chargerErs();
+    if (!$('#step-voeux').hidden && state.voeuxEtab) await openVoeuxEtab(state.voeuxEtab.etabId, state.voeuxEtab.retour);
+    else await openErsAccueil({ focus: false });
+    notify('success', `${`${row.nom} ${row.prenom}`.trim()} est dans votre liste.`);
+  } catch (err) {
+    notify('error', `Rattachement impossible : ${err.message}`);
+  }
+}
+
+function demanderAccuse() {
+  ouvrirModale({
+    titre: 'Recevoir mon accusé',
+    icone: 'fr-icon-mail-line',
+    corps: [h('p', {}, `Une demande d'accusé récapitulatif de vos vœux pour la rentrée ${anneeCible()} sera enregistrée pour ${state.ers.email}.`)],
+    actions: [
+      { id: 'dlg-oui', libelle: 'Oui, demander', info: 'Enregistrer la demande dans Grist', onClick: ecrireAccuse },
+      { id: 'dlg-non', libelle: 'Annuler', info: "Fermer cette fenêtre : rien n'est enregistré", secondaire: true },
+    ],
+    focus: 'dlg-oui',
+  });
+}
+
+async function ecrireAccuse() {
+  try {
+    const champs = champsExistants(T_ACCUSES_ERS, { Ers_email: state.ers.email, Date_demande: Math.floor(Date.now() / 1000), Etat: 'À envoyer' });
+    if (!champs.Ers_email) throw new Error(`la table ${T_ACCUSES_ERS} est introuvable (colonne Ers_email)`);
+    await grist.docApi.applyUserActions([['AddRecord', T_ACCUSES_ERS, null, champs]]);
+    notify('success', "Demande d'accusé enregistrée.");
+  } catch (err) {
+    notify('error', `Demande impossible : ${err.message}`);
   }
 }
 
@@ -3243,6 +3452,8 @@ async function init() {
     await loadMeta();
     lireTable(T_SCOLARITE).catch(() => {}); // préchargée en arrière-plan : suggestions et pages dispositifs seront prêtes
     state.individus = toIndividus(await individus);
+    state.ers = await chargerAccesErs();
+    if (state.ers) await openErsAccueil({ focus: false });
   } catch (err) {
     notify('error', `Initialisation impossible : ${err.message}`);
   }

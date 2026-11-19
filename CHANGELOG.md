@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Entrée ERS (enseignant référent) : si la table `Acces_ERS` ne renvoie qu'une ligne à l'utilisateur, le widget s'ouvre sur sa page : établissements de ses secteurs, établissements hors secteur où il a récupéré des élèves (table `Suivis_ERS`), recherche d'un élève et bouton « C'est mon élève », élèves qu'il ne gère pas grisés dans la page des vœux, demande d'accusé (ligne dans `Accuses_ERS`, l'envoi par mail relève d'un workflow n8n à venir). Essais : `?ers=adresse` choisit une ligne, `?coordo=1` force l'affichage complet. Affichage seulement : la protection reste les règles d'accès Grist.
 - Page « Vœux ULIS n+1 » d'un établissement (clic sur un établissement de la liste des vœux) : une ligne par élève présent, niveau n+1 (suivant par défaut, repère « Redoublement »), coche « Reste dans l'établissement » (vœu 1 = établissement, situation En ULIS), vœux 1 et 2, situation, et une seule validation confirmée pour tout l'établissement, écrite dans `Voeux_ERS`. Pas encore de restriction par ERS.
 - Nouvelle page « Vœux ULIS n+1 » (bouton sur l'accueil) : mêmes filtres que « Tous les dispositifs » (secteur, type, ERS, occupation), plus une colonne « Vœux » (élèves présents sans vœu pour la rentrée visée, lue dans la table `Voeux_ERS`) et un filtre « il manque des vœux / tous saisis ». Pas encore de restriction par ERS.
 - Sécurité : politique de sécurité de contenu (CSP) activée dans `index.html` : seuls les fichiers du dépôt s'exécutent, et le seul appel réseau autorisé est l'autocomplétion d'adresse (data.geopf.fr).
