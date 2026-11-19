@@ -132,3 +132,15 @@ body { background: transparent; }
 /* Accueil : les deux blocs du bas (Élèves exclus, Tous les dispositifs) sont écartés des recherches au-dessus ; chacun reste aligné sur sa colonne */
 .accueil-bloc { max-width: 28rem; }
 #etab-results:empty { display: none; } /* zone de résultats vide : pas de marge fantôme sous le bouton, les deux blocs du bas sont à égalité */
+
+/* Lecture seule (Grist : readonly=true) : les boutons qui écrivent disparaissent ; la règle d'accès de Grist reste la vraie barrière. */
+body.lecture-seule #btn-show-create,
+body.lecture-seule #btn-new-scol,
+body.lecture-seule #btn-note,
+body.lecture-seule #dispo-ajouter,
+body.lecture-seule #dispo-ajout,
+body.lecture-seule .actions-ligne,
+body.lecture-seule .ajout-eleve,
+body.lecture-seule .bouton-ecriture {
+  display: none !important;
+}

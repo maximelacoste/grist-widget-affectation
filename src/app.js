@@ -1,6 +1,6 @@
-import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261118zv';
-import { attachSuggest } from './suggest.js?v=20261118zv';
-import { activerCalendriers } from './calendrier.js?v=20261118zv';
+import { banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119a';
+import { attachSuggest } from './suggest.js?v=20261119a';
+import { activerCalendriers } from './calendrier.js?v=20261119a';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1235,7 +1235,7 @@ async function openDossier(row, origine = 2) {
   const ch = champsDossier(row, ind);
   ctx.ui.modifier = h(
     'button',
-    { class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-pencil-line', type: 'button', title: "Ouvrir tous les champs modifiables du dossier ; une seule validation, avec confirmation avant écriture", onclick: () => entrerEdition(ctx) },
+    { class: 'fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-pencil-line bouton-ecriture', type: 'button', title: "Ouvrir tous les champs modifiables du dossier ; une seule validation, avec confirmation avant écriture", onclick: () => entrerEdition(ctx) },
     'Modifier',
   );
   ctx.ui.aide = h('p', { class: 'fr-hint-text fr-mb-2w', hidden: true }, AIDE_EDITION, ch.adr && ADRESSE_SUGGESTIONS ? " Suggestions d'adresse : Base Adresse Nationale (IGN), le texte tapé est envoyé à ce service public." : '');
@@ -2375,6 +2375,7 @@ function basculeAttenteEleve(e) {
       class: 'fr-toggle__input',
       id,
       checked: e.attente,
+      disabled: lectureSeule(),
       'aria-label': `Liste d'attente pour ${e.nom} ${e.prenom}`,
       onchange: (ev) => {
         const vers = ev.target.checked;
@@ -2944,6 +2945,22 @@ $('#btn-exclus').addEventListener('click', () => openExclus(retourAccueil()));
  * absente, illisible ou vide : lecteur, le cas le plus prudent.
  */
 const T_DROITS = 'Droits_widget';
+/**
+ * Lecture seule déclarée par Grist (`readonly=true` dans l'adresse) : on masque alors les boutons d'écriture. Volontairement
+ * limité au cas explicite : sans le paramètre, rien n'est masqué (un éditeur ne doit jamais perdre ses boutons par erreur) ;
+ * la protection réelle reste la règle d'accès de Grist, qui refuse l'écriture.
+ */
+function lectureSeule() {
+  return document.body.classList.contains('lecture-seule');
+}
+function appliquerLectureSeule() {
+  try {
+    if (new URLSearchParams(window.location.search).get('readonly') === 'true') document.body.classList.add('lecture-seule');
+  } catch {
+    /* adresse illisible : on ne masque rien */
+  }
+}
+
 async function estEditeur() {
   try {
     const ro = new URLSearchParams(window.location.search).get('readonly');
@@ -2983,6 +3000,7 @@ function accueilNavigation() {
 
 async function init() {
   grist.ready({ requiredAccess: 'full' });
+  appliquerLectureSeule();
   goto(1, { focus: false });
   estEditeur().then((editeur) => {
     if (!editeur) accueilNavigation(); // les éditeurs connaissent l'outil : le message vise ceux qui consultent
