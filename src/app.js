@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261119h';
-import { attachSuggest } from './suggest.js?v=20261119h';
-import { activerCalendriers } from './calendrier.js?v=20261119h';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120a';
+import { attachSuggest } from './suggest.js?v=20261120a';
+import { activerCalendriers } from './calendrier.js?v=20261120a';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1234,6 +1234,16 @@ async function openDossier(row, origine = 2) {
   }
   const todayIso = new Date().toISOString().slice(0, 10);
   const enCours = ligneActuelle(scol, todayIso);
+  // ERS de référence : celui de l'établissement de l'affectation en cours (secteur, nom et courriels de la table des établissements).
+  let ersRef = [];
+  try {
+    if (enCours && enCours.affectation) {
+      const e = await infosEtab(enCours.affectation);
+      ersRef = e.infos.filter((x) => x.valeur && ['Secteur ERS', 'ERSH', 'Courriel du secteur (référent)', "Courriel de l'ERSH"].includes(x.libelle));
+    }
+  } catch {
+    ersRef = []; // l'ERS est un plus : sa lecture ne doit pas empêcher d'ouvrir le dossier
+  }
   const ctx = { row, origine, lignes: [], ui: {} };
   const ch = champsDossier(row, ind);
   ctx.ui.modifier = h(
@@ -1270,6 +1280,9 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Code postal et commune', ind.cpVille, ch.cp && ch.commune ? [ch.cp, ch.commune] : [], ctx),
       ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
     ]),
+    ...(ersRef.length
+      ? [h('h2', { class: 'fr-h6' }, 'ERS de référence'), listeInfos(ersRef.map((x) => ligneModifiable(x.libelle === 'ERSH' ? 'ERS' : x.libelle, x.valeur, null, ctx)))]
+      : []),
     h('h2', { class: 'fr-h6' }, 'Notification ULIS'),
     listeInfos([
       ligneModifiable('Notification ULIS', ind.notif ? 'Oui' : 'Non', null, ctx),
