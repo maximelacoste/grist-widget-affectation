@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120d';
-import { attachSuggest } from './suggest.js?v=20261120d';
-import { activerCalendriers } from './calendrier.js?v=20261120d';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120e';
+import { attachSuggest } from './suggest.js?v=20261120e';
+import { activerCalendriers } from './calendrier.js?v=20261120e';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3490,14 +3490,19 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
+const VERSION_APP = '20261120e';
 async function afficherBandeauTest() {
   let test = false;
+  let nom = '';
   try {
     test = new URLSearchParams(window.location.search).get('test') === '1';
-    if (!test && grist.docApi && typeof grist.docApi.getDocName === 'function') test = /test/i.test(String(await grist.docApi.getDocName()));
+    if (grist.docApi && typeof grist.docApi.getDocName === 'function') nom = String(await grist.docApi.getDocName());
+    if (!test) test = /test|copie|copy|essai/i.test(nom);
   } catch {
     /* le nom du document est un confort : sans lui, pas de bandeau */
   }
+  // Ligne discrète en bas de page : nom du document lu par le widget et version chargée (aide à diagnostiquer un bandeau absent)
+  if (!document.getElementById('pied-info')) document.getElementById('app').append(h('p', { id: 'pied-info', class: 'fr-text--xs fr-hint-text fr-mt-4w' }, `Document : ${nom || 'nom non lu'} · version ${VERSION_APP}`));
   if (!test || document.getElementById('bandeau-test')) return;
   document.body.prepend(h('div', { id: 'bandeau-test', role: 'status' }, h('p', { class: 'bandeau-test-titre' }, 'COPIE DE TEST'), h('p', { class: 'bandeau-test-texte' }, 'Ce n\'est pas le document réel : n\'y saisissez aucune donnée réelle.')));
 }
