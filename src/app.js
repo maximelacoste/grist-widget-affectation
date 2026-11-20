@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120c';
-import { attachSuggest } from './suggest.js?v=20261120c';
-import { activerCalendriers } from './calendrier.js?v=20261120c';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120d';
+import { attachSuggest } from './suggest.js?v=20261120d';
+import { activerCalendriers } from './calendrier.js?v=20261120d';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1259,15 +1259,10 @@ async function openDossier(row, origine = 2) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const enCours = ligneActuelle(scol, todayIso);
   // ERS de référence : celui de l'établissement de l'affectation en cours (secteur, nom et courriels de la table des établissements).
-  let ersRef = [];
-  try {
-    if (enCours && enCours.affectation) {
-      const e = await infosEtab(enCours.affectation);
-      ersRef = e.infos.filter((x) => x.valeur && ['Secteur ERS', 'ERSH', 'Courriel du secteur (référent)', "Courriel de l'ERSH"].includes(x.libelle));
-    }
-  } catch {
-    ersRef = []; // l'ERS est un plus : sa lecture ne doit pas empêcher d'ouvrir le dossier
-  }
+  // Élève exclu : pas d'affectation en cours, on prend l'ERS du dernier établissement connu.
+  const exclu = !enCours ? elevesExclus(scol, todayIso)[0] : null;
+  const etabErs = enCours && enCours.affectation ? enCours.affectation : exclu && exclu.derniere ? exclu.derniere.affectation : 0;
+  const ersRef = await ersDeEtab(etabErs);
   const ctx = { row, origine, lignes: [], ui: {} };
   const ch = champsDossier(row, ind);
   ctx.ui.modifier = h(
@@ -1305,7 +1300,7 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
     ]),
     ...(ersRef.length
-      ? [h('h2', { class: 'fr-h6' }, 'ERS de référence'), listeInfos(ersRef.map((x) => ligneModifiable(x.libelle === 'ERSH' ? 'ERS' : x.libelle, lienContact(x.libelle, x.valeur), null, ctx)))]
+      ? [h('h2', { class: 'fr-h6' }, exclu ? 'ERS de référence (dernier établissement)' : 'ERS de référence'), listeInfos(ersRef.map((x) => ligneModifiable(x.libelle === 'ERSH' ? 'ERS' : x.libelle, lienContact(x.libelle, x.valeur), null, ctx)))]
       : []),
     h('h2', { class: 'fr-h6' }, 'Notification ULIS'),
     listeInfos([
@@ -2276,6 +2271,27 @@ async function infosEtab(etabId) {
     return typeof v === 'number' ? v : null;
   };
   return { infos, places: nombre(COL_PLACES), effectifGrist: nombre(COL_EFFECTIF_GRIST), coords };
+}
+
+/** ERS de référence d'un établissement : secteur, nom, courriels (lignes `{ libelle, valeur }`). Vide si rien n'est renseigné. */
+const INFOS_ERS_REF = ['Secteur ERS', 'ERSH', 'Courriel du secteur (référent)', "Courriel de l'ERSH"];
+async function ersDeEtab(etabId) {
+  try {
+    if (!etabId) return [];
+    return (await infosEtab(etabId)).infos.filter((x) => x.valeur && INFOS_ERS_REF.includes(x.libelle));
+  } catch {
+    return []; // l'ERS est un plus : sa lecture ne doit jamais empêcher d'afficher la page
+  }
+}
+/** Affichage d'un ERS : nom et secteur, puis courriels cliquables. */
+function celluleErs(infos) {
+  if (!infos.length) return '—';
+  const v = (lib) => (infos.find((x) => x.libelle === lib) || {}).valeur || '';
+  const noeuds = [v('ERSH'), v('Secteur ERS') ? h('span', { class: 'fr-text--sm fr-hint-text' }, v('Secteur ERS')) : '']
+    .filter(Boolean)
+    .flatMap((x, i) => (i ? [h('br'), x] : [x]));
+  for (const lib of ['Courriel du secteur (référent)', "Courriel de l'ERSH"]) if (v(lib)) noeuds.push(h('br'), lienContact(lib, v(lib)));
+  return noeuds;
 }
 
 async function chargerDispositif(etabId) {
@@ -3307,15 +3323,21 @@ async function chargerExclus() {
   state.individus = toIndividus(tInd);
   const parId = new Map(state.individus.map((r) => [r.id, r]));
   const todayIso = new Date().toISOString().slice(0, 10);
-  return elevesExclus(lignesDe(tScol), todayIso)
-    .filter((x) => parId.has(x.eleve))
-    .map((x) => ({
-      row: parId.get(x.eleve),
-      ligne: x.ligne,
-      derniere: x.derniere, // dernière affectation connue : la ligne d'exclusion n'a généralement pas d'établissement
-      etab: x.derniere ? state.etabLabel.get(x.derniere.affectation) || `#${x.derniere.affectation}` : '',
-      niveau: x.ligne.niveau || (x.derniere ? x.derniere.niveau : ''),
-    }));
+  const exclus = elevesExclus(lignesDe(tScol), todayIso).filter((x) => parId.has(x.eleve));
+  // ERS du dernier établissement de chacun : une seule lecture par établissement
+  const ers = new Map();
+  for (const x of exclus) {
+    const id = x.derniere ? x.derniere.affectation : 0;
+    if (id && !ers.has(id)) ers.set(id, await ersDeEtab(id));
+  }
+  return exclus.map((x) => ({
+    row: parId.get(x.eleve),
+    ligne: x.ligne,
+    derniere: x.derniere, // dernière affectation connue : la ligne d'exclusion n'a généralement pas d'établissement
+    etab: x.derniere ? state.etabLabel.get(x.derniere.affectation) || `#${x.derniere.affectation}` : '',
+    ers: x.derniere ? ers.get(x.derniere.affectation) || [] : [],
+    niveau: x.ligne.niveau || (x.derniere ? x.derniere.niveau : ''),
+  }));
 }
 
 async function openExclus(retour = retourAccueil(), { garder = false } = {}) {
@@ -3356,6 +3378,7 @@ function rendreExclus() {
   const cles = {
     nom: (x) => `${x.row.nom} ${x.row.prenom}`,
     etab: (x) => x.etab,
+    ers: (x) => (x.ers.find((i) => i.libelle === 'ERSH') || {}).valeur || '',
     niveau: (x) => x.niveau,
     date: (x) => x.ligne.date,
   };
@@ -3414,7 +3437,7 @@ function rendreExclus() {
                   'table',
                   {},
                   h('caption', {}, 'Élèves exclus'),
-                  h('thead', {}, h('tr', {}, [['Élève', 'nom'], ['Dernière affectation', 'etab'], ['Classe', 'niveau'], ['Exclu depuis le', 'date']].map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
+                  h('thead', {}, h('tr', {}, [['Élève', 'nom'], ['Dernière affectation', 'etab'], ['ERS de référence', 'ers'], ['Classe', 'niveau'], ['Exclu depuis le', 'date']].map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
                   h(
                     'tbody',
                     {},
@@ -3424,6 +3447,7 @@ function rendreExclus() {
                         {},
                         h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${x.row.nom} ${x.row.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(x.row, 'exclus') }, `${x.row.nom} ${x.row.prenom}`.trim() || 'Sans nom'), badgeIncomplet(x.row) ? [h('br'), badgeIncomplet(x.row)] : null),
                         h('td', {}, x.derniere ? lienEtab(x.derniere, retourExclus()) : '—'),
+                        h('td', {}, celluleErs(x.ers)),
                         h('td', {}, x.niveau || '—'),
                         h('td', { class: 'nowrap' }, formatDateFr(x.ligne.date) || '—'),
                       ),

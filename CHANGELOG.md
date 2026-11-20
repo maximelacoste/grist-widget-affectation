@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Élèves exclus : nouvelle colonne « ERS de référence » (nom, secteur, courriels cliquables) pour le dernier établissement connu ; le dossier d'un élève exclu affiche aussi cet ERS (« dernier établissement »).
 - Bandeau « COPIE DE TEST » très visible et fixe en haut de page quand le nom du document contient « test » (ou que l'adresse du widget porte `?test=1`), pour ne pas saisir de données réelles dans une copie.
 - Recherche d'élève (suggestions et liste des résultats) : un élève exclu est indiqué « Exclu(e) » avec son dernier établissement, au lieu d'une affectation vide.
 - Dossier élève : les courriels de l'ERS de référence sont des liens `mailto:`.
