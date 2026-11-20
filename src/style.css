@@ -148,3 +148,8 @@ body.lecture-seule .bouton-ecriture {
 /* Vœux : élèves qu'un ERS ne gère pas (non modifiables) */
 .ligne-grisee td { background: var(--background-alt-grey, #f6f6f6); color: var(--text-mention-grey, #666); }
 .liste-sans-puce { list-style: none; padding-left: 0; }
+
+/* Bandeau de la copie de test : très visible, jamais masqué */
+#bandeau-test { position: sticky; top: 0; z-index: 1000; background: #b34000; color: #fff; text-align: center; padding: 0.75rem 1rem; border-bottom: 6px solid #000091; }
+#bandeau-test .bandeau-test-titre { margin: 0; font-size: 2rem; font-weight: 800; letter-spacing: 0.15em; line-height: 1.2; }
+#bandeau-test .bandeau-test-texte { margin: 0.25rem 0 0; font-size: 1.1rem; font-weight: 600; }

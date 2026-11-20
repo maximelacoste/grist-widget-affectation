@@ -2,6 +2,9 @@
 
 ## [Non publié]
 
+- Bandeau « COPIE DE TEST » très visible et fixe en haut de page quand le nom du document contient « test » (ou que l'adresse du widget porte `?test=1`), pour ne pas saisir de données réelles dans une copie.
+- Recherche d'élève (suggestions et liste des résultats) : un élève exclu est indiqué « Exclu(e) » avec son dernier établissement, au lieu d'une affectation vide.
+- Dossier élève : les courriels de l'ERS de référence sont des liens `mailto:`.
 - Page dossier de l'élève : bloc « ERS de référence » (secteur, nom de l'ERS, courriels de la table des établissements) pour l'établissement de l'affectation en cours ; absent si l'élève n'a pas d'affectation en cours ou si rien n'est renseigné.
 - Vœux n+1 : la situation « Maintien en ULIS » garde le niveau actuel (pas de +1) ; une situation de sortie (retour en classe ordinaire, sortie du dispositif) ne demande aucun vœu d'établissement ; un maintien en 3e (3e, 3G, 3PM) est signalé par une alerte sur la ligne et en tête de page, sans bloquer l'enregistrement.
 - Entrée ERS (enseignant référent) : si la table `Acces_ERS` ne renvoie qu'une ligne à l'utilisateur, le widget s'ouvre sur sa page : établissements de ses secteurs, établissements hors secteur où il a récupéré des élèves (table `Suivis_ERS`), recherche d'un élève et bouton « C'est mon élève », élèves qu'il ne gère pas grisés dans la page des vœux, demande d'accusé (ligne dans `Accuses_ERS`, l'envoi par mail relève d'un workflow n8n à venir). Essais : `?ers=adresse` choisit une ligne, `?coordo=1` force l'affichage complet. Affichage seulement : la protection reste les règles d'accès Grist.

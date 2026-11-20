@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120a';
-import { attachSuggest } from './suggest.js?v=20261120a';
-import { activerCalendriers } from './calendrier.js?v=20261120a';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120c';
+import { attachSuggest } from './suggest.js?v=20261120c';
+import { activerCalendriers } from './calendrier.js?v=20261120c';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -366,6 +366,12 @@ function enCoursDe(t, ids) {
   return new Map([...groupes].map(([e, l]) => [e, ligneActuelle(l.sort(triScol), today)]));
 }
 
+/** Élèves exclus parmi `ids` : Map(id d'élève -> { ligne, derniere }), `derniere` = dernière affectation connue. */
+function exclusDe(t, ids) {
+  const lignes = lignesDe(t).filter((l) => ids.has(l.eleve));
+  return new Map(elevesExclus(lignes, new Date().toISOString().slice(0, 10)).map((x) => [x.eleve, x]));
+}
+
 async function refreshScolarite(eleveId = state.eleve.id) {
   state.scol = lignesScolarite(await lireTable(T_SCOLARITE), eleveId);
 }
@@ -409,16 +415,26 @@ function scolariteCondensee(l) {
   return (texte || 'affectation en cours') + (l.attente ? " (liste d'attente)" : '');
 }
 
+/** « Exclu(e) » avec le dernier établissement connu, pour les listes de résultats. */
+function texteExclu(x) {
+  const etab = x.derniere ? state.etabLabel.get(x.derniere.affectation) || '' : '';
+  return `exclu(e)${etab ? ` de ${etab}` : ''}`;
+}
+
 /** Suggestions d'élèves : « NOM Prénom, né(e) le … — scolarité actuelle ». */
 async function suggestionsEleves(query) {
   const { rows } = rechercheLibre(state.individus, query, 8);
   let enCours = new Map();
+  let exclus = new Map();
   try {
-    enCours = enCoursDe(await lireTableRapide(T_SCOLARITE), new Set(rows.map((r) => r.id)));
+    const t = await lireTableRapide(T_SCOLARITE);
+    const ids = new Set(rows.map((r) => r.id));
+    enCours = enCoursDe(t, ids);
+    exclus = exclusDe(t, ids);
   } catch {
     /* la scolarité est un confort : les suggestions restent utilisables sans elle */
   }
-  return rows.map((r) => ({ value: String(r.id), label: `${libelleEleve(r)} — ${scolariteCondensee(enCours.get(r.id))}`, row: r }));
+  return rows.map((r) => ({ value: String(r.id), label: `${libelleEleve(r)} — ${!enCours.get(r.id) && exclus.has(r.id) ? texteExclu(exclus.get(r.id)) : scolariteCondensee(enCours.get(r.id))}`, row: r }));
 }
 
 // Recherche prédictive : « NOM Prénom, né(e) le … — scolarité actuelle » dès 2 caractères ; un clic ouvre directement l'élève.
@@ -450,7 +466,12 @@ function celluleSituation(l) {
 }
 
 /** Cellule « Affectation en cours » : établissement, puis niveau et situation en petit. */
-function celluleEnCours(l, retour) {
+function celluleEnCours(l, retour, exclu = null) {
+  if (!l && exclu) {
+    const d = exclu.derniere;
+    const niveau = exclu.ligne.niveau || (d && d.niveau) || '';
+    return [h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon' }, 'Exclu(e)'), d ? [h('br'), lienEtab(d, retour)] : null, niveau ? [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, niveau)] : null];
+  }
   if (!l) return '—';
   const detail = [l.niveau, l.situation].filter(Boolean).join(' · ');
   return [lienEtab(l, retour), detail || l.attente ? h('br') : null, detail ? h('span', { class: 'fr-text--sm fr-hint-text' }, detail) : null, l.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, "Liste d'attente")] : null];
@@ -464,8 +485,11 @@ async function renderResults() {
     return;
   }
   let enCours = new Map();
+  let exclus = new Map();
   try {
-    enCours = enCoursDe(await lireTable(T_SCOLARITE), new Set(rows.map((r) => r.id)));
+    const t = await lireTable(T_SCOLARITE);
+    enCours = enCoursDe(t, new Set(rows.map((r) => r.id)));
+    exclus = exclusDe(t, new Set(rows.map((r) => r.id)));
   } catch {
     /* l'affectation en cours est un confort : la liste reste utilisable sans elle */
   }
@@ -499,7 +523,7 @@ async function renderResults() {
                     h('td', {}, r.nom || '—'),
                     h('td', {}, r.prenom || '—'),
                     h('td', { class: 'nowrap' }, formatDateFr(r.ddn) || 'non renseignée', badgeIncomplet(r, enCours.get(r.id)) ? [h('br'), badgeIncomplet(r, enCours.get(r.id))] : null),
-                    h('td', {}, celluleEnCours(enCours.get(r.id), retourResultats())),
+                    h('td', {}, celluleEnCours(enCours.get(r.id), retourResultats(), exclus.get(r.id) || null)),
                     h(
                       'td',
                       {},
@@ -1281,7 +1305,7 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
     ]),
     ...(ersRef.length
-      ? [h('h2', { class: 'fr-h6' }, 'ERS de référence'), listeInfos(ersRef.map((x) => ligneModifiable(x.libelle === 'ERSH' ? 'ERS' : x.libelle, x.valeur, null, ctx)))]
+      ? [h('h2', { class: 'fr-h6' }, 'ERS de référence'), listeInfos(ersRef.map((x) => ligneModifiable(x.libelle === 'ERSH' ? 'ERS' : x.libelle, lienContact(x.libelle, x.valeur), null, ctx)))]
       : []),
     h('h2', { class: 'fr-h6' }, 'Notification ULIS'),
     listeInfos([
@@ -3438,6 +3462,22 @@ const T_DROITS = 'Droits_widget';
 function lectureSeule() {
   return document.body.classList.contains('lecture-seule');
 }
+/**
+ * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
+ * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
+ */
+async function afficherBandeauTest() {
+  let test = false;
+  try {
+    test = new URLSearchParams(window.location.search).get('test') === '1';
+    if (!test && grist.docApi && typeof grist.docApi.getDocName === 'function') test = /test/i.test(String(await grist.docApi.getDocName()));
+  } catch {
+    /* le nom du document est un confort : sans lui, pas de bandeau */
+  }
+  if (!test || document.getElementById('bandeau-test')) return;
+  document.body.prepend(h('div', { id: 'bandeau-test', role: 'status' }, h('p', { class: 'bandeau-test-titre' }, 'COPIE DE TEST'), h('p', { class: 'bandeau-test-texte' }, 'Ce n\'est pas le document réel : n\'y saisissez aucune donnée réelle.')));
+}
+
 function appliquerLectureSeule() {
   try {
     if (new URLSearchParams(window.location.search).get('readonly') === 'true') document.body.classList.add('lecture-seule');
@@ -3486,6 +3526,7 @@ function accueilNavigation() {
 async function init() {
   grist.ready({ requiredAccess: 'full' });
   appliquerLectureSeule();
+  await afficherBandeauTest();
   goto(1, { focus: false });
   estEditeur().then((editeur) => {
     if (!editeur) accueilNavigation(); // les éditeurs connaissent l'outil : le message vise ceux qui consultent
