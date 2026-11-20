@@ -8,7 +8,7 @@
        l'autocomplétion d'adresse (Géoplateforme IGN). Si le widget reste blanc après une modification, ouvrir la console du
        navigateur et chercher « Refused to … » : la règle concernée est à ajuster ici. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://data.geopf.fr; base-uri 'none'; form-action 'none'">
-  <title>🫏 ANESH</title>
+  <title>⛵ ULISse - Suivi des Élèves</title>
   <!-- DSFR auto-hébergé : voir README (npm install && npm run vendor). -->
   <link rel="stylesheet" href="vendor/dsfr/dsfr.min.css">
   <!-- Icônes du DSFR : les classes fr-icon-* ne sont pas dans dsfr.min.css, il faut ces feuilles. -->
@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-map/icons-map.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-business/icons-business.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-device/icons-device.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261120l">
+  <link rel="stylesheet" href="src/style.css?v=20261120n">
   <!-- API de plugin Grist : copie datée de l'instance (vendor/grist/VERSION : source, date, empreinte SHA-256), pour ne charger
        aucun script depuis un site tiers. Mise à jour volontaire : sh scripts/vendor-grist-api.sh https://<instance> -->
   <script src="vendor/grist/grist-plugin-api.js"></script>
@@ -27,8 +27,8 @@
   <main class="fr-container fr-py-2w" id="app">
     <header class="app-entete">
       <p class="app-titre fr-h4 fr-mb-0">
-        <button type="button" class="app-titre-lien" id="app-titre" title="Revenir à l'accueil"><span aria-hidden="true">🫏</span> ANESH</button>
-        <span class="fr-hint-text app-titre-sous">Affectations et Notifications des Élèves en Situation de Handicap</span>
+        <button type="button" class="app-titre-lien" id="app-titre" title="Revenir à l'accueil"><span aria-hidden="true">⛵</span> ULISse</button>
+        <span class="fr-hint-text app-titre-sous">Suivi des Élèves</span>
       </p>
     </header>
     <div id="stepper"></div>
@@ -171,12 +171,12 @@
     </section>
   </main>
   <footer class="fr-container fr-pb-2w app-pied">
-    <p class="fr-text--xs fr-hint-text fr-mb-0" title="Aucune Notification d'Élève Sans Historique">ANESH is not AGESH · Licence ouverte 2.0 · CDOEA 31</p>
+    <p class="fr-text--xs fr-hint-text fr-mb-0">Licence ouverte 2.0 · CDOEA 31</p>
   </footer>
 
   <script type="module" src="vendor/dsfr/dsfr.module.min.js"></script>
   <script nomodule src="vendor/dsfr/dsfr.nomodule.min.js"></script>
-  <script src="src/garde.js?v=20261120l"></script>
-  <script type="module" src="src/app.js?v=20261120l"></script>
+  <script src="src/garde.js?v=20261120n"></script>
+  <script type="module" src="src/app.js?v=20261120n"></script>
 </body>
 </html>

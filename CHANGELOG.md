@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Renommage : l'application s'appelle « ⛵ ULISse - Suivi des Élèves » (titre de l'en-tête, onglet du navigateur) ; toute mention d'ANESH est retirée, y compris du pied de page.
 - Page Vœux : Vœu 1 et Vœu 2 deviennent des champs avec recherche (loupe), la liste de niveau n+1 est élargie, étiquettes « Sortant (CM2) », « Sortant (3e) » et « Restant » avec une bordure de couleur sur la ligne.
 
 - Dossier d'un élève exclu : l'ERS de référence est celui du dernier établissement connu (« dernier établissement »). Pas de colonne ERS dans les listes de résultats.

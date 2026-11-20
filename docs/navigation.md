@@ -87,5 +87,5 @@ Toutes les sorties passent par la même garde : retour (quelle que soit l'origin
 
 - Chaque note a, en fin de ligne, un crayon (modifier, avec confirmation avant → après) et une corbeille (confirmation, focus sur « Non, garder »). La suppression d'une note ne change pas de page : le dossier est rechargé.
 - « Affecter » se trouve sous l'historique des affectations ; le bouton « retour » reste en bas du dossier.
-- Le titre « ANESH » en haut de page ramène à l'accueil (garde de sortie incluse).
+- Le titre « ULISse » en haut de page ramène à l'accueil (garde de sortie incluse).
 - Toute écriture dans Grist passe par une fenêtre de confirmation : récapitulatif pour un ajout, avant → après pour une modification, rappel de la ligne pour une suppression.
