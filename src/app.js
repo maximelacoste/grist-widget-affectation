@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120j';
-import { attachSuggest } from './suggest.js?v=20261120j';
-import { activerCalendriers } from './calendrier.js?v=20261120j';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120l';
+import { attachSuggest } from './suggest.js?v=20261120l';
+import { activerCalendriers } from './calendrier.js?v=20261120l';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1708,7 +1708,7 @@ function select(id, label, options, value, { hint = '' } = {}) {
  * on tape des mots (sans accents, dans le désordre), on choisit à la souris ou au clavier
  * (flèches, Entrée, Échap). La valeur choisie est portée par `input.dataset.value`.
  */
-function combobox({ id, label, options, value, hint = '', placeholder = 'Rechercher…', onChange = null }) {
+function combobox({ id, label, options, value, hint = '', placeholder = 'Rechercher…', onChange = null, compact = false, disabled = false }) {
   const selected = options.find((o) => String(o.value) === String(value));
   const listId = `${id}-list`;
   const input = h('input', {
@@ -1721,6 +1721,7 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
     'aria-autocomplete': 'list',
     'aria-expanded': 'false',
     'aria-controls': listId,
+    disabled,
   });
   input.value = selected ? selected.label : '';
   input.dataset.value = selected ? String(selected.value) : '';
@@ -1778,6 +1779,11 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
       ].filter(Boolean), // replaceChildren(null) écrirait le texte « null »
     );
     list.hidden = false;
+    if (compact) {
+      // dans un tableau, le conteneur défilant rognerait la liste : on la place à l'écran (position fixe)
+      const r = input.getBoundingClientRect();
+      Object.assign(list.style, { position: 'fixed', top: `${r.bottom}px`, left: `${r.left}px`, width: `${Math.max(r.width, 260)}px`, zIndex: '1000' });
+    }
     input.setAttribute('aria-expanded', 'true');
     setActive(-1);
     status.textContent = total === 0 ? 'Aucun résultat' : `${total} résultat${total > 1 ? 's' : ''}`;
@@ -1816,14 +1822,22 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
     }
   });
 
-  return h(
+  if (compact) window.addEventListener('scroll', close, true);
+  const racine = h(
     'div',
-    { class: 'fr-input-group combo fr-mb-2w' },
-    h('label', { class: 'fr-label', for: id }, label, hint ? h('span', { class: 'fr-hint-text' }, hint) : null),
+    { class: compact ? 'fr-input-group combo combo-compact' : 'fr-input-group combo fr-mb-2w' },
+    h('label', { class: compact ? 'fr-label fr-sr-only' : 'fr-label', for: id }, label, hint ? h('span', { class: 'fr-hint-text' }, hint) : null),
     h('div', { class: 'fr-input-wrap fr-icon-search-line' }, input),
     list,
     status,
   );
+  /** Change la valeur par programme (sans déclencher onChange). */
+  racine.definirValeur = (v) => {
+    const o = options.find((x) => String(x.value) === String(v));
+    input.value = o ? o.label : '';
+    input.dataset.value = o ? String(o.value) : '';
+  };
+  return racine;
 }
 
 $('#btn-new-scol').addEventListener('click', () => openScolForm(null));
@@ -2876,6 +2890,9 @@ function rendreSecteur() {
 /** « Maintien en ULIS » : l'élève reste dans son niveau (pas de +1). */
 const estMaintien = (situation) => /^maintien/i.test(String(situation || '').trim());
 /** Niveau de 3e (« 3e », « 3ème », « 3eme »…) : un maintien y est signalé car il n'est pas de droit. */
+const estCm2 = (niveau) => /^cm\s*2/i.test(String(niveau || '').trim());
+/** « Sortant » : élève en CM2 ou en 3e, qui quitte son établissement à la rentrée ; sinon « restant ». */
+const sortantDe = (niveau) => (estCm2(niveau) ? 'CM2' : est3e(niveau) ? '3e' : '');
 const est3e = (niveau) => /^3(g|pm|e|è|\s|$)/i.test(String(niveau || '').trim());
 /** Situation qui sort du dispositif (retour en classe ordinaire, sortie) : pas de vœu d'établissement ULIS à saisir. */
 const estSortie = (situation) => /^(sortie|retour)|ordinaire/i.test(String(situation || '').trim());
@@ -2973,18 +2990,16 @@ function rendreVoeuxEtab() {
     const ro = lectureSeule() || !e.gere;
     const rest = h('input', { type: 'checkbox', id: `${pre}-reste`, checked: e.cur.voeu1 === etabId, disabled: ro });
     const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: ro }, state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n)));
-    const v1 = h('select', { class: 'fr-select', id: `${pre}-v1`, 'aria-label': `Vœu 1 de ${nom}`, disabled: ro }, optsEtab('Aucun vœu'));
-    const v2 = h('select', { class: 'fr-select', id: `${pre}-v2`, 'aria-label': `Vœu 2 de ${nom}`, disabled: ro }, optsEtab('Aucun'));
+    const optionsEtab = state.etabs.map((x) => ({ value: x.id, label: x.label }));
+    const v1 = combobox({ id: `${pre}-v1`, label: `Vœu 1 de ${nom}`, options: optionsEtab, value: e.cur.voeu1 || '', placeholder: 'Aucun vœu', compact: true, disabled: ro, onChange: (v) => { e.cur.voeu1 = Number(v) || 0; rafraichir(); } });
+    const v2 = combobox({ id: `${pre}-v2`, label: `Vœu 2 de ${nom}`, options: optionsEtab, value: e.cur.voeu2 || '', placeholder: 'Aucun', compact: true, disabled: ro, onChange: (v) => { e.cur.voeu2 = Number(v) || 0; maj(); } });
     const sit = h('select', { class: 'fr-select', id: `${pre}-sit`, 'aria-label': `Situation de ${nom}`, disabled: ro }, state.situations.map((x) => h('option', { value: x, selected: x === e.cur.situation }, x)));
-    v1.value = String(e.cur.voeu1);
-    v2.value = String(e.cur.voeu2);
     const redoublement = h('span', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon', id: `${pre}-red`, title: "Le niveau n+1 est le niveau actuel : pour un maintien, choisissez la situation « Maintien en ULIS »", hidden: true }, 'Même niveau');
     const alerte = h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', id: `${pre}-alerte`, title: "Un maintien en 3e n'est pas de droit : à examiner en commission", hidden: true }, 'Maintien en 3e : pas de droit');
     const rafraichir = () => {
       redoublement.hidden = !(e.cur.niveau1 === e.niveau && e.niveau && !estMaintien(e.cur.situation));
       alerte.hidden = !alerteMaintien3e(e.niveau, e.cur.situation);
       rest.checked = e.cur.voeu1 === etabId;
-      v1.value = String(e.cur.voeu1);
       maj();
     };
     rest.addEventListener('change', () => {
@@ -2993,18 +3008,18 @@ function rendreVoeuxEtab() {
         e.cur.situation = SITUATION_PAR_DEFAUT;
         sit.value = SITUATION_PAR_DEFAUT;
       } else if (e.cur.voeu1 === etabId) e.cur.voeu1 = 0;
+      v1.definirValeur(e.cur.voeu1 || '');
       rafraichir();
     });
     niv.addEventListener('change', () => { e.cur.niveau1 = niv.value; rafraichir(); });
-    v1.addEventListener('change', () => { e.cur.voeu1 = Number(v1.value); rafraichir(); });
-    v2.addEventListener('change', () => { e.cur.voeu2 = Number(v2.value); rafraichir(); });
     sit.addEventListener('change', () => {
       e.cur.situation = sit.value;
       // Maintien en ULIS : même niveau (pas de +1) ; en le quittant, on revient au niveau suivant.
       if (estSortie(sit.value)) {
         e.cur.voeu1 = 0;
         e.cur.voeu2 = 0;
-        v2.value = '0';
+        v1.definirValeur('');
+        v2.definirValeur('');
       }
       if (estMaintien(sit.value) && e.niveau) e.cur.niveau1 = e.niveau;
       else if (e.cur.niveau1 === e.niveau && e.niveau) e.cur.niveau1 = niveauSuivant(e.niveau);
@@ -3013,9 +3028,9 @@ function rendreVoeuxEtab() {
     });
     return h(
       'tr',
-      { class: e.gere ? null : 'ligne-grisee' },
+      { class: [e.gere ? '' : 'ligne-grisee', e.niveau ? (sortantDe(e.niveau) ? 'ligne-sortant' : 'ligne-restant') : ''].filter(Boolean).join(' ') || null },
       h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.gere ? null : [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, 'Élève suivi par un autre ERS'), h('br'), h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: "Ajouter cet élève à votre liste : vous pourrez saisir ses vœux", onclick: () => demanderRattachement(e.row) }, "C'est mon élève")], e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
-      h('td', {}, e.niveau || '—'),
+      h('td', {}, e.niveau || '—', e.niveau ? [h('br'), sortantDe(e.niveau) ? h('span', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: `Élève en ${sortantDe(e.niveau)} : il quitte son établissement à la rentrée` }, `Sortant (${sortantDe(e.niveau)})`) : h('span', { class: 'fr-badge fr-badge--green-emeraude fr-badge--sm fr-badge--no-icon', title: 'Élève qui peut rester dans son établissement à la rentrée' }, 'Restant')] : null),
       h('td', {}, niv, ' ', redoublement, h('br'), alerte),
       h('td', {}, h('div', { class: 'fr-checkbox-group fr-checkbox-group--sm' }, rest, h('label', { class: 'fr-label', for: `${pre}-reste`, title: "Remplit le vœu 1 avec cet établissement et la situation « En ULIS »" }, h('span', { class: 'fr-sr-only' }, `${nom} : `), "Reste dans l'établissement"))),
       h('td', {}, v1),
@@ -3471,7 +3486,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261120j';
+const VERSION_APP = '20261120l';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 

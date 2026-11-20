@@ -165,3 +165,11 @@ body.lecture-seule .bouton-ecriture {
   mask-size: 100% 100%;
   z-index: 1; /* au-dessus du champ, qui est dans un conteneur positionné (suggestions) */
 }
+
+/* Page Vœux : code couleur par ligne (bordure à gauche) en plus des étiquettes « Sortant » / « Restant » */
+tr.ligne-sortant > :first-child { box-shadow: inset 6px 0 0 var(--border-action-high-warning, #b34000); }
+tr.ligne-restant > :first-child { box-shadow: inset 6px 0 0 var(--border-action-high-green-emeraude, #297254); }
+.combo-compact { margin-bottom: 0; min-width: 14rem; }
+/* Page Vœux : la liste « Niveau n+1 » doit afficher toutes ses valeurs (6e ULIS, 3e SEGPA…) */
+#voeux select.fr-select { min-width: 9rem; text-overflow: clip; }
+#voeux td { vertical-align: top; }

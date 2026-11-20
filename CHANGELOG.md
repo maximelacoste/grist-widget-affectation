@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Page Vœux : Vœu 1 et Vœu 2 deviennent des champs avec recherche (loupe), la liste de niveau n+1 est élargie, étiquettes « Sortant (CM2) », « Sortant (3e) » et « Restant » avec une bordure de couleur sur la ligne.
+
 - Dossier d'un élève exclu : l'ERS de référence est celui du dernier établissement connu (« dernier établissement »). Pas de colonne ERS dans les listes de résultats.
 - Loupe visible dans les champs de recherche (élève, établissement, dispositifs, élèves exclus, affectation, accueil ERS) : les règles de base des icônes du DSFR n'étaient pas chargées, l'icône n'apparaissait pas.
 - Bandeau « COPIE DE TEST » (rouge, très visible, fixe en haut de page) quand le nom du document contient « test », « copie », « copy » ou « essai » (ou que l'adresse du widget porte `?test=1`), pour ne pas saisir de données réelles dans une copie.
