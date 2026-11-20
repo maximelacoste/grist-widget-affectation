@@ -2,7 +2,8 @@
 
 ## [Non publié]
 
-- Élèves exclus : nouvelle colonne « ERS de référence » (nom, secteur, courriels cliquables) pour le dernier établissement connu ; le dossier d'un élève exclu affiche aussi cet ERS (« dernier établissement »).
+- Dossier d'un élève exclu : l'ERS de référence est celui du dernier établissement connu (« dernier établissement »). Pas de colonne ERS dans les listes de résultats.
+- Loupe visible dans les champs de recherche (élève, établissement, dispositifs, élèves exclus, affectation, accueil ERS) : les règles de base des icônes du DSFR n'étaient pas chargées, l'icône n'apparaissait pas.
 - Bandeau « COPIE DE TEST » (rouge, très visible, fixe en haut de page) quand le nom du document contient « test », « copie », « copy » ou « essai » (ou que l'adresse du widget porte `?test=1`), pour ne pas saisir de données réelles dans une copie.
 - Recherche d'élève (suggestions et liste des résultats) : un élève exclu est indiqué « Exclu(e) » avec son dernier établissement, au lieu d'une affectation vide.
 - Dossier élève : les courriels de l'ERS de référence sont des liens `mailto:`.

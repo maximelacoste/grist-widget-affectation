@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120e';
-import { attachSuggest } from './suggest.js?v=20261120e';
-import { activerCalendriers } from './calendrier.js?v=20261120e';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120h';
+import { attachSuggest } from './suggest.js?v=20261120h';
+import { activerCalendriers } from './calendrier.js?v=20261120h';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2283,17 +2283,6 @@ async function ersDeEtab(etabId) {
     return []; // l'ERS est un plus : sa lecture ne doit jamais empêcher d'afficher la page
   }
 }
-/** Affichage d'un ERS : nom et secteur, puis courriels cliquables. */
-function celluleErs(infos) {
-  if (!infos.length) return '—';
-  const v = (lib) => (infos.find((x) => x.libelle === lib) || {}).valeur || '';
-  const noeuds = [v('ERSH'), v('Secteur ERS') ? h('span', { class: 'fr-text--sm fr-hint-text' }, v('Secteur ERS')) : '']
-    .filter(Boolean)
-    .flatMap((x, i) => (i ? [h('br'), x] : [x]));
-  for (const lib of ['Courriel du secteur (référent)', "Courriel de l'ERSH"]) if (v(lib)) noeuds.push(h('br'), lienContact(lib, v(lib)));
-  return noeuds;
-}
-
 async function chargerDispositif(etabId) {
   const [tScol, tInd, etab] = await Promise.all([lireTable(T_SCOLARITE), lireTable(T_INDIVIDUS), infosEtab(etabId)]);
   state.individus = toIndividus(tInd);
@@ -2821,7 +2810,7 @@ function rendreSecteur() {
         'div',
         { class: 'fr-input-group fr-col-12 fr-col-md-4' },
         h('label', { class: 'fr-label', for: 'f-q' }, 'Rechercher un dispositif'),
-        recherche,
+        h('div', { class: 'fr-input-wrap fr-icon-search-line' }, recherche),
       ),
       aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', SECTEURS, 'Ne garder que les établissements du secteur 1, 2 ou 3') : null,
       selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
@@ -3210,7 +3199,7 @@ async function openErsAccueil({ focus = true } = {}) {
     h(
       'form',
       { id: 'form-ers-q', novalidate: true, onsubmit: (ev) => { ev.preventDefault(); chercherEleveErs($('#ers-q').value.trim()); } },
-      h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: 'ers-q' }, 'Rechercher un élève', h('span', { class: 'fr-hint-text' }, 'Nom, prénom ou année de naissance. Vous pourrez le récupérer pour saisir ses vœux.')), h('input', { class: 'fr-input', id: 'ers-q', type: 'text', autocomplete: 'off' })),
+      h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: 'ers-q' }, 'Rechercher un élève', h('span', { class: 'fr-hint-text' }, 'Nom, prénom ou année de naissance. Vous pourrez le récupérer pour saisir ses vœux.')), h('div', { class: 'fr-input-wrap fr-icon-search-line' }, h('input', { class: 'fr-input', id: 'ers-q', type: 'text', autocomplete: 'off' }))),
       h('button', { class: 'fr-btn fr-mt-2w', type: 'submit', title: 'Lancer la recherche' }, 'Rechercher'),
     ),
     h('div', { id: 'ers-resultats', class: 'fr-mt-2w', 'aria-live': 'polite' }),
@@ -3323,19 +3312,13 @@ async function chargerExclus() {
   state.individus = toIndividus(tInd);
   const parId = new Map(state.individus.map((r) => [r.id, r]));
   const todayIso = new Date().toISOString().slice(0, 10);
-  const exclus = elevesExclus(lignesDe(tScol), todayIso).filter((x) => parId.has(x.eleve));
-  // ERS du dernier établissement de chacun : une seule lecture par établissement
-  const ers = new Map();
-  for (const x of exclus) {
-    const id = x.derniere ? x.derniere.affectation : 0;
-    if (id && !ers.has(id)) ers.set(id, await ersDeEtab(id));
-  }
-  return exclus.map((x) => ({
+  return elevesExclus(lignesDe(tScol), todayIso)
+    .filter((x) => parId.has(x.eleve))
+    .map((x) => ({
     row: parId.get(x.eleve),
     ligne: x.ligne,
     derniere: x.derniere, // dernière affectation connue : la ligne d'exclusion n'a généralement pas d'établissement
     etab: x.derniere ? state.etabLabel.get(x.derniere.affectation) || `#${x.derniere.affectation}` : '',
-    ers: x.derniere ? ers.get(x.derniere.affectation) || [] : [],
     niveau: x.ligne.niveau || (x.derniere ? x.derniere.niveau : ''),
   }));
 }
@@ -3378,7 +3361,6 @@ function rendreExclus() {
   const cles = {
     nom: (x) => `${x.row.nom} ${x.row.prenom}`,
     etab: (x) => x.etab,
-    ers: (x) => (x.ers.find((i) => i.libelle === 'ERSH') || {}).valeur || '',
     niveau: (x) => x.niveau,
     date: (x) => x.ligne.date,
   };
@@ -3416,7 +3398,7 @@ function rendreExclus() {
     h(
       'div',
       { class: 'fr-grid-row fr-grid-row--gutters fr-mb-2w' },
-      h('div', { class: 'fr-input-group fr-col-12 fr-col-md-4' }, h('label', { class: 'fr-label', for: 'x-q' }, 'Rechercher un élève exclu'), recherche),
+      h('div', { class: 'fr-input-group fr-col-12 fr-col-md-4' }, h('label', { class: 'fr-label', for: 'x-q' }, 'Rechercher un élève exclu'), h('div', { class: 'fr-input-wrap fr-icon-search-line' }, recherche)),
     ),
     h('p', { role: 'status' }, `${liste.length} élève${liste.length > 1 ? 's' : ''} exclu${liste.length > 1 ? 's' : ''}${liste.length !== ex.rows.length ? ` sur ${ex.rows.length}` : ''}`),
     liste.length === 0
@@ -3437,7 +3419,7 @@ function rendreExclus() {
                   'table',
                   {},
                   h('caption', {}, 'Élèves exclus'),
-                  h('thead', {}, h('tr', {}, [['Élève', 'nom'], ['Dernière affectation', 'etab'], ['ERS de référence', 'ers'], ['Classe', 'niveau'], ['Exclu depuis le', 'date']].map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
+                  h('thead', {}, h('tr', {}, [['Élève', 'nom'], ['Dernière affectation', 'etab'], ['Classe', 'niveau'], ['Exclu depuis le', 'date']].map(([lib, cle]) => enteteTri(lib, cle, onTri, tri)))),
                   h(
                     'tbody',
                     {},
@@ -3447,7 +3429,6 @@ function rendreExclus() {
                         {},
                         h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${x.row.nom} ${x.row.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(x.row, 'exclus') }, `${x.row.nom} ${x.row.prenom}`.trim() || 'Sans nom'), badgeIncomplet(x.row) ? [h('br'), badgeIncomplet(x.row)] : null),
                         h('td', {}, x.derniere ? lienEtab(x.derniere, retourExclus()) : '—'),
-                        h('td', {}, celluleErs(x.ers)),
                         h('td', {}, x.niveau || '—'),
                         h('td', { class: 'nowrap' }, formatDateFr(x.ligne.date) || '—'),
                       ),
@@ -3490,7 +3471,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261120e';
+const VERSION_APP = '20261120h';
 async function afficherBandeauTest() {
   let test = false;
   let nom = '';

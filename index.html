@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-map/icons-map.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-business/icons-business.min.css">
   <link rel="stylesheet" href="vendor/dsfr/utility/icons/icons-device/icons-device.min.css">
-  <link rel="stylesheet" href="src/style.css?v=20261120e">
+  <link rel="stylesheet" href="src/style.css?v=20261120h">
   <!-- API de plugin Grist : copie datée de l'instance (vendor/grist/VERSION : source, date, empreinte SHA-256), pour ne charger
        aucun script depuis un site tiers. Mise à jour volontaire : sh scripts/vendor-grist-api.sh https://<instance> -->
   <script src="vendor/grist/grist-plugin-api.js"></script>
@@ -45,7 +45,7 @@
               <label class="fr-label" for="q">Rechercher un élève
                 <span class="fr-hint-text">Nom, prénom et date de naissance, dans l'ordre que vous voulez (exemples : « dupont léa », « dupont 2015 », « léa 12/03/2015 »).</span>
               </label>
-              <input class="fr-input" id="q" name="q" title="Saisissez une partie du nom, du prénom ou de la date de naissance (jj/mm/aaaa ou année), dans l'ordre que vous voulez. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off">
+              <div class="fr-input-wrap fr-icon-search-line"><input class="fr-input" id="q" name="q" title="Saisissez une partie du nom, du prénom ou de la date de naissance (jj/mm/aaaa ou année), dans l'ordre que vous voulez. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off"></div>
             </div>
             <button title="Lancer la recherche et afficher toutes les fiches correspondantes" class="fr-btn fr-mt-2w" type="submit">Rechercher</button>
           </form>
@@ -62,7 +62,7 @@
               <label class="fr-label" for="qe">Rechercher un établissement
                 <span class="fr-hint-text">Nom, commune ou UAI : la page du dispositif liste les élèves présents et les informations de l'établissement.</span>
               </label>
-              <input class="fr-input" id="qe" name="qe" title="Saisissez quelques mots du nom, de la commune ou de l'UAI de l'établissement. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off">
+              <div class="fr-input-wrap fr-icon-search-line"><input class="fr-input" id="qe" name="qe" title="Saisissez quelques mots du nom, de la commune ou de l'UAI de l'établissement. Les suggestions apparaissent dès 2 caractères." type="text" autocomplete="off"></div>
             </div>
             <button title="Afficher le dispositif de l'établissement, ou la liste des établissements correspondants" class="fr-btn fr-mt-2w" type="submit">Rechercher</button>
           </form>
@@ -176,7 +176,7 @@
 
   <script type="module" src="vendor/dsfr/dsfr.module.min.js"></script>
   <script nomodule src="vendor/dsfr/dsfr.nomodule.min.js"></script>
-  <script src="src/garde.js?v=20261120e"></script>
-  <script type="module" src="src/app.js?v=20261120e"></script>
+  <script src="src/garde.js?v=20261120h"></script>
+  <script type="module" src="src/app.js?v=20261120h"></script>
 </body>
 </html>
