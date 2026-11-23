@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Garde de sortie : le formulaire d'affectation et la page des vœux demandent confirmation (« Abandonner les modifications en cours ? ») si on quitte avec une saisie non validée ; rien ne s'affiche si rien n'a changé ou si la saisie vient d'être enregistrée.
 - Formulaire d'affectation : sous le champ Affectation, l'occupation du dispositif de l'établissement choisi s'affiche (élèves présents aujourd'hui, places, liste d'attente, pastille « N places libres », « Presque plein », « Plein » ou « Dépassement »). Annoncé aux lecteurs d'écran, mis à jour à chaque nouveau choix, effacé si l'établissement est effacé.
 - Correctif : la liste des niveaux contenait du texte « null » après un changement d'établissement.
 

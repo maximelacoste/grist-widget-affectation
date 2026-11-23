@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123a';
-import { attachSuggest } from './suggest.js?v=20261123a';
-import { activerCalendriers } from './calendrier.js?v=20261123a';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123b';
+import { attachSuggest } from './suggest.js?v=20261123b';
+import { activerCalendriers } from './calendrier.js?v=20261123b';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -182,6 +182,11 @@ function renderStepper() {
 
 /** Affiche une seule page à la fois (étapes 1 à 3, création, dossier). */
 function masquerPages() {
+  if (state.edition && state.edition.fermer) { // la garde de sortie est déjà passée : on referme la saisie hors dossier
+    const ed = state.edition;
+    state.edition = null;
+    ed.fermer();
+  }
   for (let i = 1; i <= STEPS.length; i += 1) $(`#step-${i}`).hidden = true;
   $('#step-create').hidden = true;
   $('#step-dossier').hidden = true;
@@ -869,8 +874,13 @@ function afficherValeur(champ, v) {
 }
 
 /** Ouvre tous les champs modifiables en même temps. */
+const msgSaisieEnCours = () => (state.edition && state.edition.fermer ? "Validez ou annulez d'abord la saisie en cours." : "Validez ou annulez d'abord la modification du dossier en cours.");
+
 function entrerEdition(ctx) {
-  if (state.edition) return;
+  if (state.edition) {
+    if (state.edition.fermer) notify('warning', msgSaisieEnCours());
+    return;
+  }
   clearNotice();
   const champsEls = [];
   for (const l of ctx.lignes) {
@@ -925,6 +935,10 @@ function annulerEdition() {
   const ed = state.edition;
   if (!ed) return;
   state.edition = null;
+  if (ed.fermer) { // saisie hors dossier (formulaire d'affectation, page des vœux) : elle sait se refermer toute seule
+    ed.fermer();
+    return;
+  }
   clearFieldErrors($('#dossier'));
   for (const l of ed.ctx.lignes) {
     l.zone.replaceChildren();
@@ -950,12 +964,12 @@ function gardeSortie(suite) {
   ouvrirModale({
     titre: 'Abandonner les modifications en cours ?',
     corps: [
-      h('p', { class: 'fr-mb-1w' }, "Vous avez modifié des champs du dossier sans les valider : ces changements seront perdus."),
+      h('p', { class: 'fr-mb-1w' }, ed.message || "Vous avez modifié des champs du dossier sans les valider : ces changements seront perdus."),
       h('p', { class: 'fr-text--sm fr-mb-0' }, 'Rien n\'a été écrit dans Grist.'),
     ],
     actions: [
       { id: 'dlg-oui', libelle: 'Oui, abandonner', info: 'Perdre les modifications non validées et continuer', secondaire: true, onClick: () => { annulerEdition(); suite(); } },
-      { id: 'dlg-non', libelle: 'Non, continuer la modification', info: 'Fermer cette fenêtre et rester sur le dossier', onClick: () => ed.champsEls[0]?.input.focus() },
+      { id: 'dlg-non', libelle: 'Non, continuer la modification', info: 'Fermer cette fenêtre et rester sur la page', onClick: () => (ed.focus ? ed.focus() : ed.champsEls[0]?.input.focus()) },
     ],
     focus: 'dlg-non', // le choix par défaut est de ne rien perdre
   });
@@ -1086,7 +1100,7 @@ function elementsNote(ctx) {
 
 function ouvrirPanneauNote(ctx, panneau, cols, existante = null) {
   if (state.edition) {
-    notify('warning', "Validez ou annulez d'abord la modification du dossier en cours.");
+    notify('warning', msgSaisieEnCours());
     return;
   }
   const typeCol = cols.get('Type');
@@ -1199,7 +1213,7 @@ async function modifierNote(ctx, n, texte, type, cols) {
 
 function demanderSuppressionNote(ctx, n) {
   if (state.edition) {
-    notify('warning', "Validez ou annulez d'abord la modification du dossier en cours.");
+    notify('warning', msgSaisieEnCours());
     return;
   }
   ouvrirModale({
@@ -1401,6 +1415,7 @@ function retourDossier(row, origine) {
 $('#btn-dossier-3').addEventListener('click', () => openDossier(state.eleve, 3));
 
 function backToSearch() {
+  if (state.edition) return gardeSortie(() => backToSearch());
   clearNotice();
   state.eleve = null;
   $('#form-scol').hidden = true;
@@ -1917,7 +1932,14 @@ async function majOccupation(etabId) {
   zone.replaceChildren(h('p', { class: 'fr-text--sm fr-mb-0' }, texte, ' ', badgeOccupation(o.presents, o.places)));
 }
 
+/** Referme le formulaire d'affectation ; la garde de sortie ne le surveille plus. */
+function fermerFormScol() {
+  $('#form-scol').hidden = true;
+  if (state.edition && state.edition.fermer === fermerFormScol) state.edition = null;
+}
+
 function openScolForm(ligne, defauts = {}) {
+  if (state.edition) return gardeSortie(() => openScolForm(ligne, defauts));
   clearNotice();
   state.editingId = ligne ? ligne.id : null;
   state.editingLigne = ligne;
@@ -1955,7 +1977,7 @@ function openScolForm(ligne, defauts = {}) {
       'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--icon-left' },
       h('button', { class: 'fr-btn', type: 'submit', title: ligne ? 'Enregistrer les modifications (une confirmation montrera ce qui change)' : 'Enregistrer cette nouvelle ligne d\'affectation' }, 'Enregistrer'),
-      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer le formulaire sans rien enregistrer', onclick: () => { form.hidden = true; } }, 'Annuler'),
+      h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer le formulaire sans rien enregistrer', onclick: () => gardeSortie(() => {}) }, 'Annuler'),
       ligne ? h('button', { class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line fr-btn--icon-left', type: 'button', id: 's-suppr', title: 'Supprimer cette ligne d\'affectation (une confirmation sera demandée)', onclick: () => demanderSuppression(ligne) }, 'Supprimer cette affectation') : null,
     ),
   );
@@ -1972,6 +1994,15 @@ function openScolForm(ligne, defauts = {}) {
   }
   form.hidden = false;
   majOccupation(ligne ? ligne.affectation : defauts.affectation || '');
+  // garde de sortie : quitter la page avec une saisie non validée demande confirmation
+  const instantane = () => JSON.stringify([$('#s-date')?.value, $('#s-aff')?.dataset.value || '', $('#s-niveau')?.value, $('#s-situation')?.value, $('#s-attente')?.checked]);
+  const depart = instantane();
+  state.edition = {
+    fermer: fermerFormScol,
+    dirty: () => !form.hidden && instantane() !== depart,
+    focus: () => $('#s-date')?.focus(),
+    message: ligne ? "Vous avez modifié cette affectation sans l'enregistrer : ces changements seront perdus." : "Vous avez commencé une nouvelle affectation sans l'enregistrer : elle sera perdue.",
+  };
   $('#h-scol-form').focus();
 }
 
@@ -2045,7 +2076,7 @@ async function supprimerLigne(ligne) {
     viderCache();
     await grist.docApi.applyUserActions([['RemoveRecord', T_SCOLARITE, ligne.id]]);
     await refreshScolarite();
-    $('#form-scol').hidden = true;
+    fermerFormScol();
     renderScolList();
     notify('success', 'Affectation supprimée.');
   } catch (err) {
@@ -2113,7 +2144,7 @@ async function ecrireAffectation(fields) {
     viderCache();
     await grist.docApi.applyUserActions([action]);
     await refreshScolarite();
-    form.hidden = true;
+    fermerFormScol();
     renderScolList();
     notify('success', state.editingId ? 'Affectation modifiée.' : 'Affectation enregistrée.');
   } catch (err) {
@@ -3001,6 +3032,12 @@ async function openVoeuxEtab(etabId, retour) {
     ),
   );
   rendreVoeuxEtab();
+  state.edition = {
+    fermer: () => {},
+    dirty: () => !$('#step-voeux').hidden && Boolean(state.voeuxEtab) && state.voeuxEtab.data.eleves.some((e) => e.gere && voeuxChange(e)),
+    focus: () => $('#h-voeux')?.focus(),
+    message: "Vous avez modifié des vœux sans les valider : ces changements seront perdus.",
+  };
   $('#h-voeux').focus();
 }
 
@@ -3146,6 +3183,7 @@ async function ecrireVoeuxEtab(aEcrire) {
     viderCache();
     await grist.docApi.applyUserActions(actions);
     const { etabId, retour } = state.voeuxEtab;
+    state.edition = null; // l'écriture a réussi : plus rien à protéger
     await openVoeuxEtab(etabId, retour);
     notify('success', `${actions.length} vœu${actions.length > 1 ? 'x' : ''} enregistré${actions.length > 1 ? 's' : ''}.`);
   } catch (err) {
@@ -3521,7 +3559,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123a';
+const VERSION_APP = '20261123b';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
