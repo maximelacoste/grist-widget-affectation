@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123b';
-import { attachSuggest } from './suggest.js?v=20261123b';
-import { activerCalendriers } from './calendrier.js?v=20261123b';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123c';
+import { attachSuggest } from './suggest.js?v=20261123c';
+import { activerCalendriers } from './calendrier.js?v=20261123c';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3000,7 +3000,54 @@ async function chargerVoeuxEtab(etabId) {
       return { row, niveau, ex, initial, cur: { ...initial }, gere: gereParErs(etabId, x.eleve) };
     })
     .sort((a, b) => `${a.row.nom} ${a.row.prenom}`.localeCompare(`${b.row.nom} ${b.row.prenom}`, 'fr'));
-  return { eleves };
+  // élèves actuellement présents dans un dispositif ULIS (n'importe lequel) : on ne les propose pas à l'ajout
+  const presentsAilleurs = new Map();
+  for (const x of statutsEleves(base.lignes, todayIso, SITUATION_PAR_DEFAUT)) if (x.statut === 'present') presentsAilleurs.set(x.eleve, x.ligne.affectation);
+  return { eleves, existants, presentsAilleurs };
+}
+
+/** Ajoute à la saisie un élève pas encore en ULIS : il sera positionné dans ce dispositif (vœu 1 = cet établissement). */
+function ajouterEleveVoeux(row) {
+  const { etabId, data } = state.voeuxEtab;
+  if (data.eleves.some((e) => e.row.id === row.id)) return;
+  const ex = data.existants.get(row.id) || null;
+  const initial = { niveau1: ex ? ex.niveau : '', voeu1: ex ? ex.voeu1 : 0, voeu2: ex ? ex.voeu2 : 0, situation: ex && ex.situation ? ex.situation : SITUATION_PAR_DEFAUT };
+  const cur = { ...initial, voeu1: etabId, situation: SITUATION_PAR_DEFAUT };
+  data.eleves.push({ row, niveau: '', ex, initial, cur, gere: true, ajoute: true });
+  rendreVoeuxEtab();
+  const i = data.eleves.length - 1;
+  $(`#v${i}-niv`)?.focus();
+  notify('success', `${`${row.nom} ${row.prenom}`.trim()} ajouté à la saisie : choisissez son niveau n+1 puis validez.`);
+}
+
+async function chercherEleveVoeux(q) {
+  const box = $('#voeux-ajout-res');
+  box.replaceChildren();
+  if (norm(q).length < 2 && !/\d{4}/.test(q)) {
+    box.append(h('p', { class: 'fr-error-text' }, 'Saisissez au moins 2 lettres, ou une année de naissance.'));
+    return;
+  }
+  await refreshIndividus();
+  const { data } = state.voeuxEtab;
+  const { total, rows } = rechercheLibre(state.individus, q, 20);
+  if (!rows.length) {
+    box.append(h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, 'Aucun élève trouvé.')));
+    return;
+  }
+  box.append(
+    h('p', { class: 'fr-hint-text' }, total > rows.length ? `${rows.length} premiers résultats sur ${total} : précisez la recherche si besoin.` : `${rows.length} résultat${rows.length > 1 ? 's' : ''}`),
+    h('ul', { class: 'liste-sans-puce' }, rows.map((r) => {
+      const nom = `${r.nom} ${r.prenom}`.trim();
+      const dejaLa = data.eleves.some((e) => e.row.id === r.id);
+      const ailleurs = data.presentsAilleurs.get(r.id);
+      return h('li', { class: 'fr-mb-1w' },
+        nom, ' · ', formatDateFr(r.ddn) || '', ' ',
+        dejaLa ? h('span', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, 'Déjà dans la liste')
+          : ailleurs ? h('span', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: "Cet élève est déjà affecté à un dispositif ULIS : son changement se fait par l'affectation" }, `Déjà en ULIS : ${state.etabLabel.get(ailleurs) || `#${ailleurs}`}`)
+          : h('button', { type: 'button', class: 'fr-btn fr-btn--sm fr-btn--secondary', title: 'Ajouter cet élève à la saisie des vœux de ce dispositif', onclick: () => ajouterEleveVoeux(r) }, 'Ajouter'),
+      );
+    })),
+  );
 }
 
 async function openVoeuxEtab(etabId, retour) {
@@ -3061,7 +3108,7 @@ function rendreVoeuxEtab() {
     const nom = `${e.row.nom} ${e.row.prenom}`.trim() || 'Sans nom';
     const ro = lectureSeule() || !e.gere;
     const rest = h('input', { type: 'checkbox', id: `${pre}-reste`, checked: e.cur.voeu1 === etabId, disabled: ro });
-    const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: ro }, state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n)));
+    const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: ro }, [...(e.ajoute ? [h('option', { value: '', selected: !e.cur.niveau1 }, '— choisir —')] : []), ...state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n))]);
     const optionsEtab = state.etabs.map((x) => ({ value: x.id, label: x.label }));
     const v1 = combobox({ id: `${pre}-v1`, label: `Vœu 1 de ${nom}`, options: optionsEtab, value: e.cur.voeu1 || '', placeholder: 'Aucun vœu', compact: true, disabled: ro, onChange: (v) => { e.cur.voeu1 = Number(v) || 0; rafraichir(); } });
     const v2 = combobox({ id: `${pre}-v2`, label: `Vœu 2 de ${nom}`, options: optionsEtab, value: e.cur.voeu2 || '', placeholder: 'Aucun', compact: true, disabled: ro, onChange: (v) => { e.cur.voeu2 = Number(v) || 0; maj(); } });
@@ -3101,7 +3148,8 @@ function rendreVoeuxEtab() {
     return h(
       'tr',
       { class: [e.gere ? '' : 'ligne-grisee', e.niveau ? (sortantDe(e.niveau) ? 'ligne-sortant' : 'ligne-restant') : ''].filter(Boolean).join(' ') || null },
-      h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.gere ? null : [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, 'Élève suivi par un autre ERS'), h('br'), h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: "Ajouter cet élève à votre liste : vous pourrez saisir ses vœux", onclick: () => demanderRattachement(e.row) }, "C'est mon élève")], e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
+      h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.gere ? null : [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, 'Élève suivi par un autre ERS'), h('br'), h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: "Ajouter cet élève à votre liste : vous pourrez saisir ses vœux", onclick: () => demanderRattachement(e.row) }, "C'est mon élève")], e.ajoute ? [h('br'), h('span', { class: 'fr-badge fr-badge--new fr-badge--sm fr-badge--no-icon', title: "Élève pas encore en ULIS, ajouté à la saisie pour ce dispositif" }, 'Pas encore en ULIS'), ' ', h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm', title: 'Retirer cet élève de la saisie (rien n\'est enregistré)', onclick: () => { state.voeuxEtab.data.eleves = state.voeuxEtab.data.eleves.filter((x) => x !== e); rendreVoeuxEtab(); } }, 'Retirer')] : null,
+        e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
       h('td', {}, e.niveau || '—', e.niveau ? [h('br'), sortantDe(e.niveau) ? h('span', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: `Élève en ${sortantDe(e.niveau)} : il quitte son établissement à la rentrée` }, `Sortant (${sortantDe(e.niveau)})`) : h('span', { class: 'fr-badge fr-badge--green-emeraude fr-badge--sm fr-badge--no-icon', title: 'Élève qui peut rester dans son établissement à la rentrée' }, 'Restant')] : null),
       h('td', {}, niv, ' ', redoublement, h('br'), alerte),
       h('td', {}, h('div', { class: 'fr-checkbox-group fr-checkbox-group--sm' }, rest, h('label', { class: 'fr-label', for: `${pre}-reste`, title: "Remplit le vœu 1 avec cet établissement et la situation « En ULIS »" }, h('span', { class: 'fr-sr-only' }, `${nom} : `), "Reste dans l'établissement"))),
@@ -3113,7 +3161,7 @@ function rendreVoeuxEtab() {
   const nbAlertes = () => eleves.filter((e) => alerteMaintien3e(e.niveau, e.cur.situation)).length;
   $('#voeux').replaceChildren(
     h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'voeux-alerte-globale', role: 'status', hidden: true }, h('p', { class: 'fr-alert__title' }, 'Maintien en 3e'), h('p', {})),
-    h('p', { role: 'status' }, `${eleves.length} élève${eleves.length > 1 ? 's' : ''} présent${eleves.length > 1 ? 's' : ''}`),
+    h('p', { role: 'status' }, `${eleves.filter((e) => !e.ajoute).length} élève${eleves.filter((e) => !e.ajoute).length > 1 ? 's' : ''} présent${eleves.filter((e) => !e.ajoute).length > 1 ? 's' : ''}${eleves.some((e) => e.ajoute) ? ` · ${eleves.filter((e) => e.ajoute).length} ajouté${eleves.filter((e) => e.ajoute).length > 1 ? 's' : ''}` : ''}`),
     eleves.length === 0
       ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, "Aucun élève n'est présent dans ce dispositif."))
       : h(
@@ -3127,6 +3175,14 @@ function rendreVoeuxEtab() {
             ),
           ))),
         ),
+    h('h2', { class: 'fr-h6 fr-mt-4w' }, 'Ajouter un élève pas encore en ULIS'),
+    h(
+      'form',
+      { id: 'form-voeux-q', class: 'bouton-ecriture', novalidate: true, onsubmit: (ev) => { ev.preventDefault(); chercherEleveVoeux($('#voeux-q').value.trim()); } },
+      h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: 'voeux-q' }, 'Rechercher un élève', h('span', { class: 'fr-hint-text' }, 'Nom, prénom ou année de naissance. Il sera positionné dans ce dispositif : vous choisirez son niveau n+1, puis validerez avec les autres vœux.')), h('div', { class: 'fr-input-wrap fr-icon-search-line' }, h('input', { class: 'fr-input', id: 'voeux-q', type: 'text', autocomplete: 'off' }))),
+      h('button', { class: 'fr-btn fr-btn--secondary fr-mt-2w', type: 'submit', title: 'Lancer la recherche' }, 'Rechercher'),
+    ),
+    h('div', { id: 'voeux-ajout-res', class: 'fr-mt-2w', 'aria-live': 'polite' }),
     h(
       'div',
       { class: 'fr-mt-3w bouton-ecriture' },
@@ -3144,6 +3200,11 @@ function validerVoeuxEtab() {
   const sansVoeu = data.eleves.filter((e) => e.gere && voeuxChange(e) && e.cur.voeu1 === 0 && !estSortie(e.cur.situation));
   if (sansVoeu.length) {
     notify('error', `${sansVoeu.length} élève${sansVoeu.length > 1 ? 's' : ''} modifié${sansVoeu.length > 1 ? 's' : ''} sans vœu 1 : ${sansVoeu.map((e) => `${e.row.nom} ${e.row.prenom}`.trim()).join(', ')}. Choisissez un vœu 1 (ou cochez « Reste dans l'établissement »), ou une situation de sortie du dispositif.`);
+    return;
+  }
+  const sansNiveau = aEcrire.filter((e) => !e.cur.niveau1);
+  if (sansNiveau.length) {
+    notify('error', `Choisissez le niveau n+1 de : ${sansNiveau.map((e) => `${e.row.nom} ${e.row.prenom}`.trim()).join(', ')}.`);
     return;
   }
   if (!aEcrire.length) return;
@@ -3559,7 +3620,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123b';
+const VERSION_APP = '20261123c';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 

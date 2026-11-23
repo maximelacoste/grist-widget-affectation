@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Page des vœux : un ERS peut ajouter un élève pas encore en ULIS (recherche nom/prénom/année de naissance sous le tableau). Il apparaît dans la saisie avec la pastille « Pas encore en ULIS », vœu 1 = ce dispositif, niveau n+1 à choisir ; il est enregistré avec les autres vœux à la validation, ou retiré avant. Les élèves déjà en ULIS ne sont pas proposés (leur dispositif est indiqué).
 - Garde de sortie : le formulaire d'affectation et la page des vœux demandent confirmation (« Abandonner les modifications en cours ? ») si on quitte avec une saisie non validée ; rien ne s'affiche si rien n'a changé ou si la saisie vient d'être enregistrée.
 - Formulaire d'affectation : sous le champ Affectation, l'occupation du dispositif de l'établissement choisi s'affiche (élèves présents aujourd'hui, places, liste d'attente, pastille « N places libres », « Presque plein », « Plein » ou « Dépassement »). Annoncé aux lecteurs d'écran, mis à jour à chaque nouveau choix, effacé si l'établissement est effacé.
 - Correctif : la liste des niveaux contenait du texte « null » après un changement d'établissement.
