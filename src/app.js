@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123f';
-import { attachSuggest } from './suggest.js?v=20261123f';
-import { activerCalendriers } from './calendrier.js?v=20261123f';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123g';
+import { attachSuggest } from './suggest.js?v=20261123g';
+import { activerCalendriers } from './calendrier.js?v=20261123g';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1942,6 +1942,78 @@ function fermerFormScol() {
   if (state.edition && state.edition.fermer === fermerFormScol) state.edition = null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Demande d'affectation à la Division scolaire (table Envoi_ANESH)      */
+/* ------------------------------------------------------------------ */
+// Une ligne par élève ; `A_envoyer` coché = partira avec le prochain envoi groupé (bouton de Envoi_ANESH_commande).
+// `Pret` (formule) vaut vrai quand toutes les informations du courrier sont renseignées ; `Envoye_le` est écrit par l'automatisme.
+const T_ENVOI = 'Envoi_ANESH';
+const CHAMPS_ENVOI = { Type_Etab: "type d'établissement", Nom: 'nom', Prenom: 'prénom', DDN: 'date de naissance', Etab_UAI: "UAI de l'établissement", Etab_Nom: "nom de l'établissement", Niveau: 'niveau', Etab_Adresse: "adresse de l'établissement", Etab_Cp: "code postal de l'établissement", Etab_Commune: "commune de l'établissement", Etab_Tel: "téléphone de l'établissement", Etab_Email: "e-mail de l'établissement", Resp_Nom: 'représentant légal', Resp_Adresse: 'adresse du représentant légal', Resp_Cp: 'code postal du représentant légal', Resp_Commune: 'commune du représentant légal' };
+
+/** État de la demande de l'élève : null si la table n'existe pas ; sinon { id, aEnvoyer, envoyeLe, pret, manque }. */
+async function etatEnvoi(eleveId) {
+  const t = await lireTable(T_ENVOI).catch(() => null);
+  if (!t || !t.Eleve) return null;
+  let i = -1;
+  t.id.forEach((id, k) => { if (t.Eleve[k] === eleveId && (i < 0 || id > t.id[i])) i = k; }); // la plus récente
+  if (i < 0) return { id: 0, aEnvoyer: false, envoyeLe: null, pret: false, manque: [] };
+  const vide = (c) => !t[c] || !String(cellText(t[c][i]) ?? '').trim();
+  return {
+    id: t.id[i],
+    aEnvoyer: Boolean(t.A_envoyer && t.A_envoyer[i]),
+    envoyeLe: t.Envoye_le && typeof t.Envoye_le[i] === 'number' && t.Envoye_le[i] > 0 ? t.Envoye_le[i] : null,
+    pret: Boolean(t.Pret && t.Pret[i]),
+    manque: Object.entries(CHAMPS_ENVOI).filter(([c]) => t[c] && vide(c)).map(([, l]) => l),
+  };
+}
+
+let jetonEnvoi = 0;
+/** Affiche sous la case l'état de la demande et la désactive si une demande est déjà partie ou en attente. */
+async function majEnvoiForm(eleveId) {
+  const jeton = ++jetonEnvoi;
+  const groupe = $('#s-ds-groupe');
+  if (!groupe) return;
+  let etat = null;
+  try {
+    viderCache();
+    etat = await etatEnvoi(eleveId);
+  } catch { /* confort : sans lecture, la case reste utilisable */ }
+  if (jeton !== jetonEnvoi || !$('#s-ds')) return;
+  if (!etat) { groupe.hidden = true; return; } // la table d'envoi n'existe pas dans ce document
+  const note = $('#s-ds-etat');
+  const case_ = $('#s-ds');
+  if (etat.envoyeLe) {
+    case_.disabled = true;
+    note.textContent = `Une demande a déjà été envoyée le ${formatDateFr(secToIso(etat.envoyeLe))} : elle ne peut pas être renvoyée d'ici.`;
+  } else if (etat.aEnvoyer) {
+    case_.disabled = true;
+    note.textContent = "Une demande est déjà en attente : elle partira avec le prochain envoi groupé.";
+  } else {
+    note.textContent = "La demande part avec le prochain envoi groupé, une fois l'affectation enregistrée et si le dossier est complet.";
+  }
+}
+
+/** Crée ou prépare la ligne d'envoi puis la marque « à envoyer » si le dossier est complet. Renvoie { statut, manque }. */
+async function demanderEnvoiDS(eleveId) {
+  viderCache();
+  let etat = await etatEnvoi(eleveId);
+  if (!etat) return { statut: 'absente', manque: [] };
+  if (etat.envoyeLe) return { statut: 'envoyee', manque: [] };
+  if (etat.aEnvoyer) return { statut: 'en_attente', manque: [] };
+  const aujourdhui = isoToSec(new Date().toISOString().slice(0, 10));
+  if (!etat.id) {
+    await grist.docApi.applyUserActions([['AddRecord', T_ENVOI, null, champsExistants(T_ENVOI, { Eleve: eleveId, Saisie_Date: aujourdhui })]]);
+  } else {
+    await grist.docApi.applyUserActions([['UpdateRecord', T_ENVOI, etat.id, champsExistants(T_ENVOI, { Saisie_Date: aujourdhui })]]);
+  }
+  viderCache();
+  etat = await etatEnvoi(eleveId); // les formules (Pret…) sont recalculées après l'écriture
+  if (!etat || !etat.id) return { statut: 'absente', manque: [] };
+  if (!etat.pret) return { statut: 'incomplete', manque: etat.manque };
+  await grist.docApi.applyUserActions([['UpdateRecord', T_ENVOI, etat.id, { A_envoyer: true }]]);
+  return { statut: 'ok', manque: [] };
+}
+
 function openScolForm(ligne, defauts = {}) {
   if (state.edition) return gardeSortie(() => openScolForm(ligne, defauts));
   clearNotice();
@@ -1979,6 +2051,12 @@ function openScolForm(ligne, defauts = {}) {
     ),
     h(
       'div',
+      { class: 'fr-checkbox-group fr-mb-3w', id: 's-ds-groupe' },
+      h('input', { type: 'checkbox', id: 's-ds', name: 's-ds' }),
+      h('label', { class: 'fr-label', for: 's-ds' }, "Envoyer la demande d'affectation à la Division scolaire", h('span', { class: 'fr-hint-text', id: 's-ds-etat', role: 'status', 'aria-live': 'polite' }, '')),
+    ),
+    h(
+      'div',
       { class: 'fr-btns-group fr-btns-group--inline fr-btns-group--icon-left' },
       h('button', { class: 'fr-btn', type: 'submit', title: ligne ? 'Enregistrer les modifications (une confirmation montrera ce qui change)' : 'Enregistrer cette nouvelle ligne d\'affectation' }, 'Enregistrer'),
       h('button', { class: 'fr-btn fr-btn--tertiary', type: 'button', title: 'Fermer le formulaire sans rien enregistrer', onclick: () => gardeSortie(() => {}) }, 'Annuler'),
@@ -1990,6 +2068,7 @@ function openScolForm(ligne, defauts = {}) {
     's-aff': "Établissement d'affectation : saisissez quelques mots du nom ou de la commune, puis choisissez dans la liste. Vide, la ligne n'a pas d'établissement (sortie, retour en classe ordinaire…).",
     's-niveau': "Niveau de l'élève ; la liste dépend du type de l'établissement choisi (école, collège, lycée).",
     's-situation': "Situation de l'élève à cette date : en ULIS, sortie, exclusion, hors département…",
+    's-ds': "Coche pour que la demande d'affectation parte à la Division scolaire (avec copie au coordonnateur demandeur) au prochain envoi groupé. Impossible si une demande est déjà en attente ou envoyée.",
     's-attente': "À activer si l'élève est sur liste d'attente pour cet établissement (pas encore affecté)",
   };
   for (const [id, texte] of Object.entries(infos)) {
@@ -1998,8 +2077,9 @@ function openScolForm(ligne, defauts = {}) {
   }
   form.hidden = false;
   majOccupation(ligne ? ligne.affectation : defauts.affectation || '');
+  majEnvoiForm(state.eleve.id);
   // garde de sortie : quitter la page avec une saisie non validée demande confirmation
-  const instantane = () => JSON.stringify([$('#s-date')?.value, $('#s-aff')?.dataset.value || '', $('#s-niveau')?.value, $('#s-situation')?.value, $('#s-attente')?.checked]);
+  const instantane = () => JSON.stringify([$('#s-date')?.value, $('#s-aff')?.dataset.value || '', $('#s-niveau')?.value, $('#s-situation')?.value, $('#s-attente')?.checked, $('#s-ds')?.checked]);
   const depart = instantane();
   state.edition = {
     fermer: fermerFormScol,
@@ -2152,18 +2232,40 @@ function confirmerModification(modifs, onOui, avertissement = '') {
   });
 }
 
-async function ecrireAffectation(fields) {
-  const form = $('#form-scol');
+async function ecrireAffectation(fields, { envoyerDS = false } = {}) {
   try {
-    const action = state.editingId
-      ? ['UpdateRecord', T_SCOLARITE, state.editingId, fields]
-      : ['AddRecord', T_SCOLARITE, null, { ...fields, [COL.eleve]: state.eleve.id }];
-    viderCache();
-    await grist.docApi.applyUserActions([action]);
+    const eleveId = state.eleve.id;
+    const modif = Boolean(state.editingId);
+    if (fields) {
+      const action = state.editingId
+        ? ['UpdateRecord', T_SCOLARITE, state.editingId, fields]
+        : ['AddRecord', T_SCOLARITE, null, { ...fields, [COL.eleve]: eleveId }];
+      viderCache();
+      await grist.docApi.applyUserActions([action]);
+    }
     await refreshScolarite();
     fermerFormScol();
     renderScolList();
-    notify('success', state.editingId ? 'Affectation modifiée.' : 'Affectation enregistrée.');
+    const base = !fields ? '' : modif ? 'Affectation modifiée.' : 'Affectation enregistrée.';
+    if (!envoyerDS) {
+      notify('success', base);
+      return;
+    }
+    let r;
+    try {
+      r = await demanderEnvoiDS(eleveId);
+    } catch (err) {
+      notify('error', `${base} Mais la demande à la Division scolaire n'a pas pu être enregistrée : ${err.message}`);
+      return;
+    }
+    const msg = {
+      ok: ['success', "Demande à la Division scolaire enregistrée : elle partira avec le prochain envoi groupé."],
+      en_attente: ['info', 'Une demande était déjà en attente : rien de plus à faire.'],
+      envoyee: ['warning', 'Une demande a déjà été envoyée pour cet élève : elle n\'a pas été renvoyée.'],
+      absente: ['warning', `La table ${T_ENVOI} est introuvable : la demande n'a pas été enregistrée.`],
+      incomplete: ['warning', `Demande non envoyée : il manque ${r.manque.join(', ')}. Complétez le dossier puis recochez la case.`],
+    }[r.statut];
+    notify(msg[0], `${base} ${msg[1]}`.trim());
   } catch (err) {
     notify('error', `Enregistrement impossible : ${err.message}`);
   }
@@ -2198,6 +2300,8 @@ $('#form-scol').addEventListener('submit', async (e) => {
   // Affectation : écrite seulement si elle change (une valeur non reconnue n'est pas effacée par un simple enregistrement).
   const aff = Number(affInput.dataset.value) || 0;
   if (!state.editingLigne || aff !== (state.editingLigne.affectation || 0)) fields[COL.affectation] = aff;
+  const envoyerDS = Boolean($('#s-ds')?.checked) && !$('#s-ds')?.disabled;
+  const ligneDS = ["Demande à la Division scolaire", 'Oui : partira avec le prochain envoi groupé (si le dossier est complet)'];
   if (state.editingLigne) {
     const avant = state.editingLigne;
     const dessus = (v) => v || '—';
@@ -2207,11 +2311,13 @@ $('#form-scol').addEventListener('submit', async (e) => {
     if ($('#s-niveau').value !== (avant.niveau || '')) modifs.push(['Niveau', dessus(avant.niveau), dessus($('#s-niveau').value)]);
     if ($('#s-situation').value !== (avant.situation || '')) modifs.push(['Situation', dessus(avant.situation), dessus($('#s-situation').value)]);
     if ($('#s-attente').checked !== avant.attente) modifs.push(["Liste d'attente", avant.attente ? 'Oui' : 'Non', $('#s-attente').checked ? 'Oui' : 'Non']);
-    if (modifs.length === 0) {
+    if (modifs.length === 0 && !envoyerDS) {
       notify('info', 'Aucune modification à enregistrer.');
       return;
     }
-    confirmerModification(modifs, () => ecrireAffectation(fields));
+    if (envoyerDS) modifs.push(['Demande à la Division scolaire', 'Non', 'Oui : partira avec le prochain envoi groupé (si le dossier est complet)']);
+    const aEcrire = modifs.length > (envoyerDS ? 1 : 0);
+    confirmerModification(modifs, () => ecrireAffectation(aEcrire ? fields : null, { envoyerDS }));
     return;
   }
   confirmerAjout("Ajouter cette affectation ?", [
@@ -2220,7 +2326,8 @@ $('#form-scol').addEventListener('submit', async (e) => {
     ['Niveau', $('#s-niveau').value || '—'],
     ['Situation', $('#s-situation').value || '—'],
     ["Liste d'attente", $('#s-attente').checked ? 'Oui' : 'Non'],
-  ], () => ecrireAffectation(fields));
+    ...(envoyerDS ? [ligneDS] : []),
+  ], () => ecrireAffectation(fields, { envoyerDS }));
 });
 
 /* ------------------------------------------------------------------ */
@@ -3649,7 +3756,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123f';
+const VERSION_APP = '20261123g';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 

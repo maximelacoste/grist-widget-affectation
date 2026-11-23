@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Formulaire d'affectation : case « Envoyer la demande d'affectation à la Division scolaire ». À l'enregistrement (confirmation incluse), la ligne de l'élève est créée ou reprise dans `Envoi_ANESH` puis passée à `A_envoyer` seulement si `Pret` est vrai ; sinon l'appli liste ce qui manque. Garde-fous : case grisée si une demande est déjà en attente ou déjà envoyée (`Envoye_le`), jamais de renvoi depuis l'appli, case masquée si la table n'existe pas. Le mail part avec l'envoi groupé existant.
 - Dossier élève : l'historique des affectations a une colonne Action avec le crayon (ouvre la page des affectations avec le formulaire de la ligne) et la corbeille (confirmation, puis retour au dossier mis à jour).
 - Page des vœux : un ERS peut ajouter un élève dans le dispositif en cours de saisie, soit pas encore affecté en ULIS (pastille « Pas encore affecté en ULIS »), soit déjà dans un autre dispositif (pastille « Vient de : … », classe actuelle affichée, niveau n+1 suggéré). Recherche avec suggestions automatiques dès 2 caractères ; vœu 1 = ce dispositif, niveau n+1 à choisir, enregistrement avec les autres vœux à la validation (ou « Retirer » avant).
 - Garde de sortie : le formulaire d'affectation et la page des vœux demandent confirmation (« Abandonner les modifications en cours ? ») si on quitte avec une saisie non validée ; rien ne s'affiche si rien n'a changé ou si la saisie vient d'être enregistrée.
