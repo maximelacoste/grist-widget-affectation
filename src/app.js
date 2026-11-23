@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123j';
-import { attachSuggest } from './suggest.js?v=20261123j';
-import { activerCalendriers } from './calendrier.js?v=20261123j';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123k';
+import { attachSuggest } from './suggest.js?v=20261123k';
+import { activerCalendriers } from './calendrier.js?v=20261123k';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2050,9 +2050,13 @@ async function demanderEnvoiDS(eleveId, etabId) {
   if (!etat.pret) return { statut: 'incomplete', manque: etat.manque };
   const dest = await resoudreDestinataires(etabId);
   if (!dest.dest) return { statut: 'sans_dest', manque: dest.problemes };
-  const cols = new Set([...state.colById.values()].filter((c) => c.tableId === T_ENVOI).map((c) => c.colId));
-  if (!cols.has('Dest_email') || !cols.has('Cc_email')) return { statut: 'sans_dest', manque: [`les colonnes Dest_email et Cc_email sont introuvables dans ${T_ENVOI}`] };
-  await grist.docApi.applyUserActions([['UpdateRecord', T_ENVOI, etat.id, { Dest_email: dest.dest, Cc_email: dest.cc, A_envoyer: true }]]);
+  // Dest_email / Cc_email : écrits seulement si ce sont des colonnes de données ; si ce sont des formules (adresses calculées
+  // par Grist à partir de Config_ULISse et de la chaîne des secteurs), le widget n'y touche pas.
+  const donnees = new Set([...state.colById.values()].filter((c) => c.tableId === T_ENVOI && !c.isFormula).map((c) => c.colId));
+  const champs = { A_envoyer: true };
+  if (donnees.has('Dest_email')) champs.Dest_email = dest.dest;
+  if (donnees.has('Cc_email')) champs.Cc_email = dest.cc;
+  await grist.docApi.applyUserActions([['UpdateRecord', T_ENVOI, etat.id, champs]]);
   return { statut: 'ok', manque: [], sansCopie: !dest.cc, secteur: dest.secteur };
 }
 
@@ -3812,7 +3816,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123j';
+const VERSION_APP = '20261123k';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
