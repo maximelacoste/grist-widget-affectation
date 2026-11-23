@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123e';
-import { attachSuggest } from './suggest.js?v=20261123e';
-import { activerCalendriers } from './calendrier.js?v=20261123e';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123f';
+import { attachSuggest } from './suggest.js?v=20261123f';
+import { activerCalendriers } from './calendrier.js?v=20261123f';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1329,12 +1329,16 @@ async function openDossier(row, origine = 2) {
       ? h('p', {}, 'Aucune affectation enregistrée.')
       : tableSimple(
           'Affectations, de la plus récente à la plus ancienne',
-          ["Date d'effet", 'Affectation', 'Niveau', 'Situation'],
+          ["Date d'effet", 'Affectation', 'Niveau', 'Situation', 'Action'],
           scol.map((l) => [
             [dateLabel(l), ' ', enCours && enCours.id === l.id ? badgesEnCours(l) : null],
             lienEtab(l, retourDossierDe(row, origine)),
             l.niveau || '—',
             celluleSituation(l),
+            actionsLigne({
+              modifier: { onclick: () => modifierAffectationDepuisDossier(row, l), aria: `Modifier l'affectation du ${dateLabel(l)}`, title: "Modifier cette ligne d'affectation (ouvre la page des affectations de l'élève)" },
+              supprimer: { onclick: () => demanderSuppression(l, () => openDossier(row, origine)), aria: `Supprimer l'affectation du ${dateLabel(l)}` },
+            }),
           ]),
         ),
     origine !== 3
@@ -2051,7 +2055,19 @@ function ouvrirModale({ titre, icone = 'fr-icon-warning-line', corps, actions, f
   $(`#${focus}`).focus();
 }
 
-function demanderSuppression(ligne) {
+/** Depuis le dossier : ouvre la page des affectations de l'élève avec le formulaire de la ligne choisie. */
+async function modifierAffectationDepuisDossier(row, ligne) {
+  await chooseEleve(row);
+  if (state.edition) return; // l'utilisateur a refusé d'abandonner une saisie en cours
+  const l = state.scol.find((x) => x.id === ligne.id);
+  if (l) openScolForm(l);
+}
+
+function demanderSuppression(ligne, apres = null) {
+  if (apres && state.edition) {
+    notify('warning', msgSaisieEnCours());
+    return;
+  }
   const cible = typeof affectationCell(ligne) === 'string' ? affectationCell(ligne) : ligne.affectationInvalide || 'sans établissement';
   ouvrirModale({
     titre: 'Supprimer cette affectation ?',
@@ -2064,20 +2080,21 @@ function demanderSuppression(ligne) {
       h('p', { class: 'fr-text--sm fr-mb-0' }, "Dans Grist, le panneau Activité permet d'annuler la suppression."),
     ],
     actions: [
-      { id: 'dlg-oui', libelle: 'Oui, supprimer', info: 'Supprimer définitivement cette ligne (annulable dans le panneau Activité de Grist)', onClick: () => supprimerLigne(ligne) },
+      { id: 'dlg-oui', libelle: 'Oui, supprimer', info: 'Supprimer définitivement cette ligne (annulable dans le panneau Activité de Grist)', onClick: () => supprimerLigne(ligne, apres) },
       { id: 'dlg-non', libelle: 'Non, garder', info: 'Fermer cette fenêtre : rien n\'est supprimé', secondaire: true },
     ],
     focus: 'dlg-non', // le choix par défaut est de ne rien supprimer
   });
 }
 
-async function supprimerLigne(ligne) {
+async function supprimerLigne(ligne, apres = null) {
   try {
     viderCache();
     await grist.docApi.applyUserActions([['RemoveRecord', T_SCOLARITE, ligne.id]]);
     await refreshScolarite();
     fermerFormScol();
     renderScolList();
+    if (apres) await apres(); // suppression depuis le dossier : on y reste, mis à jour
     notify('success', 'Affectation supprimée.');
   } catch (err) {
     notify('error', `Suppression impossible : ${err.message}`);
@@ -3632,7 +3649,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123e';
+const VERSION_APP = '20261123f';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
