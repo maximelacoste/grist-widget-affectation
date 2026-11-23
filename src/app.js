@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123d';
-import { attachSuggest } from './suggest.js?v=20261123d';
-import { activerCalendriers } from './calendrier.js?v=20261123d';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123e';
+import { attachSuggest } from './suggest.js?v=20261123e';
+import { activerCalendriers } from './calendrier.js?v=20261123e';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3002,7 +3002,7 @@ async function chargerVoeuxEtab(etabId) {
     .sort((a, b) => `${a.row.nom} ${a.row.prenom}`.localeCompare(`${b.row.nom} ${b.row.prenom}`, 'fr'));
   // élèves actuellement présents dans un dispositif ULIS (n'importe lequel) : on ne les propose pas à l'ajout
   const presentsAilleurs = new Map();
-  for (const x of statutsEleves(base.lignes, todayIso, SITUATION_PAR_DEFAUT)) if (x.statut === 'present') presentsAilleurs.set(x.eleve, x.ligne.affectation);
+  for (const x of statutsEleves(base.lignes, todayIso, SITUATION_PAR_DEFAUT)) if (x.statut === 'present') presentsAilleurs.set(x.eleve, x.ligne);
   return { eleves, existants, presentsAilleurs };
 }
 
@@ -3011,9 +3011,12 @@ function ajouterEleveVoeux(row) {
   const { etabId, data } = state.voeuxEtab;
   if (data.eleves.some((e) => e.row.id === row.id)) return;
   const ex = data.existants.get(row.id) || null;
+  const ligne = data.presentsAilleurs.get(row.id) || null; // déjà dans un autre dispositif : on l'appelle dans celui-ci
+  const niveau = ligne ? (ligne.niveau || '').trim() : '';
   const initial = { niveau1: ex ? ex.niveau : '', voeu1: ex ? ex.voeu1 : 0, voeu2: ex ? ex.voeu2 : 0, situation: ex && ex.situation ? ex.situation : SITUATION_PAR_DEFAUT };
   const cur = { ...initial, voeu1: etabId, situation: SITUATION_PAR_DEFAUT };
-  data.eleves.push({ row, niveau: '', ex, initial, cur, gere: true, ajoute: true });
+  if (!cur.niveau1 && niveau) cur.niveau1 = niveauSuivant(niveau);
+  data.eleves.push({ row, niveau, ex, initial, cur, gere: true, ajoute: true, origine: ligne ? ligne.affectation : 0 });
   rendreVoeuxEtab();
   const i = data.eleves.length - 1;
   $(`#v${i}-niv`)?.focus();
@@ -3041,9 +3044,8 @@ async function chercherEleveVoeux(q) {
       const dejaLa = data.eleves.some((e) => e.row.id === r.id);
       const ailleurs = data.presentsAilleurs.get(r.id);
       return h('li', { class: 'fr-mb-1w' },
-        nom, ' · ', formatDateFr(r.ddn) || '', ' ',
+        nom, ' · ', formatDateFr(r.ddn) || '', ' · ', ailleurs ? `actuellement en ULIS : ${state.etabLabel.get(ailleurs.affectation) || `#${ailleurs.affectation}`}` : 'pas encore affecté en ULIS', ' ',
         dejaLa ? h('span', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, 'Déjà dans la liste')
-          : ailleurs ? h('span', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: "Cet élève est déjà affecté à un dispositif ULIS : son changement se fait par l'affectation" }, `Déjà en ULIS : ${state.etabLabel.get(ailleurs) || `#${ailleurs}`}`)
           : h('button', { type: 'button', class: 'fr-btn fr-btn--sm fr-btn--secondary', title: 'Ajouter cet élève à la saisie des vœux de ce dispositif', onclick: () => ajouterEleveVoeux(r) }, 'Ajouter'),
       );
     })),
@@ -3148,7 +3150,7 @@ function rendreVoeuxEtab() {
     return h(
       'tr',
       { class: [e.gere ? '' : 'ligne-grisee', e.niveau ? (sortantDe(e.niveau) ? 'ligne-sortant' : 'ligne-restant') : ''].filter(Boolean).join(' ') || null },
-      h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.gere ? null : [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, 'Élève suivi par un autre ERS'), h('br'), h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: "Ajouter cet élève à votre liste : vous pourrez saisir ses vœux", onclick: () => demanderRattachement(e.row) }, "C'est mon élève")], e.ajoute ? [h('br'), h('span', { class: 'fr-badge fr-badge--new fr-badge--sm fr-badge--no-icon', title: "Élève pas encore en ULIS, ajouté à la saisie pour ce dispositif" }, 'Pas encore en ULIS'), ' ', h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm', title: 'Retirer cet élève de la saisie (rien n\'est enregistré)', onclick: () => { state.voeuxEtab.data.eleves = state.voeuxEtab.data.eleves.filter((x) => x !== e); rendreVoeuxEtab(); } }, 'Retirer')] : null,
+      h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'voeux') }, nom), e.gere ? null : [h('br'), h('span', { class: 'fr-text--sm fr-hint-text' }, 'Élève suivi par un autre ERS'), h('br'), h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: "Ajouter cet élève à votre liste : vous pourrez saisir ses vœux", onclick: () => demanderRattachement(e.row) }, "C'est mon élève")], e.ajoute ? [h('br'), h('span', { class: 'fr-badge fr-badge--new fr-badge--sm fr-badge--no-icon', title: e.origine ? "Élève actuellement dans un autre dispositif ULIS, appelé dans celui-ci" : "Élève pas encore affecté en ULIS, ajouté à la saisie pour ce dispositif" }, e.origine ? `Vient de : ${state.etabLabel.get(e.origine) || `#${e.origine}`}` : 'Pas encore affecté en ULIS'), ' ', h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm', title: 'Retirer cet élève de la saisie (rien n\'est enregistré)', onclick: () => { state.voeuxEtab.data.eleves = state.voeuxEtab.data.eleves.filter((x) => x !== e); rendreVoeuxEtab(); } }, 'Retirer')] : null,
         e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
       h('td', {}, e.niveau || '—', e.niveau ? [h('br'), sortantDe(e.niveau) ? h('span', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: `Élève en ${sortantDe(e.niveau)} : il quitte son établissement à la rentrée` }, `Sortant (${sortantDe(e.niveau)})`) : h('span', { class: 'fr-badge fr-badge--green-emeraude fr-badge--sm fr-badge--no-icon', title: 'Élève qui peut rester dans son établissement à la rentrée' }, 'Restant')] : null),
       h('td', {}, niv, ' ', redoublement, h('br'), alerte),
@@ -3175,7 +3177,7 @@ function rendreVoeuxEtab() {
             ),
           ))),
         ),
-    h('h2', { class: 'fr-h6 fr-mt-4w' }, 'Ajouter un élève pas encore en ULIS'),
+    h('h2', { class: 'fr-h6 fr-mt-4w' }, 'Ajouter un élève (pas encore en ULIS ou venant d’un autre dispositif)'),
     h(
       'form',
       { id: 'form-voeux-q', class: 'bouton-ecriture', novalidate: true, onsubmit: (ev) => { ev.preventDefault(); chercherEleveVoeux($('#voeux-q').value.trim()); } },
@@ -3196,9 +3198,7 @@ function rendreVoeuxEtab() {
     onPick: (item) => {
       const r = item.row;
       const nom = `${r.nom} ${r.prenom}`.trim();
-      const ailleurs = data.presentsAilleurs.get(r.id);
       if (eleves.some((e) => e.row.id === r.id)) notify('info', `${nom} est déjà dans la liste.`);
-      else if (ailleurs) notify('warning', `${nom} est déjà en ULIS : ${state.etabLabel.get(ailleurs) || `#${ailleurs}`}. Son changement se fait par l'affectation.`);
       else ajouterEleveVoeux(r);
     },
   });
@@ -3632,7 +3632,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123d';
+const VERSION_APP = '20261123e';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
