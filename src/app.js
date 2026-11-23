@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123i';
-import { attachSuggest } from './suggest.js?v=20261123i';
-import { activerCalendriers } from './calendrier.js?v=20261123i';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123j';
+import { attachSuggest } from './suggest.js?v=20261123j';
+import { activerCalendriers } from './calendrier.js?v=20261123j';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1995,8 +1995,8 @@ async function majEnvoiForm(eleveId) {
 
 // Destinataires écrits par le widget sur la ligne d'envoi (colonnes Dest_email et Cc_email) :
 // - Division scolaire : table Config_ULISse (Cle, Valeur), ligne « division_scolaire_email » (la future page de config éditera cette table) ;
-// - copie : table Coordos (mel_coordo, Secteur_CDOEA), le coordonnateur du secteur CDOEA de l'établissement d'affectation
-//   (colonne Uai_Coordo_CDOEA de l'établissement ; à défaut, Coordos du même Secteur_CDOEA).
+// - copie : le coordonnateur du secteur de l'établissement d'arrivée, adresse nominative (Coordos.mel_coordo, jamais mel_secteur),
+//   par la chaîne Etablissements_avec_ULIS.Secteur_ERS2 → Secteurs_ERS.Secteurs_CDOEA → Coordos.
 const T_CONFIG = 'Config_ULISse';
 const T_COORDO = 'Coordos';
 const CLE_DIVSCO = 'division_scolaire_email';
@@ -2015,26 +2015,18 @@ async function resoudreDestinataires(etabId) {
     res.dest = i >= 0 ? String(cfg.Valeur[i] || '').trim() : '';
     if (!res.dest) res.problemes.push(`l'adresse de la Division scolaire n'est pas renseignée (${T_CONFIG}, ligne « ${CLE_DIVSCO} »)`);
   }
-  const et = etabId ? await lireTable(state.etabTable).catch(() => null) : null;
-  const co = await lireTable(T_COORDO).catch(() => null);
-  if (et && co && co.mel_coordo) {
+  // chaîne de secteurs : établissement → Secteur_ERS2 (réf. Secteurs_ERS) → Secteurs_CDOEA (réf. Coordos) → mel_coordo (adresse nominative)
+  const [et, se, co] = etabId
+    ? await Promise.all([lireTable(state.etabTable), lireTable('Secteurs_ERS'), lireTable(T_COORDO)].map((p) => p.catch(() => null)))
+    : [null, null, null];
+  if (et && se && co && et.Secteur_ERS2 && se.Secteurs_CDOEA && co.mel_coordo) {
     const k = et.id.indexOf(etabId);
-    const mails = [];
-    if (k >= 0) {
-      res.secteur = et.Secteur_CDOEA ? String(et.Secteur_CDOEA[k] ?? '').trim() : '';
-      // 1) coordonnateurs liés à l'établissement (liste de références vers Coordos, valeur Grist « ['L', id, …] »)
-      const liees = et.Uai_Coordo_CDOEA ? et.Uai_Coordo_CDOEA[k] : null;
-      const ids = Array.isArray(liees) ? liees.filter((x) => typeof x === 'number') : typeof liees === 'number' ? [liees] : [];
-      for (const id of ids) {
-        const j = co.id.indexOf(id);
-        if (j >= 0) mails.push(String(co.mel_coordo[j] || '').trim());
-      }
-      // 2) à défaut, le coordonnateur du même secteur CDOEA
-      if (!mails.some(Boolean) && res.secteur && co.Secteur_CDOEA) {
-        co.id.forEach((_, j) => { if (String(co.Secteur_CDOEA[j] ?? '').trim() === res.secteur) mails.push(String(co.mel_coordo[j] || '').trim()); });
-      }
+    const j = k >= 0 ? se.id.indexOf(et.Secteur_ERS2[k]) : -1;
+    if (j >= 0) {
+      res.secteur = String(se.Secteurs_ERS ? se.Secteurs_ERS[j] ?? '' : '').trim();
+      const c = co.id.indexOf(se.Secteurs_CDOEA[j]);
+      if (c >= 0) res.cc = String(co.mel_coordo[c] || '').trim();
     }
-    res.cc = [...new Set(mails.filter(Boolean))].join(', ');
   }
   return res;
 }
@@ -2310,7 +2302,7 @@ async function ecrireAffectation(fields, { envoyerDS = false, etabId = 0 } = {})
     }
     const msg = {
       ok: r.sansCopie
-        ? ['warning', `Demande à la Division scolaire enregistrée (envoi groupé), mais sans copie : aucun coordonnateur trouvé pour le secteur CDOEA ${r.secteur || 'de cet établissement'} (table ${T_COORDO}, colonne mel_coordo).`]
+        ? ['warning', `Demande à la Division scolaire enregistrée (envoi groupé), mais sans copie : aucun coordonnateur trouvé pour le secteur ${r.secteur || 'de cet établissement'} (chaîne Secteur_ERS2 → Secteurs_ERS → Coordos).`]
         : ['success', "Demande à la Division scolaire enregistrée : elle partira avec le prochain envoi groupé, copie au coordonnateur."],
       sans_dest: ['warning', `Demande non envoyée : ${r.manque.join(' ; ')}.`],
       en_attente: ['info', 'Une demande était déjà en attente : rien de plus à faire.'],
@@ -3820,7 +3812,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123i';
+const VERSION_APP = '20261123j';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
