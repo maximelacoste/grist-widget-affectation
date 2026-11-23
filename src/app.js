@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123c';
-import { attachSuggest } from './suggest.js?v=20261123c';
-import { activerCalendriers } from './calendrier.js?v=20261123c';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123d';
+import { attachSuggest } from './suggest.js?v=20261123d';
+import { activerCalendriers } from './calendrier.js?v=20261123d';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3179,7 +3179,7 @@ function rendreVoeuxEtab() {
     h(
       'form',
       { id: 'form-voeux-q', class: 'bouton-ecriture', novalidate: true, onsubmit: (ev) => { ev.preventDefault(); chercherEleveVoeux($('#voeux-q').value.trim()); } },
-      h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: 'voeux-q' }, 'Rechercher un élève', h('span', { class: 'fr-hint-text' }, 'Nom, prénom ou année de naissance. Il sera positionné dans ce dispositif : vous choisirez son niveau n+1, puis validerez avec les autres vœux.')), h('div', { class: 'fr-input-wrap fr-icon-search-line' }, h('input', { class: 'fr-input', id: 'voeux-q', type: 'text', autocomplete: 'off' }))),
+      h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: 'voeux-q' }, 'Rechercher un élève', h('span', { class: 'fr-hint-text' }, 'Les suggestions apparaissent dès 2 caractères ; un clic sur une suggestion ajoute l’élève. Il sera positionné dans ce dispositif : vous choisirez son niveau n+1, puis validerez avec les autres vœux.')), h('div', { class: 'fr-input-wrap fr-icon-search-line' }, h('input', { class: 'fr-input', id: 'voeux-q', type: 'text', autocomplete: 'off' }))),
       h('button', { class: 'fr-btn fr-btn--secondary fr-mt-2w', type: 'submit', title: 'Lancer la recherche' }, 'Rechercher'),
     ),
     h('div', { id: 'voeux-ajout-res', class: 'fr-mt-2w', 'aria-live': 'polite' }),
@@ -3190,6 +3190,18 @@ function rendreVoeuxEtab() {
       h('button', { type: 'button', class: 'fr-btn', id: 'btn-valider-voeux', title: "Enregistrer d'un coup les vœux modifiés de tout cet établissement, après une confirmation", onclick: validerVoeuxEtab }, "Valider les vœux de l'établissement"),
     ),
   );
+  attachSuggest($('#voeux-q'), {
+    minChars: 2,
+    fetchItems: async (q) => { await refreshIndividus(); return suggestionsEleves(q); },
+    onPick: (item) => {
+      const r = item.row;
+      const nom = `${r.nom} ${r.prenom}`.trim();
+      const ailleurs = data.presentsAilleurs.get(r.id);
+      if (eleves.some((e) => e.row.id === r.id)) notify('info', `${nom} est déjà dans la liste.`);
+      else if (ailleurs) notify('warning', `${nom} est déjà en ULIS : ${state.etabLabel.get(ailleurs) || `#${ailleurs}`}. Son changement se fait par l'affectation.`);
+      else ajouterEleveVoeux(r);
+    },
+  });
   maj();
 }
 
@@ -3620,7 +3632,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261123c';
+const VERSION_APP = '20261123d';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
