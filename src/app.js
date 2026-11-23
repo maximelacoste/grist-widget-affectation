@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261120n';
-import { attachSuggest } from './suggest.js?v=20261120n';
-import { activerCalendriers } from './calendrier.js?v=20261120n';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261123a';
+import { attachSuggest } from './suggest.js?v=20261123a';
+import { activerCalendriers } from './calendrier.js?v=20261123a';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1874,7 +1874,7 @@ function majNiveaux(etabId) {
   sel.replaceChildren(
     h('option', { value: '' }, '— aucune —'),
     ...liste.map((n) => h('option', { value: n, selected: n === actuel && !retire }, n)),
-    conserve ? h('option', { value: actuel, selected: true }, `${actuel} (hors liste)`) : null,
+    ...(conserve ? [h('option', { value: actuel, selected: true }, `${actuel} (hors liste)`)] : []),
   );
   if (retire) sel.value = '';
   const phrases = [];
@@ -1882,6 +1882,39 @@ function majNiveaux(etabId) {
   if (etabId && !type) phrases.push(`Type d'établissement non reconnu (colonne ${COL_TYPE_ETAB} : « ${state.etabTypeBrut.get(Number(etabId)) || 'vide'} ») : liste complète.`);
   if (retire) phrases.push(`Le niveau « ${actuel} » a été retiré : il ne correspond pas à ${LIBELLE_TYPE[type] || 'cet établissement'}.`);
   note.textContent = phrases.join(' ');
+}
+
+/** Occupation du dispositif d'un établissement aujourd'hui : élèves présents, liste d'attente et places (`Places_max`). */
+async function occupationEtab(etabId) {
+  const [t, tScol] = await Promise.all([lireTable(state.etabTable), lireTable(T_SCOLARITE)]);
+  const i = t.id.indexOf(Number(etabId));
+  const places = i >= 0 && t.Places_max && typeof t.Places_max[i] === 'number' ? t.Places_max[i] : null;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const n = effectifsParEtab(lignesDe(tScol), todayIso, SITUATION_PAR_DEFAUT).get(Number(etabId)) || { presents: 0, attente: 0 };
+  return { places, presents: n.presents, attente: n.attente };
+}
+
+let jetonOccupation = 0;
+/** Affiche sous le champ Affectation les places libres ou occupées de l'établissement choisi (efface si aucun). */
+async function majOccupation(etabId) {
+  const zone = $('#s-aff-occup');
+  if (!zone) return;
+  const jeton = ++jetonOccupation;
+  if (!etabId) {
+    zone.replaceChildren();
+    return;
+  }
+  let o;
+  try {
+    o = await occupationEtab(etabId);
+  } catch (err) {
+    if (jeton === jetonOccupation) zone.replaceChildren(h('p', { class: 'fr-hint-text' }, `Occupation indisponible : ${err.message}`));
+    return;
+  }
+  if (jeton !== jetonOccupation || !$('#s-aff-occup')) return; // un autre choix a été fait entre-temps, ou le formulaire est fermé
+  const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+  const texte = `Dispositif aujourd'hui : ${pluriel(o.presents, 'élève')} présent${o.presents > 1 ? 's' : ''}${o.places !== null ? ` sur ${pluriel(o.places, 'place')}` : ' (nombre de places non renseigné)'}${o.attente ? ` · ${o.attente} en liste d'attente` : ''}`;
+  zone.replaceChildren(h('p', { class: 'fr-text--sm fr-mb-0' }, texte, ' ', badgeOccupation(o.presents, o.places)));
 }
 
 function openScolForm(ligne, defauts = {}) {
@@ -1907,8 +1940,9 @@ function openScolForm(ligne, defauts = {}) {
       placeholder: 'Rechercher un établissement…',
       options: state.etabs.map((e) => ({ value: e.id, label: e.label })),
       value: ligne ? ligne.affectation : defauts.affectation || '',
-      onChange: (id) => majNiveaux(id),
+      onChange: (id) => { majNiveaux(id); majOccupation(id); },
     }),
+    h('div', { id: 's-aff-occup', class: 'fr-mb-2w', role: 'status', 'aria-live': 'polite' }),
     niveauField(ligne, defauts),
     select('s-situation', 'Situation', state.situations.map((s) => ({ value: s, label: s })), defSituation),
     h(
@@ -1937,6 +1971,7 @@ function openScolForm(ligne, defauts = {}) {
     if (el) el.title = texte;
   }
   form.hidden = false;
+  majOccupation(ligne ? ligne.affectation : defauts.affectation || '');
   $('#h-scol-form').focus();
 }
 
@@ -3486,7 +3521,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261120n';
+const VERSION_APP = '20261123a';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 

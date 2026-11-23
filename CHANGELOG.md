@@ -2,6 +2,9 @@
 
 ## [Non publié]
 
+- Formulaire d'affectation : sous le champ Affectation, l'occupation du dispositif de l'établissement choisi s'affiche (élèves présents aujourd'hui, places, liste d'attente, pastille « N places libres », « Presque plein », « Plein » ou « Dépassement »). Annoncé aux lecteurs d'écran, mis à jour à chaque nouveau choix, effacé si l'établissement est effacé.
+- Correctif : la liste des niveaux contenait du texte « null » après un changement d'établissement.
+
 - Renommage : l'application s'appelle « ⛵ ULISse - Suivi des Élèves » (titre de l'en-tête, onglet du navigateur) ; toute mention d'ANESH est retirée, y compris du pied de page.
 - Page Vœux : Vœu 1 et Vœu 2 deviennent des champs avec recherche (loupe), la liste de niveau n+1 est élargie, étiquettes « Sortant (CM2) », « Sortant (3e) » et « Restant » avec une bordure de couleur sur la ligne.
 
