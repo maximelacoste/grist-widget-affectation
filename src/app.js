@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261124b';
-import { attachSuggest } from './suggest.js?v=20261124b';
-import { activerCalendriers } from './calendrier.js?v=20261124b';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261124c';
+import { attachSuggest } from './suggest.js?v=20261124c';
+import { activerCalendriers } from './calendrier.js?v=20261124c';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1962,10 +1962,20 @@ async function etatEnvoi(eleveId) {
     id: t.id[i],
     aEnvoyer: Boolean(t.A_envoyer && t.A_envoyer[i]),
     envoyeLe: t.Envoye_le && typeof t.Envoye_le[i] === 'number' && t.Envoye_le[i] > 0 ? t.Envoye_le[i] : null,
+    // UAI de l'établissement pour lequel la dernière demande est partie (colonne Envoye_uai, écrite par le workflow n8n) et UAI actuel
+    suitUai: Boolean(t.Envoye_uai),
+    envoyeUai: t.Envoye_uai ? String(cellText(t.Envoye_uai[i]) ?? '').trim().toUpperCase() : '',
+    etabUai: t.Etab_UAI ? String(cellText(t.Etab_UAI[i]) ?? '').trim().toUpperCase() : '',
     pret: Boolean(t.Pret && t.Pret[i]),
     manque: Object.entries(CHAMPS_ENVOI).filter(([c]) => t[c] && vide(c)).map(([, l]) => l),
   };
 }
+
+/**
+ * Une demande déjà partie bloque une nouvelle demande seulement pour le même établissement. Sans colonne Envoye_uai
+ * (ancien document), toute demande envoyée bloque comme avant ; avec la colonne, un autre établissement est autorisé.
+ */
+const demandeDejaPartie = (etat) => Boolean(etat.envoyeLe) && (!etat.suitUai || (etat.envoyeUai !== '' && etat.envoyeUai === etat.etabUai));
 
 let jetonEnvoi = 0;
 /** Affiche sous la case l'état de la demande et la désactive si une demande est déjà partie ou en attente. */
@@ -1982,12 +1992,14 @@ async function majEnvoiForm(eleveId) {
   if (!etat) { groupe.hidden = true; return; } // la table d'envoi n'existe pas dans ce document
   const note = $('#s-ds-etat');
   const case_ = $('#s-ds');
-  if (etat.envoyeLe) {
-    case_.disabled = true;
-    note.textContent = `Une demande a déjà été envoyée le ${formatDateFr(secToIso(etat.envoyeLe))} : elle ne peut pas être renvoyée d'ici.`;
-  } else if (etat.aEnvoyer) {
+  if (etat.aEnvoyer) {
     case_.disabled = true;
     note.textContent = "Une demande est déjà en attente : elle partira avec le prochain envoi groupé.";
+  } else if (etat.envoyeLe && !etat.suitUai) {
+    case_.disabled = true;
+    note.textContent = `Une demande a déjà été envoyée le ${formatDateFr(secToIso(etat.envoyeLe))} : elle ne peut pas être renvoyée d'ici.`;
+  } else if (etat.envoyeLe) {
+    note.textContent = `Une demande est déjà partie le ${formatDateFr(secToIso(etat.envoyeLe))}${etat.envoyeUai ? ` pour l'établissement ${etat.envoyeUai}` : ''} : une nouvelle demande ne part que si l'établissement d'arrivée est différent.`;
   } else {
     note.textContent = "La demande part avec le prochain envoi groupé, une fois l'affectation enregistrée et si le dossier est complet.";
   }
@@ -2036,8 +2048,8 @@ async function demanderEnvoiDS(eleveId, etabId) {
   viderCache();
   let etat = await etatEnvoi(eleveId);
   if (!etat) return { statut: 'absente', manque: [] };
-  if (etat.envoyeLe) return { statut: 'envoyee', manque: [] };
   if (etat.aEnvoyer) return { statut: 'en_attente', manque: [] };
+  if (demandeDejaPartie(etat)) return { statut: 'envoyee', manque: [] };
   const aujourdhui = isoToSec(new Date().toISOString().slice(0, 10));
   if (!etat.id) {
     await grist.docApi.applyUserActions([['AddRecord', T_ENVOI, null, champsExistants(T_ENVOI, { Eleve: eleveId, Saisie_Date: aujourdhui })]]);
@@ -2310,7 +2322,7 @@ async function ecrireAffectation(fields, { envoyerDS = false, etabId = 0 } = {})
         : ['success', "Demande à la Division scolaire enregistrée : elle partira avec le prochain envoi groupé, copie au coordonnateur."],
       sans_dest: ['warning', `Demande non envoyée : ${r.manque.join(' ; ')}.`],
       en_attente: ['info', 'Une demande était déjà en attente : rien de plus à faire.'],
-      envoyee: ['warning', 'Une demande a déjà été envoyée pour cet élève : elle n\'a pas été renvoyée.'],
+      envoyee: ['warning', 'Une demande a déjà été envoyée pour cet élève et cet établissement : elle n\'a pas été renvoyée.'],
       absente: ['warning', `La table ${T_ENVOI} est introuvable : la demande n'a pas été enregistrée.`],
       incomplete: ['warning', `Demande non envoyée : il manque ${r.manque.join(', ')}. Complétez le dossier puis recochez la case.`],
     }[r.statut];
@@ -3820,7 +3832,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261124b';
+const VERSION_APP = '20261124c';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
