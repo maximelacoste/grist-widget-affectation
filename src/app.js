@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261124a';
-import { attachSuggest } from './suggest.js?v=20261124a';
-import { activerCalendriers } from './calendrier.js?v=20261124a';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261124b';
+import { attachSuggest } from './suggest.js?v=20261124b';
+import { activerCalendriers } from './calendrier.js?v=20261124b';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -2920,16 +2920,6 @@ async function chargerSecteur({ voeux = false } = {}) {
   const colDe = (id) => state.etabCols.find((c) => c.colId === id && t[id]);
   const cdoeaCalc = colDe('Secteur_ERS_Secteurs_CDOEA');
   const ersCalc = colDe('Secteur_ERS_Secteurs_ERS');
-  // CDOEA de l'établissement : Secteur_ERS2 (réf. Secteurs_ERS) → Secteurs_CDOEA (réf. Coordos) ; libellé = Coordos.Secteur_CDOEA, à défaut l'identifiant de l'adresse nominative
-  const [tSe, tCo] = await Promise.all([lireTable('Secteurs_ERS'), lireTable(T_COORDO)].map((p) => p.catch(() => null)));
-  const cdoeaDe = (i) => {
-    if (!tSe || !tCo || !t.Secteur_ERS2 || !tSe.Secteurs_CDOEA) return '';
-    const j = tSe.id.indexOf(t.Secteur_ERS2[i]);
-    const c = j >= 0 ? tCo.id.indexOf(tSe.Secteurs_CDOEA[j]) : -1;
-    if (c < 0) return '';
-    const lib = tCo.Secteur_CDOEA ? cellText(tCo.Secteur_CDOEA[c]).trim() : '';
-    return lib || (tCo.mel_coordo ? String(tCo.mel_coordo[c] || '').split('@')[0].trim() : '');
-  };
   const etabs = [];
   for (const e of state.etabs) {
     const i = t.id.indexOf(e.id);
@@ -2961,7 +2951,6 @@ async function chargerSecteur({ voeux = false } = {}) {
       uai: texte('Uai', i),
       secteur,
       secteurNum,
-      cdoea: cdoeaDe(i),
       ers,
       ersh: texte('Uai_ERSH', i).replace(/\s+/g, ' ').trim(),
       places,
@@ -2987,7 +2976,7 @@ async function openSecteur(retour = retourAccueil(), { garder = false, voeux = f
     return;
   }
   const prec = garder && state.secteur ? state.secteur : null;
-  state.secteur = { voeux, retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { q: '', secteur: '', type: '', ers: '', cdoea: '', commune: '', occup: '', voeux: '' } };
+  state.secteur = { voeux, retour, data, tri: prec ? prec.tri : undefined, filtres: prec ? prec.filtres : { q: '', secteur: '', type: '', ers: '', commune: '', occup: '', voeux: '' } };
   state.step = 0;
   masquerPages();
   $('#step-secteur').hidden = false;
@@ -2996,7 +2985,7 @@ async function openSecteur(retour = retourAccueil(), { garder = false, voeux = f
       'div',
       { class: 'fr-stepper' },
       h('h1', { class: 'fr-stepper__title', id: 'h-secteur', tabindex: '-1' }, voeux ? `Vœux ULIS n+1 (rentrée ${anneeCible()})` : 'Tous les dispositifs'),
-      h('p', { class: 'fr-stepper__details' }, voeux ? "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, CDOEA, commune, type, ERS et occupation. La colonne « Vœux » indique combien d'élèves présents n'ont pas encore de vœu pour la rentrée. Un clic sur un établissement ouvre les vœux de ses élèves." : "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur, CDOEA, commune, type, ERS et occupation. Un clic sur un établissement ouvre son dispositif."),
+      h('p', { class: 'fr-stepper__details' }, voeux ? "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur CDOEA, commune, type, ERS et occupation. La colonne « Vœux » indique combien d'élèves présents n'ont pas encore de vœu pour la rentrée. Un clic sur un établissement ouvre les vœux de ses élèves." : "Établissements avec ULIS : recherchez par nom, commune ou UAI, ou filtrez par secteur CDOEA, commune, type, ERS et occupation. Un clic sur un établissement ouvre son dispositif."),
     ),
     h(
       'nav',
@@ -3016,7 +3005,6 @@ function rendreSecteur() {
   // Occupation : deux choix seulement ; « presque plein » compte encore comme places disponibles, « dépassement » comme plein
   const OCCUP_GROUPES = { dispo: ['libre', 'presque'], plein: ['plein', 'depassement'] };
   if (f.occup && !OCCUP_GROUPES[f.occup]) f.occup = ''; // valeur d'un ancien choix
-  const cdoeas = [...new Set(etabs.map((e) => e.cdoea).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
   const communes = [...new Set(etabs.map((e) => e.commune).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   const dansSecteur = (e) => !f.secteur || String(e.secteurNum) === f.secteur;
   // Les ERS proposés dépendent du secteur choisi ; un ERS qui n'en fait plus partie est abandonné.
@@ -3039,7 +3027,7 @@ function rendreSecteur() {
   };
   const jetons = normSearch(f.q || '').split(/\s+/).filter(Boolean);
   const correspond = (e) => !jetons.length || jetons.every((t) => normSearch(`${e.label} ${e.commune} ${e.uai} ${e.type}`).includes(t));
-  const liste0 = etabs.filter((e) => correspond(e) && dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.cdoea || e.cdoea === f.cdoea) && (!f.commune || e.commune === f.commune) && (!f.voeux || (f.voeux === 'manque' ? e.sansVoeu > 0 : e.presents > 0 && e.sansVoeu === 0)) && (!f.occup || OCCUP_GROUPES[f.occup].includes((occupation(e.presents, e.places, SEUIL_PRESQUE_PLEIN) || {}).niveau)));
+  const liste0 = etabs.filter((e) => correspond(e) && dansSecteur(e) && (!f.type || e.type === f.type) && (!f.ers || e.ers === f.ers) && (!f.commune || e.commune === f.commune) && (!f.voeux || (f.voeux === 'manque' ? e.sansVoeu > 0 : e.presents > 0 && e.sansVoeu === 0)) && (!f.occup || OCCUP_GROUPES[f.occup].includes((occupation(e.presents, e.places, SEUIL_PRESQUE_PLEIN) || {}).niveau)));
   const val = clesTri[tri.cle];
   const liste = [...liste0].sort((a, b) => {
     const x = val(a);
@@ -3092,8 +3080,7 @@ function rendreSecteur() {
         h('label', { class: 'fr-label', for: 'f-q' }, 'Rechercher un dispositif'),
         h('div', { class: 'fr-input-wrap fr-icon-search-line' }, recherche),
       ),
-      aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur', SECTEURS, 'Ne garder que les établissements du secteur 1, 2 ou 3') : null,
-      cdoeas.length ? selecteur('f-cdoea', 'cdoea', 'CDOEA', cdoeas, 'Ne garder que les établissements de ce secteur de coordonnateur CDOEA') : null,
+      aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur CDOEA', SECTEURS, 'Ne garder que les établissements du secteur CDOEA 1, 2 ou 3') : null,
       selecteur('f-commune', 'commune', 'Commune', communes, 'Ne garder que les établissements de cette commune'),
       selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
       aErs ? selecteur('f-ers', 'ers', 'ERS', ersProposes, f.secteur ? `ERS du secteur ${f.secteur} seulement (secteur d'enseignant référent)` : "Ne garder que les établissements de cet ERS (secteur d'enseignant référent)") : null,
@@ -3833,7 +3820,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261124a';
+const VERSION_APP = '20261124b';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
