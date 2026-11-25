@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Liste des élèves d'un dispositif : le bouton « Autres situations » est retiré (seul « Liste d'attente » reste) ; le décompte « N dans une autre situation » reste affiché dans les effectifs.
 - Correctif : supprimer une affectation depuis un dossier ouvert hors de la page des affectations (élèves exclus, dispositif, ERS, vœux) ne produit plus l'erreur « state.eleve is null » ; la ligne supprimée disparaît du dossier et la confirmation s'affiche.
 - Demande à la Division scolaire : une demande déjà envoyée ne bloque plus une réaffectation vers un autre établissement. Avec la colonne `Envoye_uai` (écrite par le workflow n8n), la case reste utilisable et une nouvelle demande part si l'établissement d'arrivée diffère de celui de la dernière demande ; pour le même établissement, rien n'est renvoyé. Sans cette colonne, le comportement reste celui d'avant (demande envoyée = case désactivée).
 - Liste des établissements : le menu « Secteur » devient « Secteur CDOEA » ; nouveau menu « Commune » après lui ; le menu « Fins de droits » est retiré (les alertes restent dans les colonnes et dans le dossier) ; le menu « Occupation » n'a plus que « Places disponibles » (places libres ou presque plein) et « Dispositif plein » (plein ou dépassement).

@@ -2584,7 +2584,7 @@ async function openDispositif(etabId, retour, { garder = false } = {}) {
     return;
   }
   const prec = garder && state.dispo && state.dispo.etabId === etabId ? state.dispo : null;
-  state.dispo = { etabId, retour, data, tri: prec ? prec.tri : { cle: 'nom', dir: 1 }, inclureAttente: prec ? prec.inclureAttente : false, inclureAutres: prec ? prec.inclureAutres : false, ajout: false };
+  state.dispo = { etabId, retour, data, tri: prec ? prec.tri : { cle: 'nom', dir: 1 }, inclureAttente: prec ? prec.inclureAttente : false, ajout: false };
   const label = state.etabLabel.get(etabId) || `#${etabId}`;
   state.step = 0;
   masquerPages();
@@ -2753,7 +2753,7 @@ async function basculerAttente(d, e, vers) {
   }
 }
 
-/** Bascule DSFR d'affichage des élèves de la liste d'attente / des autres situations (option conservée au retour). */
+/** Bascule DSFR d'affichage des élèves de la liste d'attente (option conservée au retour). */
 function basculeDispo(id, cle, libelle, aide) {
   const d = state.dispo;
   return h(
@@ -2768,7 +2768,7 @@ function rendreDispositif() {
   const d = state.dispo;
   const { lignes, tInd, etab, parId, idx } = d.data;
   const todayIso = new Date().toISOString().slice(0, 10);
-  const { rows, presents, attente, autres } = elevesDuDispositif(lignes, d.etabId, todayIso, { inclureAttente: d.inclureAttente, inclureAutres: d.inclureAutres, situationPresent: SITUATION_PAR_DEFAUT });
+  const { rows, presents, attente, autres } = elevesDuDispositif(lignes, d.etabId, todayIso, { inclureAttente: d.inclureAttente, situationPresent: SITUATION_PAR_DEFAUT });
   const eleves = [];
   for (const { eleve, ligne, statut } of rows) {
     const row = parId.get(eleve);
@@ -2814,10 +2814,9 @@ function rendreDispositif() {
       'div',
       { class: 'toggles-ligne fr-mb-2w' },
       basculeDispo('dispo-attente', 'inclureAttente', `Liste d'attente (${attente})`, "Afficher aussi, dans la liste, les élèves en liste d'attente pour cet établissement"),
-      basculeDispo('dispo-autres', 'inclureAutres', `Autres situations (${autres})`, 'Afficher aussi les élèves dont la situation en cours est une sortie, une exclusion… avec cet établissement'),
     ),
     eleves.length === 0
-      ? h('p', {}, d.inclureAttente || d.inclureAutres ? "Aucun élève à afficher avec ces options." : "Aucun élève présent dans ce dispositif.")
+      ? h('p', {}, d.inclureAttente ? "Aucun élève à afficher avec cette option." : "Aucun élève présent dans ce dispositif.")
       : h(
           'div',
           { class: 'fr-table fr-table--no-caption' },
