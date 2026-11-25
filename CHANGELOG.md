@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Liste des élèves d'un dispositif : l'alerte « Dossiers incomplets » nomme chaque élève concerné (lien vers son dossier) et ce qui lui manque ; la pastille de la ligne indique aussi ce qui manque (y compris le niveau d'un élève affecté) ; une fiche sans nom ni prénom s'affiche « Fiche sans nom (n° …) ».
 - Liste des élèves d'un dispositif : le bouton « Autres situations » est retiré (seul « Liste d'attente » reste) ; le décompte « N dans une autre situation » reste affiché dans les effectifs.
 - Correctif : supprimer une affectation depuis un dossier ouvert hors de la page des affectations (élèves exclus, dispositif, ERS, vœux) ne produit plus l'erreur « state.eleve is null » ; la ligne supprimée disparaît du dossier et la confirmation s'affiche.
 - Demande à la Division scolaire : une demande déjà envoyée ne bloque plus une réaffectation vers un autre établissement. Avec la colonne `Envoye_uai` (écrite par le workflow n8n), la case reste utilisable et une nouvelle demande part si l'établissement d'arrivée diffère de celui de la dernière demande ; pour le même établissement, rien n'est renvoyé. Sans cette colonne, le comportement reste celui d'avant (demande envoyée = case désactivée).

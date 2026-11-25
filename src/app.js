@@ -2620,13 +2620,49 @@ function enteteTri(libelle, cle, onTri, tri = state.dispo.tri) {
   );
 }
 
-/** Panneau d'alerte sur les fins de droits des élèves affichés (rouge si l'une est échue, orange sinon). */
-function panneauIncomplets(eleves) {
-  const n = eleves.filter((e) => infosManquantes(e.row, { affecte: e.statut === 'present', niveau: e.niveau }).length).length;
-  if (!n) return h('span');
-  return h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' }, h('p', { class: 'fr-alert__title' }, 'Dossiers incomplets'), h('p', {}, `${n} élève${n > 1 ? 's' : ''} dont le nom, le prénom, la date de naissance ou le niveau (élèves affectés) est manquant : ouvrez le dossier pour compléter.`));
+/** Libellés des informations manquantes d'un élève de la liste du dispositif (niveau exigé seulement pour un élève affecté). */
+function manquesDispo(e) {
+  return infosManquantes(e.row, { affecte: e.statut === 'present', niveau: e.niveau });
 }
 
+/** Nom affiché d'un élève du dispositif ; une fiche sans nom ni prénom reste repérable par son numéro. */
+function nomDispo(e) {
+  return `${e.nom} ${e.prenom}`.trim() || `Fiche sans nom (n° ${e.row.id})`;
+}
+
+/** Pastille de la liste du dispositif : indique ce qui manque sur cet élève. */
+function badgeManques(e) {
+  const m = manquesDispo(e);
+  if (!m.length) return null;
+  return h('p', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: `Information manquante : ${m.join(', ')}` }, `Manque : ${m.join(', ')}`);
+}
+
+/** Panneau d'alerte des dossiers incomplets du dispositif : un lien par élève concerné, avec ce qui manque. */
+function panneauIncomplets(eleves) {
+  const liste = eleves.map((e) => ({ e, m: manquesDispo(e) })).filter((x) => x.m.length);
+  if (!liste.length) return h('span');
+  const n = liste.length;
+  return h(
+    'div',
+    { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'dispo-incomplets', role: 'status' },
+    h('p', { class: 'fr-alert__title' }, n > 1 ? `${n} dossiers incomplets` : 'Dossier incomplet'),
+    h(
+      'ul',
+      { class: 'fr-mb-1w' },
+      liste.map(({ e, m }) =>
+        h(
+          'li',
+          {},
+          h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir le dossier de cet élève pour le compléter', onclick: () => openDossier(e.row, 'dispo') }, nomDispo(e)),
+          ` : il manque ${m.join(', ')}`,
+        ),
+      ),
+    ),
+    h('p', { class: 'fr-text--sm fr-mb-0' }, 'Ouvrez le dossier pour compléter.'),
+  );
+}
+
+/** Panneau d'alerte sur les fins de droits des élèves affichés (rouge si l'une est échue, orange sinon). */
 function panneauAlertes(eleves, d, onTri) {
   const todayIso = new Date().toISOString().slice(0, 10);
   let echues = 0;
@@ -2848,7 +2884,7 @@ function rendreDispositif() {
                       h(
                         'tr',
                         {},
-                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${e.nom} ${e.prenom}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'dispo') }, `${e.nom} ${e.prenom}`.trim() || 'Sans nom'), badgeIncomplet(e.row) ? [h('br'), badgeIncomplet(e.row)] : null),
+                        h('td', {}, h('button', { type: 'button', class: 'fr-link lien-etab', 'aria-label': `Dossier de ${nomDispo(e)}`, title: "Ouvrir le dossier de cet élève", onclick: () => openDossier(e.row, 'dispo') }, nomDispo(e)), badgeManques(e) ? [h('br'), badgeManques(e)] : null),
                         h('td', {}, e.niveau || '—'),
                         h('td', {}, e.situation || '—', e.attente ? [' ', h('p', { class: 'fr-badge fr-badge--info fr-badge--sm fr-badge--no-icon' }, "Liste d'attente")] : null),
                         h('td', {}, e.statut === 'autre' ? '—' : basculeAttenteEleve(e)),
