@@ -2229,9 +2229,12 @@ async function supprimerLigne(ligne, apres = null) {
   try {
     viderCache();
     await grist.docApi.applyUserActions([['RemoveRecord', T_SCOLARITE, ligne.id]]);
-    await refreshScolarite();
+    // Depuis un dossier ouvert hors de la page des affectations (exclus, dispositif, ERS, vœux), aucun élève n'est sélectionné :
+    // on ne rafraîchit la liste de la page que si elle porte bien l'élève de la ligne supprimée.
+    const surPage = Boolean(state.eleve) && state.eleve.id === ligne.eleve;
+    if (surPage) await refreshScolarite(state.eleve.id);
     fermerFormScol();
-    renderScolList();
+    if (surPage) renderScolList();
     if (apres) await apres(); // suppression depuis le dossier : on y reste, mis à jour
     notify('success', 'Affectation supprimée.');
   } catch (err) {
