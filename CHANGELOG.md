@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Mini menu flottant « Affichage » (en bas à droite, `src/accessibilite.js`) : taille du texte (A− / A / A+, 87,5 à 150 %), densité des tableaux et formulaires (Dense / Normal / Aéré), thème clair ou sombre, interligne agrandi, liens soulignés, animations réduites, retour en haut (aussi un bouton qui apparaît après défilement) et réinitialisation. Réglages mémorisés dans le navigateur ; Échap ferme le panneau.
 - Vœux : « Non choisi » devient « Non saisi » partout (l'ancienne valeur `Non choisi` déjà écrite dans `Notifie_rentree` est lue comme « Non saisi »).
 - Notification « L'élève sera notifié ULIS au 01/09 » : réservée aux nouveaux élèves et élèves hors secteur (page « Nouveaux élèves et élèves hors secteur », ex-« Élèves hors de mes dispositifs », libellé de l'accueil mis à jour) ; retirée de la page d'un établissement. Avec « Non », le reste de la ligne est désactivé, aucun niveau ni vœu n'est exigé, et l'enregistrement écrit `Voeu_1` vide (l'élève n'est plus compté dans les effectifs prévus).
 - Page d'un établissement : « Reste en ULIS dans l'établissement » affiche le libellé réel de l'établissement, comme un vœu ordinaire (et non « Cet établissement »).

@@ -173,3 +173,30 @@ tr.ligne-restant > :first-child { box-shadow: inset 6px 0 0 var(--border-action-
 /* Page Vœux : la liste « Niveau n+1 » doit afficher toutes ses valeurs (6e ULIS, 3e SEGPA…) */
 #voeux select.fr-select { min-width: 9rem; text-overflow: clip; }
 #voeux td { vertical-align: top; }
+
+/* Mini menu flottant d'accessibilité (taille, densité, thème, retour en haut) */
+.a11y-menu { position: fixed; right: 1rem; bottom: 1rem; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; }
+.a11y-barre { display: flex; gap: .5rem; align-items: center; }
+.a11y-menu .fr-btn { box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
+.a11y-menu .fr-btn--secondary, .a11y-menu .fr-btn--tertiary { background-color: var(--background-default-grey); }
+.a11y-panneau { background: var(--background-default-grey); color: var(--text-default-grey); border: 1px solid var(--border-default-grey); border-radius: .25rem; padding: 1rem; width: min(20rem, calc(100vw - 2rem)); box-shadow: 0 4px 12px rgba(0, 0, 0, .3); }
+.a11y-panneau[hidden] { display: none; }
+.a11y-titre { font-weight: 700; margin: 0 0 .5rem; }
+.a11y-etiq { margin: .75rem 0 .25rem; font-size: .875rem; }
+.a11y-choix { display: flex; gap: .25rem; flex-wrap: wrap; }
+.a11y-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
+.a11y-panneau .fr-checkbox-group { margin-top: .5rem; }
+
+/* Densité */
+body.dens-compacte .fr-table td, body.dens-compacte .fr-table th { padding: .25rem .5rem !important; }
+body.dens-compacte .fr-input-group, body.dens-compacte .fr-select-group { margin-top: .5rem !important; }
+body.dens-compacte .fr-mt-2w, body.dens-compacte .fr-mt-3w, body.dens-compacte .fr-mt-4w { margin-top: .5rem !important; }
+body.dens-compacte .fr-alert { padding-block: .5rem !important; }
+body.dens-aeree .fr-table td, body.dens-aeree .fr-table th { padding: 1.25rem 1.25rem !important; }
+body.dens-aeree .fr-input-group, body.dens-aeree .fr-select-group { margin-top: 1.5rem !important; }
+
+/* Lisibilité */
+body.a11y-interligne { line-height: 1.9; }
+body.a11y-interligne p, body.a11y-interligne li, body.a11y-interligne td, body.a11y-interligne label { line-height: 1.9 !important; }
+body.a11y-liens a, body.a11y-liens .fr-link, body.a11y-liens .lien-etab { text-decoration: underline !important; }
+body.a11y-calme *, body.a11y-calme *::before, body.a11y-calme *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
