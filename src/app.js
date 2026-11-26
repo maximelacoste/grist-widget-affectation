@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126e';
-import { attachSuggest } from './suggest.js?v=20261126e';
-import { activerCalendriers } from './calendrier.js?v=20261126e';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126d';
+import { attachSuggest } from './suggest.js?v=20261126d';
+import { activerCalendriers } from './calendrier.js?v=20261126d';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1728,7 +1728,7 @@ function select(id, label, options, value, { hint = '' } = {}) {
  * on tape des mots (sans accents, dans le désordre), on choisit à la souris ou au clavier
  * (flèches, Entrée, Échap). La valeur choisie est portée par `input.dataset.value`.
  */
-function combobox({ id, label, options, value, hint = '', placeholder = 'Rechercher…', onChange = null, compact = false, disabled = false, minChars = 0 }) {
+function combobox({ id, label, options, value, hint = '', placeholder = 'Rechercher…', onChange = null, compact = false, disabled = false }) {
   const selected = options.find((o) => String(o.value) === String(value));
   const listId = `${id}-list`;
   const input = h('input', {
@@ -1774,11 +1774,6 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
     onChange?.(o.value);
   };
   const open = (query) => {
-    // liste fermée tant que la recherche est trop courte (pas de menu complet à parcourir)
-    if (minChars > 0 && String(query).trim().length < minChars) {
-      close();
-      return;
-    }
     const { total, rows } = filterOptions(options, query);
     shown = rows;
     list.replaceChildren(
@@ -3325,7 +3320,7 @@ function fabriqueLigneVoeux(ctx) {
     const ro = lectureSeule() || !e.gere;
     const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: ro, hidden: !e.cur.mouvement && !e.cur.niveau1 }, [h('option', { value: '', selected: !e.cur.niveau1 }, 'À saisir'), ...state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n))]);
     const alerte = h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', id: `${pre}-alerte`, title: "Un maintien en 3e n'est pas de droit : à examiner en commission", hidden: true }, 'Maintien en 3e : pas de droit');
-    const v1 = combobox({ id: `${pre}-v1`, label: `Vœu de ${nom}`, options: ctx.optionsEtab(), value: e.cur.voeu1 || '', placeholder: 'Tapez 3 lettres (ex. IEN, CIO)…', compact: true, minChars: 3, disabled: ro, onChange: (v) => { e.cur.voeu1 = Number(v) || 0; rafraichir(); } });
+    const v1 = combobox({ id: `${pre}-v1`, label: `Vœu de ${nom}`, options: ctx.optionsEtab(), value: e.cur.voeu1 || '', placeholder: 'Aucun vœu', compact: true, disabled: ro, onChange: (v) => { e.cur.voeu1 = Number(v) || 0; rafraichir(); } });
     const texteReste = h('span', { class: 'fr-text--sm', id: `${pre}-v1-auto`, hidden: true }, 'Cet établissement');
     const rafraichir = () => {
       niv.hidden = !e.cur.mouvement && !e.cur.niveau1;
@@ -3987,7 +3982,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126e';
+const VERSION_APP = '20261126d';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
