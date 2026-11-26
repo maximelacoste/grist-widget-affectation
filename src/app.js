@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126d';
-import { attachSuggest } from './suggest.js?v=20261126d';
-import { activerCalendriers } from './calendrier.js?v=20261126d';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126f';
+import { attachSuggest } from './suggest.js?v=20261126f';
+import { activerCalendriers } from './calendrier.js?v=20261126f';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3283,7 +3283,15 @@ async function chargerVoeuxEtab(etabId) {
       return { row, niveau, ex, initial, cur: { ...initial }, gere: gereParErs(etabId, x.eleve) };
     })
     .sort((a, b) => `${a.row.nom} ${a.row.prenom}`.localeCompare(`${b.row.nom} ${b.row.prenom}`, 'fr'));
-  return { eleves, existants, prevus: prevus.get(etabId) || 0 };
+  // élèves attendus en plus : un vœu enregistré vers cet établissement, sans y être présents aujourd'hui
+  await refreshIndividus();
+  const parId = new Map(state.individus.map((r) => [r.id, r]));
+  const presents = new Set(eleves.map((e) => e.row.id));
+  const attendus = [...existants]
+    .filter(([id, ex]) => ex.voeu1 === etabId && !estSortie(ex.situation) && !presents.has(id) && parId.has(id))
+    .map(([id, ex]) => ({ row: parId.get(id), ex }))
+    .sort((a, b) => `${a.row.nom} ${a.row.prenom}`.localeCompare(`${b.row.nom} ${b.row.prenom}`, 'fr'));
+  return { eleves, existants, attendus, prevus: prevus.get(etabId) || 0 };
 }
 
 /** Groupe de boutons radio DSFR compact (choix unique). */
@@ -3473,6 +3481,15 @@ function rendreVoeuxEtab() {
     eleves.length === 0
       ? h('div', { class: 'fr-alert fr-alert--info fr-alert--sm' }, h('p', {}, "Aucun élève n'est présent dans ce dispositif."))
       : tableVoeux(eleves, ctx, `Vœux des élèves, rentrée ${anneeCible()}`),
+    data.attendus.length === 0 ? null : h('div', { class: 'fr-mt-4w', id: 'voeux-attendus' },
+      h('h2', { class: 'fr-h5' }, `Élèves attendus en plus à la rentrée (${data.attendus.length})`),
+      h('p', { class: 'fr-hint-text' }, "Élèves ajoutés avec un vœu vers cet établissement, pas encore affectés ici. Pour les modifier : « Ajouter un élève » depuis l'accueil."),
+      h('div', { class: 'fr-table fr-table--no-caption' }, h('div', { class: 'fr-table__wrapper' }, h('div', { class: 'fr-table__container' }, h('div', { class: 'fr-table__content' },
+        h('table', {}, h('caption', {}, 'Élèves attendus en plus'),
+          h('thead', {}, h('tr', {}, ['Élève', 'Niveau n+1', 'Notifié ULIS', 'Remarques'].map((t) => h('th', { scope: 'col' }, t)))),
+          h('tbody', {}, data.attendus.map(({ row, ex }) => h('tr', {}, h('td', {}, `${row.nom} ${row.prenom}`.trim()), h('td', {}, ex.niveau || '—'), h('td', {}, ex.notifie || '—'), h('td', {}, ex.remarques || '—')))),
+        ))))),
+    ),
     h(
       'div',
       { class: 'fr-mt-3w bouton-ecriture' },
@@ -3982,7 +3999,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126d';
+const VERSION_APP = '20261126f';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 

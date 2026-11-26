@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Page des vœux d'un établissement : nouvelle section « Élèves attendus en plus à la rentrée » (élèves ajoutés avec un vœu vers cet établissement, pas encore affectés ici), en lecture seule.
 - Module « Ajouter un élève » : il s'ouvre sur la liste des élèves déjà ajoutés (vœu enregistré pour la rentrée, élève pas présent dans un dispositif de mon secteur), modifiables ; les nouveaux s'ajoutent en dessous et, après validation, on reste sur la liste.
 - Vœux ULIS n+1 (affichage complet, hors mode ERS) : le bouton « Ajouter un élève » est aussi disponible sur la page des vœux ; le module propose alors tous les établissements (pas de case « Établissement de mon secteur »).
 - Vœux ULIS n+1 : « Non choisi » en première position (et par défaut) pour la notification, Maintien/Passage et l'Orientation N+1 ; un élève dont ces choix restent « Non choisi » peut être enregistré (le vœu n'est exigé qu'avec « Change d'ULIS » ou dans le module d'ajout).
