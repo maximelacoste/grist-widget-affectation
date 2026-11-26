@@ -66,7 +66,7 @@ export function initAccessibilite() {
       titre.focus({ preventScroll: true });
     }
   };
-  const bouton = h('button', { type: 'button', class: 'fr-btn fr-btn--secondary fr-icon-eye-line fr-btn--icon-left a11y-ouvrir', id: 'a11y-ouvrir', 'aria-expanded': 'false', 'aria-controls': 'a11y-panneau', title: "Ouvrir les réglages d'affichage (taille, densité, thème, retour en haut)" }, 'Affichage');
+  const bouton = h('button', { type: 'button', class: 'fr-btn fr-icon-eye-line fr-btn--icon-left a11y-ouvrir', id: 'a11y-ouvrir', 'aria-expanded': 'false', 'aria-controls': 'a11y-panneau', title: "Ouvrir les réglages d'affichage (taille, densité, thème, retour en haut)" }, 'Affichage');
   const panneau = h('div', { class: 'a11y-panneau', id: 'a11y-panneau', role: 'group', 'aria-label': "Réglages d'affichage", hidden: true });
   const remonter = h('button', { type: 'button', class: 'fr-btn fr-btn--secondary fr-icon-arrow-up-line fr-btn--icon-left a11y-haut', id: 'a11y-haut', title: 'Revenir en haut de la page', hidden: true, onclick: haut }, 'Retour en haut');
   const racine = h('div', { class: 'a11y-menu', id: 'a11y-menu' }, panneau, h('div', { class: 'a11y-barre' }, remonter, bouton));
@@ -92,7 +92,6 @@ export function initAccessibilite() {
       interrupteur('a11y-liens', 'Souligner tous les liens', 'liens'),
       interrupteur('a11y-calme', 'Réduire les animations', 'calme'),
       h('div', { class: 'a11y-actions' },
-        h('button', { type: 'button', class: 'fr-btn fr-btn--sm fr-btn--secondary fr-icon-arrow-up-line fr-btn--icon-left', id: 'a11y-haut2', onclick: () => { haut(); } }, 'Retour en haut'),
         h('button', { type: 'button', class: 'fr-btn fr-btn--sm fr-btn--tertiary', id: 'a11y-reset', title: 'Revenir aux réglages d’origine', onclick: () => maj({ ...DEFAUT }) }, 'Réinitialiser')),
     );
   }
