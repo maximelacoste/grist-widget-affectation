@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126b';
-import { attachSuggest } from './suggest.js?v=20261126b';
-import { activerCalendriers } from './calendrier.js?v=20261126b';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126c';
+import { attachSuggest } from './suggest.js?v=20261126c';
+import { activerCalendriers } from './calendrier.js?v=20261126c';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3145,6 +3145,7 @@ function rendreSecteur() {
           : null,
       ]),
     ),
+    sc.voeux ? h('button', { type: 'button', class: 'fr-btn fr-btn--secondary fr-mb-2w bouton-ecriture', id: 'btn-ajout-eleve', title: "Ouvrir le module d'ajout d'élèves", onclick: () => openAjoutEleves({ libelle: 'Revenir aux vœux ULIS n+1', action: () => openSecteur(sc.retour, { garder: true, voeux: true }) }) }, 'Ajouter un élève') : null,
     etabs.some((e) => e.secteurNum === null) ? h('p', { class: 'fr-hint-text', id: 'secteur-inconnu' }, `${etabs.filter((e) => e.secteurNum === null).length} établissement(s) sans numéro de secteur reconnu : ils n'apparaissent pas quand un secteur est choisi.`) : h('span'),
     h('p', { role: 'status' }, `${liste.length} établissement${liste.length > 1 ? 's' : ''} · ${totalPresents} élève${totalPresents > 1 ? 's' : ''} présent${totalPresents > 1 ? 's' : ''}${totalPlaces ? ` sur ${totalPlaces} places (${totalPlaces - totalPresents >= 0 ? `${totalPlaces - totalPresents} libre${totalPlaces - totalPresents > 1 ? 's' : ''}` : `dépassement de ${totalPresents - totalPlaces}`})` : ''}`),
     liste.length === 0
@@ -3563,14 +3564,14 @@ async function ecrireVoeux(aEcrire, { ajout }) {
 /* Module d'ajout d'élèves (depuis l'accueil de l'ERS)                 */
 /* ------------------------------------------------------------------ */
 async function chargerAjout() {
-  if (!state.ers.data) await chargerErs();
+  const base = state.ers ? (state.ers.data || (await chargerErs())) : await chargerSecteur({ voeux: true });
   const tv = await lireTable(T_VOEUX).catch(() => null);
   if (!tv || !tv.Eleve) throw new Error(`la table ${T_VOEUX} est introuvable ou n'a pas de colonne Eleve`);
   const { existants } = lireVoeuxExistants(tv);
   const todayIso = new Date().toISOString().slice(0, 10);
   const presentsAilleurs = new Map();
-  for (const x of statutsEleves(state.ers.data.lignes, todayIso, SITUATION_PAR_DEFAUT)) if (x.statut === 'present') presentsAilleurs.set(x.eleve, x.ligne);
-  return { existants, presentsAilleurs };
+  for (const x of statutsEleves(base.lignes, todayIso, SITUATION_PAR_DEFAUT)) if (x.statut === 'present') presentsAilleurs.set(x.eleve, x.ligne);
+  return { existants, presentsAilleurs, etabs: base.etabs };
 }
 
 async function openAjoutEleves(retour) {
@@ -3583,7 +3584,7 @@ async function openAjoutEleves(retour) {
     notify('error', `Ouverture impossible : ${err.message}`);
     return;
   }
-  state.ajout = { retour, data, eleves: [], secteurSeul: true };
+  state.ajout = { retour, data, eleves: [], secteurSeul: Boolean(state.ers) };
   state.step = 0;
   masquerPages();
   $('#step-ajout').hidden = false;
@@ -3628,19 +3629,20 @@ function ajouterEleveAjout(row) {
 
 function rendreAjout() {
   const a = state.ajout;
-  const secteurIds = new Set(state.ers.data.etabs.filter((e) => state.ers.codes.has(e.ers)).map((e) => e.id));
+  const modeErs = Boolean(state.ers);
+  const secteurIds = new Set(modeErs ? a.data.etabs.filter((e) => state.ers.codes.has(e.ers)).map((e) => e.id) : []);
   // le vœu d'un élève déjà saisi est vidé s'il sort de la liste proposée
-  for (const e of a.eleves) if (a.secteurSeul && e.cur.voeu1 && !secteurIds.has(e.cur.voeu1)) e.cur.voeu1 = 0;
+  for (const e of a.eleves) if (modeErs && a.secteurSeul && e.cur.voeu1 && !secteurIds.has(e.cur.voeu1)) e.cur.voeu1 = 0;
   const ctx = {
     ajout: true,
     prefixe: 'a',
-    optionsEtab: () => state.etabs.filter((x) => !a.secteurSeul || secteurIds.has(x.id)).map((x) => ({ value: x.id, label: x.label })),
+    optionsEtab: () => state.etabs.filter((x) => !modeErs || !a.secteurSeul || secteurIds.has(x.id)).map((x) => ({ value: x.id, label: x.label })),
     maj: () => majPiedVoeux(a.eleves, { ajout: true }),
     retirer: (e) => { a.eleves = a.eleves.filter((x) => x !== e); rendreAjout(); },
   };
   $('#ajout').replaceChildren(
     h('div', { class: 'fr-alert fr-alert--warning fr-alert--sm fr-mb-2w', id: 'voeux-alerte-globale', role: 'status', hidden: true }, h('p', { class: 'fr-alert__title' }, 'Maintien en 3e'), h('p', {})),
-    h('div', { class: 'fr-checkbox-group fr-mb-2w' },
+    !modeErs ? null : h('div', { class: 'fr-checkbox-group fr-mb-2w' },
       h('input', { type: 'checkbox', id: 'ajout-secteur', checked: a.secteurSeul, onchange: (ev) => { a.secteurSeul = ev.target.checked; rendreAjout(); $('#ajout-secteur')?.focus(); } }),
       h('label', { class: 'fr-label', for: 'ajout-secteur', title: 'Limite le menu des vœux aux établissements de votre secteur' }, 'Établissement de mon secteur', h('span', { class: 'fr-hint-text' }, 'Décochez pour proposer tous les établissements du département.'))),
     h('h2', { class: 'fr-h6' }, 'Rechercher un élève'),
@@ -3963,7 +3965,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126b';
+const VERSION_APP = '20261126c';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
