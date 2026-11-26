@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Module « Ajouter un élève » : il s'ouvre sur la liste des élèves déjà ajoutés (vœu enregistré pour la rentrée, élève pas présent dans un dispositif de mon secteur), modifiables ; les nouveaux s'ajoutent en dessous et, après validation, on reste sur la liste.
 - Vœux ULIS n+1 (affichage complet, hors mode ERS) : le bouton « Ajouter un élève » est aussi disponible sur la page des vœux ; le module propose alors tous les établissements (pas de case « Établissement de mon secteur »).
 - Vœux ULIS n+1 : « Non choisi » en première position (et par défaut) pour la notification, Maintien/Passage et l'Orientation N+1 ; un élève dont ces choix restent « Non choisi » peut être enregistré (le vœu n'est exigé qu'avec « Change d'ULIS » ou dans le module d'ajout).
 - Vœux ULIS n+1 : saisie refondue. Par élève : « L'élève sera notifié ULIS au 01/09/AAAA » (Oui / Non / Non choisi, colonne `Notifie_rentree`), Maintien ou Passage (le menu du niveau n+1 n'apparaît qu'après ce choix, prérempli au niveau actuel ou au suivant, « À saisir » si inconnu), Orientation N+1 (reste en ULIS dans l'établissement = vœu automatique / change d'ULIS = choix du vœu / sort du dispositif), Vœu, et Remarques libres (colonne `Remarques`, remplace le vœu 2 qui n'est plus écrit). La situation est déduite. Les colonnes `Notifie_rentree` et `Remarques` (Texte) sont à créer dans `Voeux_ERS`, sinon les champs sont masqués.

@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126c';
-import { attachSuggest } from './suggest.js?v=20261126c';
-import { activerCalendriers } from './calendrier.js?v=20261126c';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126d';
+import { attachSuggest } from './suggest.js?v=20261126d';
+import { activerCalendriers } from './calendrier.js?v=20261126d';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3247,7 +3247,7 @@ function etatDepuisVoeu(ex, etabId, niveau) {
 }
 
 const CHAMPS_VOEUX = ['notifie', 'mouvement', 'niveau1', 'orient', 'voeu1', 'remarques'];
-const voeuxChange = (e) => Boolean(e.ajoute) || CHAMPS_VOEUX.some((k) => e.cur[k] !== e.initial[k]);
+const voeuxChange = (e) => (Boolean(e.ajoute) && !e.enregistre) || CHAMPS_VOEUX.some((k) => e.cur[k] !== e.initial[k]);
 
 /** Lit Voeux_ERS : vœux déjà saisis pour la rentrée visée (par élève) et nombre de vœux 1 par établissement (« prévus »). */
 function lireVoeuxExistants(tv) {
@@ -3356,7 +3356,7 @@ function fabriqueLigneVoeux(ctx) {
       { class: [e.gere ? '' : 'ligne-grisee', e.niveau ? (sortantDe(e.niveau) ? 'ligne-sortant' : 'ligne-restant') : ''].filter(Boolean).join(' ') || null },
       h('td', {},
         ctx.ajout ? nom : h('button', { type: 'button', class: 'fr-link lien-etab', title: 'Ouvrir le dossier de cet élève', onclick: () => openDossier(e.row, 'voeux') }, nom),
-        e.ajoute ? [h('br'), h('span', { class: 'fr-badge fr-badge--new fr-badge--sm fr-badge--no-icon', title: e.origine ? 'Élève actuellement dans un autre dispositif ULIS, appelé dans un nouvel établissement' : "Élève pas encore affecté en ULIS, ajouté à la saisie" }, e.origine ? `Vient de : ${state.etabLabel.get(e.origine) || `#${e.origine}`}` : 'Pas encore affecté en ULIS'), ' ', h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm', title: "Retirer cet élève de la saisie (rien n'est enregistré)", onclick: () => ctx.retirer(e) }, 'Retirer')] : null,
+        e.ajoute ? [h('br'), h('span', { class: 'fr-badge fr-badge--new fr-badge--sm fr-badge--no-icon', title: e.origine ? 'Élève actuellement dans un autre dispositif ULIS, appelé dans un nouvel établissement' : "Élève pas encore affecté en ULIS, ajouté à la saisie" }, e.origine ? `Vient de : ${state.etabLabel.get(e.origine) || `#${e.origine}`}` : 'Pas encore affecté en ULIS'), ' ', e.enregistre ? null : h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm', title: "Retirer cet élève de la saisie (rien n'est enregistré)", onclick: () => ctx.retirer(e) }, 'Retirer')] : null,
         e.ex ? [h('br'), h('span', { class: 'fr-badge fr-badge--success fr-badge--sm fr-badge--no-icon', title: 'Un vœu est déjà enregistré pour cette rentrée' }, e.ex.statut || 'Enregistré')] : null),
       aNotif ? h('td', {}, notif) : null,
       h('td', {}, e.niveau || '—', e.niveau ? [h('br'), sortantDe(e.niveau) ? h('span', { class: 'fr-badge fr-badge--warning fr-badge--sm fr-badge--no-icon', title: `Élève en ${sortantDe(e.niveau)} : il quitte son établissement à la rentrée` }, `Sortant (${sortantDe(e.niveau)})`) : h('span', { class: 'fr-badge fr-badge--green-emeraude fr-badge--sm fr-badge--no-icon', title: 'Élève qui peut rester dans son établissement à la rentrée' }, 'Restant')] : null),
@@ -3549,7 +3549,7 @@ async function ecrireVoeux(aEcrire, { ajout }) {
     if (ajout) {
       const retour = state.ajout.retour;
       state.ajout = null;
-      retour.action();
+      await openAjoutEleves(retour);
     } else {
       const { etabId, retour } = state.voeuxEtab;
       await openVoeuxEtab(etabId, retour);
@@ -3571,7 +3571,19 @@ async function chargerAjout() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const presentsAilleurs = new Map();
   for (const x of statutsEleves(base.lignes, todayIso, SITUATION_PAR_DEFAUT)) if (x.statut === 'present') presentsAilleurs.set(x.eleve, x.ligne);
-  return { existants, presentsAilleurs, etabs: base.etabs };
+  // élèves « ajoutés » déjà enregistrés : un vœu pour la rentrée, mais pas présents dans un dispositif (de mon secteur en mode ERS)
+  await refreshIndividus();
+  const parId = new Map(state.individus.map((r) => [r.id, r]));
+  const secteur = state.ers ? new Set(base.etabs.filter((e) => state.ers.codes.has(e.ers)).map((e) => e.id)) : null;
+  const deja = [];
+  for (const [eleveId, ex] of existants) {
+    const row = parId.get(eleveId);
+    const ligne = presentsAilleurs.get(eleveId) || null;
+    if (!row || (ligne && (!secteur || secteur.has(ligne.affectation)))) continue;
+    deja.push({ row, ex, ligne });
+  }
+  deja.sort((a, b) => `${a.row.nom} ${a.row.prenom}`.localeCompare(`${b.row.nom} ${b.row.prenom}`, 'fr'));
+  return { existants, presentsAilleurs, etabs: base.etabs, deja };
 }
 
 async function openAjoutEleves(retour) {
@@ -3584,7 +3596,12 @@ async function openAjoutEleves(retour) {
     notify('error', `Ouverture impossible : ${err.message}`);
     return;
   }
-  state.ajout = { retour, data, eleves: [], secteurSeul: Boolean(state.ers) };
+  const eleves = data.deja.map(({ row, ex, ligne }) => {
+    const niveau = ligne ? (ligne.niveau || '').trim() : '';
+    const initial = etatDepuisVoeu(ex, null, niveau);
+    return { row, niveau, ex, initial, cur: { ...initial }, gere: true, ajoute: true, enregistre: true, origine: ligne ? ligne.affectation : 0 };
+  });
+  state.ajout = { retour, data, eleves, secteurSeul: Boolean(state.ers) };
   state.step = 0;
   masquerPages();
   $('#step-ajout').hidden = false;
@@ -3603,7 +3620,7 @@ async function openAjoutEleves(retour) {
   );
   state.edition = {
     fermer: () => {},
-    dirty: () => !$('#step-ajout').hidden && Boolean(state.ajout) && state.ajout.eleves.length > 0,
+    dirty: () => !$('#step-ajout').hidden && Boolean(state.ajout) && state.ajout.eleves.some(voeuxChange),
     focus: () => $('#h-ajout')?.focus(),
     message: 'Vous avez ajouté des élèves sans les valider : ils seront perdus.',
   };
@@ -3965,7 +3982,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126c';
+const VERSION_APP = '20261126d';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
