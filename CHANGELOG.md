@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Page « Vœux ULIS n+1 » en affichage complet : les menus déroulants (secteur CDOEA, commune, type, ERS, occupation, vœux) sont de retour ; ils ne sont masqués que pour les ERS (dont l'accueil est une liste simple de leurs établissements).
 - Correctif : le texte « nullnull » s'affichait en haut de la page « Élèves hors de mes dispositifs » (et pouvait apparaître sur la page des vœux d'un établissement) quand un bloc facultatif était absent.
 - « Élèves hors de mes dispositifs » : bouton « Supprimer le vœu » (avec confirmation) sur les élèves déjà enregistrés ; la ligne de `Voeux_ERS` est supprimée.
 - « Ajouter un élève » devient « Élèves hors de mes dispositifs » (bouton et page). La liste reprend tous les élèves ayant un vœu pour la rentrée et qui ne sont pas dans un dispositif de mon secteur, qu'ils soient en ULIS ailleurs ou non ; en affichage complet : ceux dont le vœu change d'établissement ou qui ne sont pas en ULIS.

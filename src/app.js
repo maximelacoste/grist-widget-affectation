@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126h';
-import { attachSuggest } from './suggest.js?v=20261126h';
-import { activerCalendriers } from './calendrier.js?v=20261126h';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126i';
+import { attachSuggest } from './suggest.js?v=20261126i';
+import { activerCalendriers } from './calendrier.js?v=20261126i';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3135,7 +3135,7 @@ function rendreSecteur() {
         h('label', { class: 'fr-label', for: 'f-q' }, 'Rechercher un dispositif'),
         h('div', { class: 'fr-input-wrap fr-icon-search-line' }, recherche),
       ),
-      ...(sc.voeux ? [] : [
+      ...(sc.voeux && state.ers ? [] : [
         aSecteur ? selecteur('f-secteur', 'secteur', 'Secteur CDOEA', SECTEURS, 'Ne garder que les établissements du secteur CDOEA 1, 2 ou 3') : null,
         selecteur('f-commune', 'commune', 'Commune', communes, 'Ne garder que les établissements de cette commune'),
         selecteur('f-type', 'type', "Type d'établissement", ['École', 'Collège', 'Lycée', ...(etabs.some((e) => e.type === 'Autre') ? ['Autre'] : [])], 'Ne garder que les écoles, collèges ou lycées'),
@@ -4056,7 +4056,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126h';
+const VERSION_APP = '20261126i';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
