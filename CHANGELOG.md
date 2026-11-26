@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- « Ajouter un élève » devient « Élèves hors de mes dispositifs » (bouton et page). La liste reprend tous les élèves ayant un vœu pour la rentrée et qui ne sont pas dans un dispositif de mon secteur, qu'ils soient en ULIS ailleurs ou non ; en affichage complet : ceux dont le vœu change d'établissement ou qui ne sont pas en ULIS.
+- Alerte entre ERS : si un ERS modifie ou ajoute un élève dont le vœu a été saisi par un autre ERS (`Saisi_par`), une ligne est écrite dans la table `Alertes_ERS` (colonnes `Eleve` Réf. Individus, `Ers_origine`, `Ers_demandeur`, `Date_alerte`, `Etat`), et un bandeau « repris par un autre ERS » (bouton « J'ai vu ») s'affiche chez l'ERS d'origine. Sans la table, rien n'est écrit.
 - Page des vœux d'un établissement : nouvelle section « Élèves attendus en plus à la rentrée » (élèves ajoutés avec un vœu vers cet établissement, pas encore affectés ici), en lecture seule.
 - Module « Ajouter un élève » : il s'ouvre sur la liste des élèves déjà ajoutés (vœu enregistré pour la rentrée, élève pas présent dans un dispositif de mon secteur), modifiables ; les nouveaux s'ajoutent en dessous et, après validation, on reste sur la liste.
 - Vœux ULIS n+1 (affichage complet, hors mode ERS) : le bouton « Ajouter un élève » est aussi disponible sur la page des vœux ; le module propose alors tous les établissements (pas de case « Établissement de mon secteur »).
