@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126a';
-import { attachSuggest } from './suggest.js?v=20261126a';
-import { activerCalendriers } from './calendrier.js?v=20261126a';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126b';
+import { attachSuggest } from './suggest.js?v=20261126b';
+import { activerCalendriers } from './calendrier.js?v=20261126b';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3222,10 +3222,10 @@ function colonnesVoeux() {
 /* ------------------------------------------------------------------ */
 /* Modèle de saisie d'un élève : page d'un établissement et module d'ajout */
 /* ------------------------------------------------------------------ */
-const NOTIF_VALEURS = ['Oui', 'Non', 'Non choisi'];
+const NOTIF_VALEURS = ['Non choisi', 'Oui', 'Non'];
 const NOTIF_DEFAUT = 'Non choisi';
-const ORIENTATIONS = [['reste', "Reste en ULIS dans l'établissement"], ['change', "Change d'ULIS"], ['sort', 'Sort du dispositif']];
-const MOUVEMENTS = [['maintien', 'Maintien'], ['passage', 'Passage']];
+const ORIENTATIONS = [['', 'Non choisi'], ['reste', "Reste en ULIS dans l'établissement"], ['change', "Change d'ULIS"], ['sort', 'Sort du dispositif']];
+const MOUVEMENTS = [['', 'Non choisi'], ['maintien', 'Maintien'], ['passage', 'Passage']];
 const COL_NOTIF = 'Notifie_rentree'; // texte : Oui / Non / Non choisi
 const COL_REMARQUES = 'Remarques'; // texte libre (vœu 2, rapprochement de fratrie, soins…)
 const dateRentree = () => `01/09/${anneeCible()}`;
@@ -3235,7 +3235,7 @@ const situationMaintien = () => state.situations.find(estMaintien) || 'Maintien 
 /** Situation écrite dans Voeux_ERS : déduite de l'orientation et du choix maintien / passage (plus de menu « Situation »). */
 const situationDe = (cur) => (cur.orient === 'sort' ? situationSortie() : cur.mouvement === 'maintien' ? situationMaintien() : SITUATION_PAR_DEFAUT);
 /** Niveau proposé : le niveau actuel en cas de maintien, le suivant en cas de passage ; vide (« à saisir ») si le niveau actuel est inconnu. */
-const niveauPour = (mouvement, niveau) => (!niveau ? '' : mouvement === 'maintien' ? niveau : niveauSuivant(niveau));
+const niveauPour = (mouvement, niveau) => (!mouvement || !niveau ? '' : mouvement === 'maintien' ? niveau : niveauSuivant(niveau));
 
 /** État de saisie d'un élève à partir de son vœu déjà enregistré (ou vide). */
 function etatDepuisVoeu(ex, etabId, niveau) {
@@ -3335,7 +3335,6 @@ function fabriqueLigneVoeux(ctx) {
       e.cur.niveau1 = niveauPour(v, e.niveau);
       niv.value = e.cur.niveau1;
       rafraichir();
-      niv.hidden = false;
     }, ro);
     niv.addEventListener('change', () => { e.cur.niveau1 = niv.value; rafraichir(); });
     const orient = ctx.ajout ? null : groupeRadios(`${pre}-ori`, `Orientation N+1 de ${nom}`, ORIENTATIONS, e.cur.orient, (v) => {
@@ -3489,17 +3488,12 @@ function validerVoeux(eleves, { ajout }) {
   const modifies = eleves.filter((e) => e.gere && voeuxChange(e));
   const nomDe = (e) => `${e.row.nom} ${e.row.prenom}`.trim();
   const liste = (l) => l.map(nomDe).join(', ');
-  const sansOrient = ajout ? [] : modifies.filter((e) => !e.cur.orient);
-  if (sansOrient.length) {
-    notify('error', `Choisissez l'orientation N+1 de : ${liste(sansOrient)}.`);
-    return;
-  }
   const sansVoeu = modifies.filter((e) => (ajout || e.cur.orient === 'change') && !(e.cur.voeu1 > 0));
   if (sansVoeu.length) {
     notify('error', `Choisissez le vœu de : ${liste(sansVoeu)}.`);
     return;
   }
-  const sansNiveau = modifies.filter((e) => e.cur.orient !== 'sort' && !e.cur.niveau1);
+  const sansNiveau = modifies.filter((e) => (ajout || e.cur.mouvement) && e.cur.orient !== 'sort' && !e.cur.niveau1);
   if (sansNiveau.length) {
     notify('error', `Choisissez maintien ou passage, puis le niveau n+1 de : ${liste(sansNiveau)}.`);
     return;
@@ -3520,8 +3514,8 @@ function validerVoeux(eleves, { ajout }) {
         h('tbody', {}, modifies.map((e) => h('tr', {},
           h('th', { scope: 'row' }, nomDe(e)),
           ...(cols.has(COL_NOTIF) ? [h('td', { class: 'diff-apres' }, e.cur.notifie)] : []),
-          h('td', { class: 'diff-apres' }, e.cur.orient === 'sort' ? '—' : e.cur.niveau1),
-          h('td', { class: 'diff-apres' }, ajout ? 'Entrée en ULIS' : (ORIENTATIONS.find(([v]) => v === e.cur.orient) || ['', ''])[1]),
+          h('td', { class: 'diff-apres' }, e.cur.orient === 'sort' || !e.cur.niveau1 ? '—' : e.cur.niveau1),
+          h('td', { class: 'diff-apres' }, ajout ? 'Entrée en ULIS' : (ORIENTATIONS.find(([v]) => v === e.cur.orient) || ['', 'Non choisi'])[1]),
           h('td', { class: 'diff-apres' }, nomEtab(e.cur.voeu1)),
           ...(cols.has(COL_REMARQUES) ? [h('td', { class: 'diff-apres' }, e.cur.remarques || '—')] : []),
         ))),
@@ -3969,7 +3963,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126a';
+const VERSION_APP = '20261126b';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
