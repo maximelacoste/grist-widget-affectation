@@ -2,6 +2,8 @@
 
 ## [Non publié]
 
+- Correctif : le texte « nullnull » s'affichait en haut de la page « Élèves hors de mes dispositifs » (et pouvait apparaître sur la page des vœux d'un établissement) quand un bloc facultatif était absent.
+- « Élèves hors de mes dispositifs » : bouton « Supprimer le vœu » (avec confirmation) sur les élèves déjà enregistrés ; la ligne de `Voeux_ERS` est supprimée.
 - « Ajouter un élève » devient « Élèves hors de mes dispositifs » (bouton et page). La liste reprend tous les élèves ayant un vœu pour la rentrée et qui ne sont pas dans un dispositif de mon secteur, qu'ils soient en ULIS ailleurs ou non ; en affichage complet : ceux dont le vœu change d'établissement ou qui ne sont pas en ULIS.
 - Alerte entre ERS : si un ERS modifie ou ajoute un élève dont le vœu a été saisi par un autre ERS (`Saisi_par`), une ligne est écrite dans la table `Alertes_ERS` (colonnes `Eleve` Réf. Individus, `Ers_origine`, `Ers_demandeur`, `Date_alerte`, `Etat`), et un bandeau « repris par un autre ERS » (bouton « J'ai vu ») s'affiche chez l'ERS d'origine. Sans la table, rien n'est écrit.
 - Page des vœux d'un établissement : nouvelle section « Élèves attendus en plus à la rentrée » (élèves ajoutés avec un vœu vers cet établissement, pas encore affectés ici), en lecture seule.
