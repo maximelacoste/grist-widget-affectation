@@ -2,6 +2,9 @@
 
 ## [Non publié]
 
+- Vœux : « Non choisi » devient « Non saisi » partout (l'ancienne valeur `Non choisi` déjà écrite dans `Notifie_rentree` est lue comme « Non saisi »).
+- Notification « L'élève sera notifié ULIS au 01/09 » : réservée aux nouveaux élèves et élèves hors secteur (page « Nouveaux élèves et élèves hors secteur », ex-« Élèves hors de mes dispositifs », libellé de l'accueil mis à jour) ; retirée de la page d'un établissement. Avec « Non », le reste de la ligne est désactivé, aucun niveau ni vœu n'est exigé, et l'enregistrement écrit `Voeu_1` vide (l'élève n'est plus compté dans les effectifs prévus).
+- Page d'un établissement : « Reste en ULIS dans l'établissement » affiche le libellé réel de l'établissement, comme un vœu ordinaire (et non « Cet établissement »).
 - Section « Élèves attendus en plus à la rentrée » (page des vœux d'un établissement) : bouton « Supprimer le vœu » (avec confirmation) sur chaque élève.
 - Page « Vœux ULIS n+1 » en affichage complet : les menus déroulants (secteur CDOEA, commune, type, ERS, occupation, vœux) sont de retour ; ils ne sont masqués que pour les ERS (dont l'accueil est une liste simple de leurs établissements).
 - Correctif : le texte « nullnull » s'affichait en haut de la page « Élèves hors de mes dispositifs » (et pouvait apparaître sur la page des vœux d'un établissement) quand un bloc facultatif était absent.

@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126j';
-import { attachSuggest } from './suggest.js?v=20261126j';
-import { activerCalendriers } from './calendrier.js?v=20261126j';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126k';
+import { attachSuggest } from './suggest.js?v=20261126k';
+import { activerCalendriers } from './calendrier.js?v=20261126k';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3146,7 +3146,7 @@ function rendreSecteur() {
           : null,
       ]),
     ),
-    sc.voeux ? h('button', { type: 'button', class: 'fr-btn fr-btn--secondary fr-mb-2w bouton-ecriture', id: 'btn-ajout-eleve', title: "Ouvrir le module d'ajout d'élèves", onclick: () => openAjoutEleves({ libelle: 'Revenir aux vœux ULIS n+1', action: () => openSecteur(sc.retour, { garder: true, voeux: true }) }) }, 'Élèves hors de mes dispositifs') : null,
+    sc.voeux ? h('button', { type: 'button', class: 'fr-btn fr-btn--secondary fr-mb-2w bouton-ecriture', id: 'btn-ajout-eleve', title: "Ouvrir le module d'ajout d'élèves", onclick: () => openAjoutEleves({ libelle: 'Revenir aux vœux ULIS n+1', action: () => openSecteur(sc.retour, { garder: true, voeux: true }) }) }, 'Nouveaux élèves et élèves hors secteur') : null,
     etabs.some((e) => e.secteurNum === null) ? h('p', { class: 'fr-hint-text', id: 'secteur-inconnu' }, `${etabs.filter((e) => e.secteurNum === null).length} établissement(s) sans numéro de secteur reconnu : ils n'apparaissent pas quand un secteur est choisi.`) : h('span'),
     h('p', { role: 'status' }, `${liste.length} établissement${liste.length > 1 ? 's' : ''} · ${totalPresents} élève${totalPresents > 1 ? 's' : ''} présent${totalPresents > 1 ? 's' : ''}${totalPlaces ? ` sur ${totalPlaces} places (${totalPlaces - totalPresents >= 0 ? `${totalPlaces - totalPresents} libre${totalPlaces - totalPresents > 1 ? 's' : ''}` : `dépassement de ${totalPresents - totalPlaces}`})` : ''}`),
     liste.length === 0
@@ -3224,11 +3224,11 @@ function colonnesVoeux() {
 /* ------------------------------------------------------------------ */
 /* Modèle de saisie d'un élève : page d'un établissement et module d'ajout */
 /* ------------------------------------------------------------------ */
-const NOTIF_VALEURS = ['Non choisi', 'Oui', 'Non'];
-const NOTIF_DEFAUT = 'Non choisi';
-const ORIENTATIONS = [['', 'Non choisi'], ['reste', "Reste en ULIS dans l'établissement"], ['change', "Change d'ULIS"], ['sort', 'Sort du dispositif']];
-const MOUVEMENTS = [['', 'Non choisi'], ['maintien', 'Maintien'], ['passage', 'Passage']];
-const COL_NOTIF = 'Notifie_rentree'; // texte : Oui / Non / Non choisi
+const NOTIF_VALEURS = ['Non saisi', 'Oui', 'Non'];
+const NOTIF_DEFAUT = 'Non saisi';
+const ORIENTATIONS = [['', 'Non saisi'], ['reste', "Reste en ULIS dans l'établissement"], ['change', "Change d'ULIS"], ['sort', 'Sort du dispositif']];
+const MOUVEMENTS = [['', 'Non saisi'], ['maintien', 'Maintien'], ['passage', 'Passage']];
+const COL_NOTIF = 'Notifie_rentree'; // texte : Oui / Non / Non saisi
 const COL_REMARQUES = 'Remarques'; // texte libre (vœu 2, rapprochement de fratrie, soins…)
 const dateRentree = () => `01/09/${anneeCible()}`;
 
@@ -3244,7 +3244,7 @@ function etatDepuisVoeu(ex, etabId, niveau) {
   if (!ex) return { notifie: NOTIF_DEFAUT, mouvement: '', niveau1: '', orient: '', voeu1: 0, remarques: '' };
   const orient = estSortie(ex.situation) ? 'sort' : !ex.voeu1 ? '' : etabId && ex.voeu1 === etabId ? 'reste' : 'change';
   const mouvement = estMaintien(ex.situation) || (ex.niveau && niveau && ex.niveau === niveau) ? 'maintien' : ex.niveau ? 'passage' : '';
-  return { notifie: ex.notifie || NOTIF_DEFAUT, mouvement, niveau1: ex.niveau, orient, voeu1: ex.voeu1, remarques: ex.remarques };
+  return { notifie: !ex.notifie || ex.notifie === 'Non choisi' ? NOTIF_DEFAUT : ex.notifie, mouvement, niveau1: ex.niveau, orient, voeu1: ex.voeu1, remarques: ex.remarques };
 }
 
 const CHAMPS_VOEUX = ['notifie', 'mouvement', 'niveau1', 'orient', 'voeu1', 'remarques'];
@@ -3321,16 +3321,18 @@ function groupeRadios(id, legende, choix, courant, onChange, disabled = false) {
  */
 function fabriqueLigneVoeux(ctx) {
   const cols = colonnesVoeux();
-  const aNotif = cols.has(COL_NOTIF);
+  const aNotif = cols.has(COL_NOTIF) && Boolean(ctx.ajout); // notification : nouveaux élèves et élèves hors secteur seulement
   const aRem = cols.has(COL_REMARQUES);
   return (e, i) => {
     const pre = `${ctx.prefixe || 'v'}${i}`;
     const nom = `${e.row.nom} ${e.row.prenom}`.trim() || 'Sans nom';
     const ro = lectureSeule() || !e.gere;
-    const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: ro, hidden: !e.cur.mouvement && !e.cur.niveau1 }, [h('option', { value: '', selected: !e.cur.niveau1 }, 'À saisir'), ...state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n))]);
+    const bloque = Boolean(ctx.ajout) && e.cur.notifie === 'Non'; // pas de notification ULIS à la rentrée : le reste de la ligne est sans objet
+    const roSuite = ro || bloque;
+    const niv = h('select', { class: 'fr-select', id: `${pre}-niv`, 'aria-label': `Niveau n+1 de ${nom}`, disabled: roSuite, hidden: !e.cur.mouvement && !e.cur.niveau1 }, [h('option', { value: '', selected: !e.cur.niveau1 }, 'À saisir'), ...state.niveaux.map((n) => h('option', { value: n, selected: n === e.cur.niveau1 }, n))]);
     const alerte = h('p', { class: 'fr-badge fr-badge--error fr-badge--sm fr-badge--no-icon', id: `${pre}-alerte`, title: "Un maintien en 3e n'est pas de droit : à examiner en commission", hidden: true }, 'Maintien en 3e : pas de droit');
-    const v1 = combobox({ id: `${pre}-v1`, label: `Vœu de ${nom}`, options: ctx.optionsEtab(), value: e.cur.voeu1 || '', placeholder: 'Aucun vœu', compact: true, disabled: ro, onChange: (v) => { e.cur.voeu1 = Number(v) || 0; rafraichir(); } });
-    const texteReste = h('span', { class: 'fr-text--sm', id: `${pre}-v1-auto`, hidden: true }, 'Cet établissement');
+    const v1 = combobox({ id: `${pre}-v1`, label: `Vœu de ${nom}`, options: ctx.optionsEtab(), value: e.cur.voeu1 || '', placeholder: 'Aucun vœu', compact: true, disabled: roSuite, onChange: (v) => { e.cur.voeu1 = Number(v) || 0; rafraichir(); } });
+    const texteReste = h('span', { class: 'fr-text--sm', id: `${pre}-v1-auto`, hidden: true }, state.etabLabel.get(ctx.etabId) || `#${ctx.etabId}`);
     const rafraichir = () => {
       niv.hidden = !e.cur.mouvement && !e.cur.niveau1;
       alerte.hidden = !alerteMaintien3e(e.niveau, situationDe(e.cur));
@@ -3345,7 +3347,7 @@ function fabriqueLigneVoeux(ctx) {
       e.cur.niveau1 = niveauPour(v, e.niveau);
       niv.value = e.cur.niveau1;
       rafraichir();
-    }, ro);
+    }, roSuite);
     niv.addEventListener('change', () => { e.cur.niveau1 = niv.value; rafraichir(); });
     const orient = ctx.ajout ? null : groupeRadios(`${pre}-ori`, `Orientation N+1 de ${nom}`, ORIENTATIONS, e.cur.orient, (v) => {
       e.cur.orient = v;
@@ -3355,7 +3357,13 @@ function fabriqueLigneVoeux(ctx) {
       v1.definirValeur(e.cur.voeu1 && v !== 'reste' ? e.cur.voeu1 : '');
       rafraichir();
     }, ro);
-    const notif = aNotif ? groupeRadios(`${pre}-notif`, `${nom} : sera notifié ULIS au ${dateRentree()}`, NOTIF_VALEURS.map((v) => [v, v]), e.cur.notifie, (v) => { e.cur.notifie = v; ctx.maj(); }, ro) : null;
+    const notif = aNotif ? groupeRadios(`${pre}-notif`, `${nom} : sera notifié ULIS au ${dateRentree()}`, NOTIF_VALEURS.map((v) => [v, v]), e.cur.notifie, (v) => {
+      const avant = e.cur.notifie;
+      e.cur.notifie = v;
+      if (v === 'Non') Object.assign(e.cur, { mouvement: '', niveau1: '', voeu1: 0 });
+      if ((v === 'Non') !== (avant === 'Non') && ctx.rerender) ctx.rerender(`${pre}-notif-${NOTIF_VALEURS.indexOf(v)}`);
+      else ctx.maj();
+    }, ro) : null;
     const rem = aRem ? h('input', { class: 'fr-input', id: `${pre}-rem`, type: 'text', autocomplete: 'off', value: e.cur.remarques || '', 'aria-label': `Remarques pour ${nom}`, disabled: ro }) : null;
     if (rem) rem.addEventListener('input', () => { e.cur.remarques = rem.value; ctx.maj(); });
     if (!ctx.ajout) { v1.hidden = e.cur.orient !== 'change'; texteReste.hidden = e.cur.orient !== 'reste'; }
@@ -3382,7 +3390,7 @@ function entetesVoeux(ajout) {
   const cols = colonnesVoeux();
   return [
     'Élève',
-    ...(cols.has(COL_NOTIF) ? [`L'élève sera notifié ULIS au ${dateRentree()}`] : []),
+    ...(cols.has(COL_NOTIF) && ajout ? [`L'élève sera notifié ULIS au ${dateRentree()}`] : []),
     'Classe actuelle',
     'Niveau n+1',
     ...(ajout ? [] : ['Orientation N+1']),
@@ -3484,7 +3492,7 @@ function rendreVoeuxEtab() {
       : tableVoeux(eleves, ctx, `Vœux des élèves, rentrée ${anneeCible()}`),
     data.attendus.length === 0 ? null : h('div', { class: 'fr-mt-4w', id: 'voeux-attendus' },
       h('h2', { class: 'fr-h5' }, `Élèves attendus en plus à la rentrée (${data.attendus.length})`),
-      h('p', { class: 'fr-hint-text' }, "Élèves avec un vœu vers cet établissement, pas encore affectés ici. Pour les modifier : « Élèves hors de mes dispositifs » depuis l'accueil."),
+      h('p', { class: 'fr-hint-text' }, "Élèves avec un vœu vers cet établissement, pas encore affectés ici. Pour les modifier : « Nouveaux élèves et élèves hors secteur » depuis l'accueil."),
       h('div', { class: 'fr-table fr-table--no-caption' }, h('div', { class: 'fr-table__wrapper' }, h('div', { class: 'fr-table__container' }, h('div', { class: 'fr-table__content' },
         h('table', {}, h('caption', {}, 'Élèves attendus en plus'),
           h('thead', {}, h('tr', {}, ['Élève', 'Niveau n+1', 'Notifié ULIS', 'Remarques', ...(lectureSeule() ? [] : ['Action'])].map((t) => h('th', { scope: 'col' }, t)))),
@@ -3507,12 +3515,13 @@ function validerVoeux(eleves, { ajout }) {
   const modifies = eleves.filter((e) => e.gere && voeuxChange(e));
   const nomDe = (e) => `${e.row.nom} ${e.row.prenom}`.trim();
   const liste = (l) => l.map(nomDe).join(', ');
-  const sansVoeu = modifies.filter((e) => (ajout || e.cur.orient === 'change') && !(e.cur.voeu1 > 0));
+  const nonNotifie = (e) => ajout && e.cur.notifie === 'Non'; // notification « Non » : pas de vœu à saisir
+  const sansVoeu = modifies.filter((e) => !nonNotifie(e) && (ajout || e.cur.orient === 'change') && !(e.cur.voeu1 > 0));
   if (sansVoeu.length) {
     notify('error', `Choisissez le vœu de : ${liste(sansVoeu)}.`);
     return;
   }
-  const sansNiveau = modifies.filter((e) => (ajout || e.cur.mouvement) && e.cur.orient !== 'sort' && !e.cur.niveau1);
+  const sansNiveau = modifies.filter((e) => !nonNotifie(e) && (ajout || e.cur.mouvement) && e.cur.orient !== 'sort' && !e.cur.niveau1);
   if (sansNiveau.length) {
     notify('error', `Choisissez maintien ou passage, puis le niveau n+1 de : ${liste(sansNiveau)}.`);
     return;
@@ -3529,12 +3538,12 @@ function validerVoeux(eleves, { ajout }) {
         'table',
         { class: 'modale-diff' },
         h('caption', { class: 'fr-sr-only' }, 'Vœux à enregistrer'),
-        h('thead', {}, h('tr', {}, ['Élève', ...(cols.has(COL_NOTIF) ? ['Notifié ULIS'] : []), 'Niveau n+1', 'Orientation', 'Vœu', ...(cols.has(COL_REMARQUES) ? ['Remarques'] : [])].map((t) => h('th', { scope: 'col' }, t)))),
+        h('thead', {}, h('tr', {}, ['Élève', ...(cols.has(COL_NOTIF) && ajout ? ['Notifié ULIS'] : []), 'Niveau n+1', 'Orientation', 'Vœu', ...(cols.has(COL_REMARQUES) ? ['Remarques'] : [])].map((t) => h('th', { scope: 'col' }, t)))),
         h('tbody', {}, modifies.map((e) => h('tr', {},
           h('th', { scope: 'row' }, nomDe(e)),
-          ...(cols.has(COL_NOTIF) ? [h('td', { class: 'diff-apres' }, e.cur.notifie)] : []),
+          ...(cols.has(COL_NOTIF) && ajout ? [h('td', { class: 'diff-apres' }, e.cur.notifie)] : []),
           h('td', { class: 'diff-apres' }, e.cur.orient === 'sort' || !e.cur.niveau1 ? '—' : e.cur.niveau1),
-          h('td', { class: 'diff-apres' }, ajout ? 'Entrée en ULIS' : (ORIENTATIONS.find(([v]) => v === e.cur.orient) || ['', 'Non choisi'])[1]),
+          h('td', { class: 'diff-apres' }, ajout ? 'Entrée en ULIS' : (ORIENTATIONS.find(([v]) => v === e.cur.orient) || ['', 'Non saisi'])[1]),
           h('td', { class: 'diff-apres' }, nomEtab(e.cur.voeu1)),
           ...(cols.has(COL_REMARQUES) ? [h('td', { class: 'diff-apres' }, e.cur.remarques || '—')] : []),
         ))),
@@ -3554,7 +3563,8 @@ async function ecrireVoeux(aEcrire, { ajout }) {
   const annee = /^(Int|Numeric)/.test(typeAnnee) ? anneeCible() : String(anneeCible());
   const actions = aEcrire.map((e) => {
     // Voeu_2 n'est plus saisi (remplacé par les remarques) : la colonne reste telle qu'elle est
-    const f = { Niveau_n1: e.cur.niveau1, Voeu_1: e.cur.voeu1, Situation: situationDe(e.cur), [COL_NOTIF]: e.cur.notifie, [COL_REMARQUES]: e.cur.remarques || '' };
+    const f = { Niveau_n1: e.cur.niveau1, Voeu_1: e.cur.voeu1, Situation: situationDe(e.cur), ...(ajout ? { [COL_NOTIF]: e.cur.notifie } : {}), [COL_REMARQUES]: e.cur.remarques || '' };
+    if (ajout && e.cur.notifie === 'Non') { delete f.Situation; f.Niveau_n1 = ''; f.Voeu_1 = 0; } // non notifié : ni niveau, ni vœu, ni situation
     const champs = Object.fromEntries(Object.entries(f).filter(([k]) => cols.has(k)));
     if (e.ex) return ['UpdateRecord', T_VOEUX, e.ex.id, champs];
     return ['AddRecord', T_VOEUX, null, { Eleve: e.row.id, ...(cols.has('Annee_cible') ? { Annee_cible: annee } : {}), ...(cols.has('Statut') ? { Statut: 'Saisi' } : {}), ...champs }];
@@ -3646,7 +3656,7 @@ async function openAjoutEleves(retour) {
     h(
       'div',
       { class: 'fr-stepper' },
-      h('h1', { class: 'fr-stepper__title', id: 'h-ajout', tabindex: '-1' }, `Élèves hors de mes dispositifs (rentrée ${anneeCible()})`),
+      h('h1', { class: 'fr-stepper__title', id: 'h-ajout', tabindex: '-1' }, `Nouveaux élèves et élèves hors secteur (rentrée ${anneeCible()})`),
       h('p', { class: 'fr-stepper__details' }, "Élèves pas encore en ULIS, ou venant d'un autre dispositif : chaque élève ajouté s'inscrit sous le précédent, avec le vœu d'établissement à saisir. Validez une seule fois pour tous."),
     ),
     h(
@@ -3722,6 +3732,7 @@ function rendreAjout() {
     optionsEtab: () => state.etabs.filter((x) => !modeErs || !a.secteurSeul || secteurIds.has(x.id)).map((x) => ({ value: x.id, label: x.label })),
     maj: () => majPiedVoeux(a.eleves, { ajout: true }),
     retirer: (e) => { a.eleves = a.eleves.filter((x) => x !== e); rendreAjout(); },
+    rerender: (focusId) => { rendreAjout(); $(`#${focusId}`)?.focus(); },
   };
   const alertes = a.data.alertes || [];
   $('#ajout').replaceChildren(...[
@@ -3845,9 +3856,9 @@ async function openErsAccueil({ focus = true } = {}) {
     h('h2', { class: 'fr-h5' }, 'Mes établissements'),
     h('p', { class: 'fr-hint-text' }, 'Les dispositifs ULIS de vos secteurs.'),
     tableau,
-    h('h2', { class: 'fr-h5 fr-mt-4w' }, 'Élèves hors de mes dispositifs'),
-    h('p', { class: 'fr-hint-text' }, "Les élèves avec un vœu pour la rentrée qui ne sont pas dans un dispositif de mon secteur (déjà en ULIS ailleurs ou pas encore en ULIS) : liste, recherche et ajout."),
-    h('button', { class: 'fr-btn fr-btn--secondary bouton-ecriture', type: 'button', id: 'btn-ajout-eleve', title: "Ouvrir le module d'ajout d'élèves", onclick: () => openAjoutEleves(retourAccueil) }, 'Élèves hors de mes dispositifs'),
+    h('h2', { class: 'fr-h5 fr-mt-4w' }, 'Nouveaux élèves et élèves hors secteur'),
+    h('p', { class: 'fr-hint-text' }, "Élèves à saisir qui ne sont pas dans un dispositif de mon secteur (nouveaux élèves, ou déjà en ULIS ailleurs) : liste, recherche, ajout, et notification ULIS au 01/09."),
+    h('button', { class: 'fr-btn fr-btn--secondary bouton-ecriture', type: 'button', id: 'btn-ajout-eleve', title: "Ouvrir le module d'ajout d'élèves", onclick: () => openAjoutEleves(retourAccueil) }, 'Nouveaux élèves et élèves hors secteur'),
     h('h2', { class: 'fr-h5 fr-mt-4w' }, 'Mon accusé'),
     h('p', { class: 'fr-hint-text' }, `Récapitulatif de mes vœux (PDF et Excel) pour la rentrée ${anneeCible()}, envoyé à ${state.ers.email}.`),
     h('button', { class: 'fr-btn fr-btn--secondary bouton-ecriture', type: 'button', id: 'btn-accuse', title: 'Demander l\'envoi du récapitulatif de mes vœux par mail', onclick: demanderAccuse }, 'Recevoir mon accusé'),
@@ -4056,7 +4067,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126j';
+const VERSION_APP = '20261126k';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
