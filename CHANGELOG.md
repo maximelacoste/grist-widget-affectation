@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Section « Élèves attendus en plus à la rentrée » (page des vœux d'un établissement) : bouton « Supprimer le vœu » (avec confirmation) sur chaque élève.
 - Page « Vœux ULIS n+1 » en affichage complet : les menus déroulants (secteur CDOEA, commune, type, ERS, occupation, vœux) sont de retour ; ils ne sont masqués que pour les ERS (dont l'accueil est une liste simple de leurs établissements).
 - Correctif : le texte « nullnull » s'affichait en haut de la page « Élèves hors de mes dispositifs » (et pouvait apparaître sur la page des vœux d'un établissement) quand un bloc facultatif était absent.
 - « Élèves hors de mes dispositifs » : bouton « Supprimer le vœu » (avec confirmation) sur les élèves déjà enregistrés ; la ligne de `Voeux_ERS` est supprimée.

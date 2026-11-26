@@ -1,6 +1,6 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126i';
-import { attachSuggest } from './suggest.js?v=20261126i';
-import { activerCalendriers } from './calendrier.js?v=20261126i';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126j';
+import { attachSuggest } from './suggest.js?v=20261126j';
+import { activerCalendriers } from './calendrier.js?v=20261126j';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -3487,8 +3487,8 @@ function rendreVoeuxEtab() {
       h('p', { class: 'fr-hint-text' }, "Élèves avec un vœu vers cet établissement, pas encore affectés ici. Pour les modifier : « Élèves hors de mes dispositifs » depuis l'accueil."),
       h('div', { class: 'fr-table fr-table--no-caption' }, h('div', { class: 'fr-table__wrapper' }, h('div', { class: 'fr-table__container' }, h('div', { class: 'fr-table__content' },
         h('table', {}, h('caption', {}, 'Élèves attendus en plus'),
-          h('thead', {}, h('tr', {}, ['Élève', 'Niveau n+1', 'Notifié ULIS', 'Remarques'].map((t) => h('th', { scope: 'col' }, t)))),
-          h('tbody', {}, data.attendus.map(({ row, ex }) => h('tr', {}, h('td', {}, `${row.nom} ${row.prenom}`.trim()), h('td', {}, ex.niveau || '—'), h('td', {}, ex.notifie || '—'), h('td', {}, ex.remarques || '—')))),
+          h('thead', {}, h('tr', {}, ['Élève', 'Niveau n+1', 'Notifié ULIS', 'Remarques', ...(lectureSeule() ? [] : ['Action'])].map((t) => h('th', { scope: 'col' }, t)))),
+          h('tbody', {}, data.attendus.map(({ row, ex }) => h('tr', {}, h('td', {}, `${row.nom} ${row.prenom}`.trim()), h('td', {}, ex.niveau || '—'), h('td', {}, ex.notifie || '—'), h('td', {}, ex.remarques || '—'), lectureSeule() ? null : h('td', {}, h('button', { type: 'button', class: 'fr-btn fr-btn--tertiary fr-btn--sm bouton-ecriture', title: 'Supprimer le vœu enregistré de cet élève pour la rentrée', onclick: () => supprimerVoeu({ row, ex }, () => openVoeuxEtab(etabId, state.voeuxEtab.retour)) }, 'Supprimer le vœu'))))),
         ))))),
     ),
     h(
@@ -3666,7 +3666,7 @@ async function openAjoutEleves(retour) {
 }
 
 /** Supprime le vœu enregistré d'un élève de la liste (après confirmation) : la ligne de Voeux_ERS disparaît. */
-function supprimerVoeu(e) {
+function supprimerVoeu(e, apres = null) {
   const nom = `${e.row.nom} ${e.row.prenom}`.trim();
   ouvrirModale({
     titre: `Supprimer le vœu de ${nom} ?`,
@@ -3678,7 +3678,7 @@ function supprimerVoeu(e) {
           viderCache();
           await grist.docApi.applyUserActions([['RemoveRecord', T_VOEUX, e.ex.id]]);
           state.edition = null;
-          await openAjoutEleves(state.ajout.retour);
+          await (apres ? apres() : openAjoutEleves(state.ajout.retour));
           notify('success', `Vœu de ${nom} supprimé.`);
         } catch (err) {
           notify('error', `Suppression impossible : ${err.message}`);
@@ -4056,7 +4056,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126i';
+const VERSION_APP = '20261126j';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
