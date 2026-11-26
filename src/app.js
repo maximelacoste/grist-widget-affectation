@@ -1,7 +1,7 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126m';
-import { attachSuggest } from './suggest.js?v=20261126m';
-import { initAccessibilite } from './accessibilite.js?v=20261126m';
-import { activerCalendriers } from './calendrier.js?v=20261126m';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126n';
+import { attachSuggest } from './suggest.js?v=20261126n';
+import { initAccessibilite } from './accessibilite.js?v=20261126n';
+import { activerCalendriers } from './calendrier.js?v=20261126n';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1803,7 +1803,10 @@ function combobox({ id, label, options, value, hint = '', placeholder = 'Recherc
     if (compact) {
       // dans un tableau, le conteneur défilant rognerait la liste : on la place à l'écran (position fixe)
       const r = input.getBoundingClientRect();
-      Object.assign(list.style, { position: 'fixed', top: `${r.bottom}px`, left: `${r.left}px`, width: `${Math.max(r.width, 260)}px`, zIndex: '1000' });
+      // sous le champ, ou au-dessus s'il n'y a pas la place en bas de l'écran (nouvelle ligne en bas de tableau)
+      const place = window.innerHeight - r.bottom;
+      const dessus = place < 220 && r.top > place;
+      Object.assign(list.style, { position: 'fixed', left: `${r.left}px`, width: `${Math.max(r.width, 260)}px`, zIndex: '1000', maxHeight: `${Math.max(120, Math.min(300, (dessus ? r.top : place) - 16))}px`, overflowY: 'auto', top: dessus ? 'auto' : `${r.bottom}px`, bottom: dessus ? `${window.innerHeight - r.top}px` : 'auto' });
     }
     input.setAttribute('aria-expanded', 'true');
     setActive(-1);
@@ -3716,7 +3719,12 @@ function ajouterEleveAjout(row) {
   const initial = etatDepuisVoeu(ex, null, niveau);
   a.eleves.push({ row, niveau, ex, initial, cur: { ...initial, orient: 'change' }, gere: true, ajoute: true, origine: ligne ? ligne.affectation : 0 });
   rendreAjout();
-  $(`#a${a.eleves.length - 1}-v1`)?.focus();
+  const champ = $(`#a${a.eleves.length - 1}-v1`);
+  if (champ) {
+    champ.scrollIntoView({ block: 'center', behavior: 'instant' }); // la nouvelle ligne est en bas du tableau : on l'amène à l'écran
+    // le défilement ferme les listes flottantes : on donne le focus (qui ouvre la liste des vœux) une fois la page stabilisée
+    setTimeout(() => champ.isConnected && champ.focus({ preventScroll: true }), 150);
+  }
   const autre = reprisAutreErs(ex);
   notify(autre ? 'warning' : 'success', autre ? `${`${row.nom} ${row.prenom}`.trim()} figure déjà dans la liste d'un autre ERS (${ex.saisiPar}) : il en sera alerté à la validation.` : `${`${row.nom} ${row.prenom}`.trim()} ajouté : choisissez son vœu et son niveau n+1 puis validez.`);
 }
@@ -4068,7 +4076,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126m';
+const VERSION_APP = '20261126n';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
