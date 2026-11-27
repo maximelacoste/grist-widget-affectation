@@ -1,7 +1,7 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127f';
-import { attachSuggest } from './suggest.js?v=20261127f';
-import { initAccessibilite } from './accessibilite.js?v=20261127f';
-import { activerCalendriers } from './calendrier.js?v=20261127f';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127g';
+import { attachSuggest } from './suggest.js?v=20261127g';
+import { initAccessibilite } from './accessibilite.js?v=20261127g';
+import { activerCalendriers } from './calendrier.js?v=20261127g';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -800,7 +800,12 @@ function listeInfos(infos) {
   return h(
     'dl',
     { class: 'dossier-infos' },
-    infos.flatMap(([k, v]) => [h('dt', { class: 'fr-text--bold' }, k), h('dd', {}, v || '—')]),
+    // 3e élément vrai : ligne masquée en consultation, affichée seulement pendant la modification.
+    infos.flatMap(([k, v, editionSeule]) => {
+      const paire = [h('dt', { class: 'fr-text--bold' }, k), h('dd', {}, v || '—')];
+      if (editionSeule) paire.forEach((el) => { el.setAttribute('data-edition-seule', ''); el.hidden = true; });
+      return paire;
+    }),
   );
 }
 
@@ -997,6 +1002,7 @@ function entrerEdition(ctx) {
       ctx.ui.second.hidden = !coche.input.checked;
     });
   }
+  $('#dossier').querySelectorAll('[data-edition-seule]').forEach((el) => { el.hidden = false; });
   state.edition = { champsEls, ctx, dirty: () => champsEls.some((x) => valeurSaisie(x) !== (x.c.valeur || '')) };
   ctx.ui.modifier.hidden = true;
   ctx.ui.aide.hidden = false;
@@ -1014,6 +1020,7 @@ function annulerEdition() {
     return;
   }
   clearFieldErrors($('#dossier'));
+  $('#dossier').querySelectorAll('[data-edition-seule]').forEach((el) => { el.hidden = true; });
   for (const l of ed.ctx.lignes) {
     l.zone.replaceChildren();
     l.zone.hidden = true;
@@ -1435,7 +1442,7 @@ async function openDossier(row, origine = 2) {
       ...[ch.tel, ch.courriel]
         .filter(Boolean)
         .map((c) => ligneModifiable(c.label, lienContact(c.label, c.valeur), [c], ctx)),
-      ...(ch.deux ? [ligneModifiable('Parents séparés (deux adresses)', ind.deux ? 'Oui' : 'Non', [ch.deux], ctx)] : []),
+      ...(ch.deux ? [[...ligneModifiable('Parents séparés (deux adresses)', ind.deux ? 'Oui' : 'Non', [ch.deux], ctx), !ind.deux]] : []),
     ]),
     construireSecond(),
     ...(ersRef.length
@@ -4279,7 +4286,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261127f';
+const VERSION_APP = '20261127g';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
