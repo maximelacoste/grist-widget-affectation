@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Fiche élève : le téléphone et le courriel du second responsable sont dans son bloc, affiché seulement si « deux adresses » est cochée.
 - Création d'un élève : case « Les parents ont deux adresses différentes » ouvrant le bloc « Second responsable » (représentant, adresse, code postal, commune, téléphone, courriel). Le champ des représentants légaux tient sur une ligne. `Decision_manuelle` (fusion des doublons) n'est plus proposée.
 - Fiche élève, « Coordonnées » : téléphone et courriel des deux responsables, affichés (liens d'appel et de mail) et modifiables. Colonnes Texte d'Individus : `Telephone_manuel`, `Email_manuel`, `Telephone_parent2_manuel`, `Email_parent2_manuel`. Les deux premières sont aussi proposées à la création d'un élève. Format contrôlé à la saisie.
 - Fiche élève, mode Modifier : les champs du second responsable s'appellent « Code postal » et « Commune » (sans la mention entre parenthèses).
