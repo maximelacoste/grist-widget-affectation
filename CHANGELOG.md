@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Fiche élève : second responsable (parents séparés, deux adresses). Case « Les parents ont deux adresses différentes » en mode Modifier ; cochée, elle fait apparaître un bloc « Second responsable » (adresse avec suggestions BAN, code postal, commune, représentant). Colonnes d'Individus reconnues : `Deux_adresses_manuelle` (Case à cocher), `Adresse_parent2_manuelle`, `CP_parent2_manuelle`, `Commune_parent2_manuelle`, `Representant_parent2_manuel` (Texte). Case cochée sans adresse : refus. Ces colonnes ne sont pas proposées à la création d'un élève et n'interfèrent plus avec les champs du premier responsable.
 - « Nouveaux élèves et élèves hors secteur » : un clic sur un élève proposé l'ajoute à la liste, amène sa ligne à l'écran et ouvre aussitôt la liste du vœu (le défilement fermait la liste, corrigé). Les listes flottantes des tableaux s'ouvrent au-dessus du champ quand il n'y a pas la place en bas de l'écran.
 - Menu « Affichage » : bouton plein bleu, plus visible ; le « Retour en haut » du panneau est retiré (doublon du bouton qui apparaît après défilement).
 - Mini menu flottant « Affichage » (en bas à droite, `src/accessibilite.js`) : taille du texte (A− / A / A+, 87,5 à 150 %), densité des tableaux et formulaires (Dense / Normal / Aéré), thème clair ou sombre, interligne agrandi, liens soulignés, animations réduites, retour en haut (aussi un bouton qui apparaît après défilement) et réinitialisation. Réglages mémorisés dans le navigateur ; Échap ferme le panneau.

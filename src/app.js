@@ -1,7 +1,7 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261126n';
-import { attachSuggest } from './suggest.js?v=20261126n';
-import { initAccessibilite } from './accessibilite.js?v=20261126n';
-import { activerCalendriers } from './calendrier.js?v=20261126n';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127a';
+import { attachSuggest } from './suggest.js?v=20261127a';
+import { initAccessibilite } from './accessibilite.js?v=20261127a';
+import { activerCalendriers } from './calendrier.js?v=20261127a';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -44,6 +44,16 @@ const rangManuel = (c) => {
   return i < 0 ? MANUEL_ORDRE.length : i;
 };
 const MANUEL_MULTILIGNE = /adresse|repr|legal/i; // champs texte affichés sur plusieurs lignes
+// Second responsable (parents séparés, deux adresses) : colonnes `*_manuel(le)` d'Individus reconnues à leur nom.
+// Elles sont retirées des champs facultatifs de la création et du premier responsable : on les gère à part.
+const P2_RE = /parent2|deux_adresses/i;
+const P2_COLONNES = {
+  deux: /^deux_adresses/i,
+  adresse: /^adresse.*parent2/i,
+  cp: /^(cp|code_?postal).*parent2/i,
+  commune: /^commune.*parent2/i,
+  rep: /^repr.*parent2/i,
+};
 // Suggestions d'adresses normées (Base Adresse Nationale, Géoplateforme de l'IGN). Le texte tapé dans le champ
 // adresse est envoyé à ce service public : passer à `false` pour désactiver sans toucher au reste.
 const ADRESSE_SUGGESTIONS = true;
@@ -60,6 +70,7 @@ const STEPS = [
 const state = {
   step: 1,
   champsManuels: [], // colonnes `*_manuel` d'Individus proposées à la création
+  p2: {}, // second responsable : { deux, adresse, cp, commune, rep } = noms de colonnes d'Individus (absentes : undefined)
   searched: false, // une recherche a été faite : l'étape 2 est atteignable
   individus: [],
   etabs: [], // [{id, label, type}]
@@ -264,9 +275,16 @@ async function loadMeta() {
 
   // Champs facultatifs de la création d'un élève : colonnes de données d'Individus finissant par `_manuel` ou `_manuelle`.
   state.champsManuels = [...colById.values()]
-    .filter((c) => c.tableId === T_INDIVIDUS && /_manuel(le)?$/i.test(c.colId) && !c.isFormula && MANUEL_TYPES.includes(c.type))
+    .filter((c) => c.tableId === T_INDIVIDUS && /_manuel(le)?$/i.test(c.colId) && !c.isFormula && MANUEL_TYPES.includes(c.type) && !P2_RE.test(c.colId))
     .sort((a, b) => rangManuel(a) - rangManuel(b) || a.pos - b.pos)
     .map((c) => ({ colId: c.colId, type: c.type, label: prettyLabel(c), choices: choicesOf(c) }));
+  // Second responsable : colonnes de données d'Individus finissant par `_manuel(le)` et reconnues par P2_COLONNES.
+  const colsP2 = [...colById.values()].filter((c) => c.tableId === T_INDIVIDUS && /_manuel(le)?$/i.test(c.colId) && !c.isFormula && P2_RE.test(c.colId));
+  state.p2 = {};
+  for (const [cle, re] of Object.entries(P2_COLONNES)) {
+    const c = colsP2.find((x) => re.test(x.colId) && (cle === 'deux' ? x.type === 'Bool' : x.type === 'Text'));
+    if (c) state.p2[cle] = c.colId;
+  }
   renderManualFields();
 
   state.niveaux = choicesOf(need(T_SCOLARITE, COL.niveau));
@@ -848,7 +866,19 @@ function champsDossier(row, ind) {
     const f = colManuelle(re, types);
     return f ? { colId: f.colId, colType: f.type, label, type, valeur: valeurManuelle(f, repli), ...extra } : null;
   };
+  // Second responsable : valeurs saisies à la main uniquement (la MDPH ne fournit qu'une adresse).
+  const second = (cle, label, extra = {}) => {
+    const colId = state.p2[cle];
+    if (!colId) return null;
+    const v = ind.manuel[colId];
+    return { colId, colType: 'Text', label, type: 'text', valeur: v !== undefined && v !== null ? String(v) : '', groupe: 2, ...extra };
+  };
   return {
+    deux: state.p2.deux ? { colId: state.p2.deux, colType: 'Bool', label: 'Les parents ont deux adresses différentes', type: 'bool', valeur: ind.deux ? 'oui' : '' } : null,
+    adr2: second('adresse', 'Adresse du second responsable', { ban: true }),
+    cp2: second('cp', 'Code postal (second responsable)', { cp: true }),
+    commune2: second('commune', 'Commune (second responsable)', { commune: true, normalise: (v) => v.toUpperCase() }),
+    rep2: second('rep', 'Second responsable légal'),
     nom: { colId: 'Nom', colType: 'Text', label: 'Nom', type: 'text', requis: true, valeur: row.nom, normalise: (v) => v.toUpperCase(), etatCivil: true },
     prenom: { colId: 'Prenom', colType: 'Text', label: 'Prénom', type: 'text', requis: true, valeur: row.prenom, etatCivil: true },
     ddn: { colId: 'Date_de_naissance', colType: 'Date', label: 'Date de naissance', type: 'date', requis: true, valeur: row.ddn || '', naissance: true, etatCivil: true },
@@ -872,8 +902,12 @@ function ligneModifiable(libelle, valeur, champs, ctx) {
 
 function afficherValeur(champ, v) {
   if (champ.type === 'date') return formatDateFr(v) || '—';
+  if (champ.type === 'bool') return v ? 'Oui' : 'Non';
   return v || '—';
 }
+
+/** Valeur d'un champ du dossier telle qu'elle est saisie : texte, ou « oui » / vide pour une case à cocher. */
+const valeurSaisie = ({ c, input }) => (c.type === 'bool' ? (input.checked ? 'oui' : '') : input.value);
 
 /** Ouvre tous les champs modifiables en même temps. */
 const msgSaisieEnCours = () => (state.edition && state.edition.fermer ? "Validez ou annulez d'abord la saisie en cours." : "Validez ou annulez d'abord la modification du dossier en cours.");
@@ -889,6 +923,11 @@ function entrerEdition(ctx) {
     l.zone.replaceChildren(
       ...l.champs.map((c) => {
         const id = `edit-${c.colId}`;
+        if (c.type === 'bool') {
+          const coche = h('input', { type: 'checkbox', id, checked: c.valeur === 'oui', title: `${c.label} : cocher pour saisir l'adresse du second responsable` });
+          champsEls.push({ c, id, input: coche });
+          return h('div', { class: 'fr-checkbox-group fr-mb-1w' }, coche, h('label', { class: 'fr-label', for: id }, c.label));
+        }
         const input = h('input', {
           class: 'fr-input',
           id,
@@ -906,8 +945,10 @@ function entrerEdition(ctx) {
     l.zone.hidden = false;
     l.span.hidden = true;
   }
-  const adr = champsEls.find((x) => x.c.ban);
-  if (adr && ADRESSE_SUGGESTIONS) {
+  // Suggestions d'adresse : une par adresse (premier et second responsable), chacune remplit son propre code postal et sa commune.
+  for (const adr of champsEls.filter((x) => x.c.ban)) {
+    if (!ADRESSE_SUGGESTIONS) break;
+    const groupe = adr.c.groupe || 1;
     attachSuggest(adr.input, {
       minChars: 4,
       delay: 350,
@@ -918,14 +959,22 @@ function entrerEdition(ctx) {
       },
       onPick: (a) => {
         adr.input.value = a.adresse;
-        const cpEl = champsEls.find((x) => x.c.cp);
-        const comEl = champsEls.find((x) => x.c.commune);
+        const cpEl = champsEls.find((x) => x.c.cp && (x.c.groupe || 1) === groupe);
+        const comEl = champsEls.find((x) => x.c.commune && (x.c.groupe || 1) === groupe);
         if (cpEl) cpEl.input.value = a.cp;
         if (comEl) comEl.input.value = a.commune;
       },
     });
   }
-  state.edition = { champsEls, ctx, dirty: () => champsEls.some(({ c, input }) => input.value !== (c.valeur || '')) };
+  // Second responsable : le bloc suit la case « deux adresses », y compris pendant la saisie.
+  const coche = champsEls.find((x) => x.c.type === 'bool');
+  if (ctx.ui.second && coche) {
+    ctx.ui.second.hidden = !coche.input.checked;
+    coche.input.addEventListener('change', () => {
+      ctx.ui.second.hidden = !coche.input.checked;
+    });
+  }
+  state.edition = { champsEls, ctx, dirty: () => champsEls.some((x) => valeurSaisie(x) !== (x.c.valeur || '')) };
   ctx.ui.modifier.hidden = true;
   ctx.ui.aide.hidden = false;
   ctx.ui.barre.hidden = false;
@@ -950,6 +999,7 @@ function annulerEdition() {
   ed.ctx.ui.modifier.hidden = false;
   ed.ctx.ui.aide.hidden = true;
   ed.ctx.ui.barre.hidden = true;
+  if (ed.ctx.ui.second) ed.ctx.ui.second.hidden = !ed.ctx.ui.deuxInitial; // le bloc du second responsable revient à l'état d'origine
 }
 
 /**
@@ -990,13 +1040,19 @@ function validerEdition(ctx) {
   clearFieldErrors($('#dossier'));
   const nouveau = {};
   let ok = true;
-  for (const { c, id, input } of champsEls) {
+  for (const x of champsEls) {
+    const { c, id, input } = x;
+    const saisi = valeurSaisie(x);
     // champ non touché : on garde la valeur d'origine telle quelle (pas de normalisation, pas de validation)
-    if (input.value === (c.valeur || '')) {
+    if (saisi === (c.valeur || '')) {
       nouveau[c.colId] = c.valeur || '';
       continue;
     }
-    let v = input.value.trim().replace(/\s+/g, ' ');
+    if (c.type === 'bool') {
+      nouveau[c.colId] = saisi;
+      continue;
+    }
+    let v = saisi.trim().replace(/\s+/g, ' ');
     if (c.normalise) v = c.normalise(v);
     if (c.requis && !v) {
       setFieldError(id, 'Ce champ est obligatoire.');
@@ -1018,6 +1074,13 @@ function validerEdition(ctx) {
       ok = false;
     }
     nouveau[c.colId] = v;
+  }
+  // Deux adresses cochée : la seconde adresse doit être renseignée (sinon l'envoi partirait sans destinataire pour ce parent).
+  const cocheDeux = champsEls.find((x) => x.c.type === 'bool');
+  const adresse2 = champsEls.find((x) => x.c.groupe === 2 && x.c.ban);
+  if (cocheDeux && adresse2 && cocheDeux.input.checked && !(nouveau[adresse2.c.colId] || '').trim()) {
+    setFieldError(adresse2.id, "Saisissez l'adresse du second responsable, ou décochez « deux adresses ».");
+    ok = false;
   }
   if (!ok) {
     $('#dossier .fr-input-group--error input')?.focus();
@@ -1057,6 +1120,7 @@ async function ecrireIndividu(row, champsEls, nouveau, ctx) {
     const v = nouveau[c.colId];
     if ((v || '') === (c.valeur || '')) continue; // inchangé : on n'écrit rien
     if (c.colType === 'Date') valeurs[c.colId] = v ? isoToSec(v) : null;
+    else if (c.colType === 'Bool') valeurs[c.colId] = v === 'oui';
     else if (c.colType === 'Int' || c.colType === 'Numeric') valeurs[c.colId] = v === '' ? null : Number(v);
     else valeurs[c.colId] = v;
   }
@@ -1264,7 +1328,8 @@ async function openDossier(row, origine = 2) {
       fin: get('Fin_droits_ULIS'),
       premiere: get('Premiere_notif_ULIS'),
       notif: get('Notification_ULIS') === true,
-      manuel: Object.fromEntries(state.champsManuels.map((f) => [f.colId, get(f.colId)])),
+      manuel: Object.fromEntries([...state.champsManuels.map((f) => f.colId), ...Object.values(state.p2)].map((c) => [c, get(c)])),
+      deux: state.p2.deux ? get(state.p2.deux) === true : false,
     };
     await refreshScolarite(row.id);
     scol = state.scol;
@@ -1297,6 +1362,29 @@ async function openDossier(row, origine = 2) {
       h('li', {}, h('button', { class: 'fr-btn fr-btn--tertiary fr-icon-close-line fr-btn--icon-left', type: 'button', title: 'Abandonner toutes les modifications en cours', onclick: () => gardeSortie(() => {}) }, 'Annuler')),
     ),
   );
+  // Second responsable : bloc visible seulement si la case « deux adresses » est cochée (ou pendant la modification).
+  // Construit à l'endroit où il s'affiche : ses champs passent après ceux du premier responsable dans l'ordre de saisie.
+  const construireSecond = () => {
+    if (!(ch.deux && ch.adr2)) return h('span');
+    const v2 = (cle) => {
+      const c = state.p2[cle];
+      const v = c ? ind.manuel[c] : '';
+      return v === undefined || v === null ? '' : String(v);
+    };
+    const cpVille2 = [v2('cp'), v2('commune')].filter(Boolean).join(' ');
+    ctx.ui.deuxInitial = ind.deux;
+    ctx.ui.second = h(
+      'div',
+      { id: 'dossier-second', hidden: !ind.deux },
+      h('h3', { class: 'fr-h6' }, 'Second responsable'),
+      listeInfos([
+        ligneModifiable('Adresse', v2('adresse'), [ch.adr2], ctx),
+        ligneModifiable('Code postal et commune', cpVille2, ch.cp2 && ch.commune2 ? [ch.cp2, ch.commune2] : [], ctx),
+        ligneModifiable('Second responsable légal', v2('rep'), [ch.rep2], ctx),
+      ]),
+    );
+    return ctx.ui.second;
+  };
   const note = elementsNote(ctx);
   box.replaceChildren(
     ctx.ui.aide,
@@ -1314,7 +1402,9 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Adresse', ind.adresse, [ch.adr], ctx),
       ligneModifiable('Code postal et commune', ind.cpVille, ch.cp && ch.commune ? [ch.cp, ch.commune] : [], ctx),
       ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
+      ...(ch.deux ? [ligneModifiable('Parents séparés (deux adresses)', ind.deux ? 'Oui' : 'Non', [ch.deux], ctx)] : []),
     ]),
+    construireSecond(),
     ...(ersRef.length
       ? [h('h2', { class: 'fr-h6' }, exclu ? 'ERS de référence (dernier établissement)' : 'ERS de référence'), listeInfos(ersRef.map((x) => ligneModifiable(x.libelle === 'ERSH' ? 'ERS' : x.libelle, lienContact(x.libelle, x.valeur), null, ctx)))]
       : []),
@@ -4076,7 +4166,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261126n';
+const VERSION_APP = '20261127a';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
