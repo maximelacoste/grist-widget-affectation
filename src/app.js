@@ -1,7 +1,7 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127b';
-import { attachSuggest } from './suggest.js?v=20261127b';
-import { initAccessibilite } from './accessibilite.js?v=20261127b';
-import { activerCalendriers } from './calendrier.js?v=20261127b';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127c';
+import { attachSuggest } from './suggest.js?v=20261127c';
+import { initAccessibilite } from './accessibilite.js?v=20261127c';
+import { activerCalendriers } from './calendrier.js?v=20261127c';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -876,8 +876,8 @@ function champsDossier(row, ind) {
   return {
     deux: state.p2.deux ? { colId: state.p2.deux, colType: 'Bool', label: 'Les parents ont deux adresses différentes', type: 'bool', valeur: ind.deux ? 'oui' : '' } : null,
     adr2: second('adresse', 'Adresse du second responsable', { ban: true }),
-    cp2: second('cp', 'Code postal (second responsable)', { cp: true }),
-    commune2: second('commune', 'Commune (second responsable)', { commune: true, normalise: (v) => v.toUpperCase() }),
+    cp2: second('cp', 'Code postal', { cp: true }),
+    commune2: second('commune', 'Commune', { commune: true, normalise: (v) => v.toUpperCase() }),
     rep2: second('rep', 'Second responsable légal'),
     nom: { colId: 'Nom', colType: 'Text', label: 'Nom', type: 'text', requis: true, valeur: row.nom, normalise: (v) => v.toUpperCase(), etatCivil: true },
     prenom: { colId: 'Prenom', colType: 'Text', label: 'Prénom', type: 'text', requis: true, valeur: row.prenom, etatCivil: true },
@@ -4166,7 +4166,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261127b';
+const VERSION_APP = '20261127c';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
