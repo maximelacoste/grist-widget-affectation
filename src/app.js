@@ -1,7 +1,7 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127a';
-import { attachSuggest } from './suggest.js?v=20261127a';
-import { initAccessibilite } from './accessibilite.js?v=20261127a';
-import { activerCalendriers } from './calendrier.js?v=20261127a';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127b';
+import { attachSuggest } from './suggest.js?v=20261127b';
+import { initAccessibilite } from './accessibilite.js?v=20261127b';
+import { activerCalendriers } from './calendrier.js?v=20261127b';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -1378,9 +1378,9 @@ async function openDossier(row, origine = 2) {
       { id: 'dossier-second', hidden: !ind.deux },
       h('h3', { class: 'fr-h6' }, 'Second responsable'),
       listeInfos([
+        ligneModifiable('Second responsable légal', v2('rep'), [ch.rep2], ctx),
         ligneModifiable('Adresse', v2('adresse'), [ch.adr2], ctx),
         ligneModifiable('Code postal et commune', cpVille2, ch.cp2 && ch.commune2 ? [ch.cp2, ch.commune2] : [], ctx),
-        ligneModifiable('Second responsable légal', v2('rep'), [ch.rep2], ctx),
       ]),
     );
     return ctx.ui.second;
@@ -1399,9 +1399,9 @@ async function openDossier(row, origine = 2) {
     ]),
     h('h2', { class: 'fr-h6' }, 'Coordonnées'),
     listeInfos([
+      ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
       ligneModifiable('Adresse', ind.adresse, [ch.adr], ctx),
       ligneModifiable('Code postal et commune', ind.cpVille, ch.cp && ch.commune ? [ch.cp, ch.commune] : [], ctx),
-      ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
       ...(ch.deux ? [ligneModifiable('Parents séparés (deux adresses)', ind.deux ? 'Oui' : 'Non', [ch.deux], ctx)] : []),
     ]),
     construireSecond(),
@@ -4166,7 +4166,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261127a';
+const VERSION_APP = '20261127b';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
