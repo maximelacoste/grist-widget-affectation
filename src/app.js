@@ -1,7 +1,7 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127d';
-import { attachSuggest } from './suggest.js?v=20261127d';
-import { initAccessibilite } from './accessibilite.js?v=20261127d';
-import { activerCalendriers } from './calendrier.js?v=20261127d';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127e';
+import { attachSuggest } from './suggest.js?v=20261127e';
+import { initAccessibilite } from './accessibilite.js?v=20261127e';
+import { activerCalendriers } from './calendrier.js?v=20261127e';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -37,6 +37,9 @@ const NIVEAUX_PAR_TYPE = {
 };
 const LIBELLE_TYPE = { ECO: 'une école', CLG: 'un collège', LYC: 'un lycée' };
 const MANUEL_TYPES = ['Text', 'Date', 'Int', 'Numeric', 'Bool', 'Choice']; // types de colonnes `*_manuel` gérés
+const MANUEL_EXCLUES = /^decision/i; // `Decision_manuelle` sert à la fusion des doublons : jamais proposée dans l'application
+// Champs du second responsable à la création, dans l'ordre d'affichage (clés de P2_COLONNES).
+const P2_CREATION = [['rep', 'Second responsable légal'], ['adresse', 'Adresse du second responsable'], ['cp', 'Code postal'], ['commune', 'Commune'], ['tel', 'Téléphone'], ['courriel', 'Courriel']];
 // Ordre d'affichage des champs facultatifs (les autres colonnes `*_manuel` suivent, dans l'ordre du tableau).
 // Contacts du responsable : reconnus au début de l'identifiant (`Telephone_manuel`, `Email_manuel`, `Courriel_manuel`).
 const RE_COL_TEL = /^t[eé]l/i;
@@ -46,7 +49,7 @@ const rangManuel = (c) => {
   const i = MANUEL_ORDRE.findIndex((r) => r.test(c.colId));
   return i < 0 ? MANUEL_ORDRE.length : i;
 };
-const MANUEL_MULTILIGNE = /adresse|repr|legal/i; // champs texte affichés sur plusieurs lignes
+const MANUEL_MULTILIGNE = /adresse/i; // champs texte affichés sur plusieurs lignes
 // Second responsable (parents séparés, deux adresses) : colonnes `*_manuel(le)` d'Individus reconnues à leur nom.
 // Elles sont retirées des champs facultatifs de la création et du premier responsable : on les gère à part.
 const P2_RE = /parent2|deux_adresses/i;
@@ -280,7 +283,7 @@ async function loadMeta() {
 
   // Champs facultatifs de la création d'un élève : colonnes de données d'Individus finissant par `_manuel` ou `_manuelle`.
   state.champsManuels = [...colById.values()]
-    .filter((c) => c.tableId === T_INDIVIDUS && /_manuel(le)?$/i.test(c.colId) && !c.isFormula && MANUEL_TYPES.includes(c.type) && !P2_RE.test(c.colId))
+    .filter((c) => c.tableId === T_INDIVIDUS && /_manuel(le)?$/i.test(c.colId) && !c.isFormula && MANUEL_TYPES.includes(c.type) && !P2_RE.test(c.colId) && !MANUEL_EXCLUES.test(c.colId))
     .sort((a, b) => rangManuel(a) - rangManuel(b) || a.pos - b.pos)
     .map((c) => ({ colId: c.colId, type: c.type, label: prettyLabel(c), choices: choicesOf(c) }));
   // Second responsable : colonnes de données d'Individus finissant par `_manuel(le)` et reconnues par P2_COLONNES.
@@ -594,6 +597,13 @@ function prefillCreate() {
     if (f.type === 'Bool') el.checked = false;
     else el.value = '';
   });
+  const deux = $('#c-deux');
+  if (deux) {
+    deux.checked = false;
+    $('#c-second').hidden = true;
+    $('#c-second').querySelectorAll('input').forEach((el) => { el.value = ''; });
+  }
+  clearFieldErrors($('#form-create'));
 }
 
 /* ------------------------------------------------------------------ */
@@ -1552,7 +1562,7 @@ function prettyLabel(c) {
 function renderManualFields() {
   const box = $('#c-manuel');
   if (state.champsManuels.length === 0) {
-    box.replaceChildren();
+    box.replaceChildren(...secondCreation());
     return;
   }
   const control = (f, i) => {
@@ -1579,12 +1589,85 @@ function renderManualFields() {
       h('legend', { class: 'fr-fieldset__legend', id: 'legend-manuel' }, h('span', { class: 'fr-h6' }, 'Informations complémentaires'), h('span', { class: 'fr-hint-text' }, 'Facultatif : à renseigner si vous les connaissez.')),
       state.champsManuels.map((f, i) => h('div', { class: 'fr-fieldset__element' }, control(f, i))),
     ),
+    ...secondCreation(),
   );
   state.champsManuels.forEach((f, i) => {
     const el = $(`#c-m-${i}`);
     if (el) el.title = `Facultatif : ${f.label}. Valeur saisie à la main, prioritaire sur celle qui vient de la MDPH.`;
   });
-  if (ADRESSE_SUGGESTIONS) attachAdresse();
+  if (ADRESSE_SUGGESTIONS) {
+    attachAdresse();
+  }
+  attachAdresseSecond();
+}
+
+/** Création : case « deux adresses » et bloc du second responsable ; [] si les colonnes nécessaires manquent. */
+function secondCreation() {
+  if (!(state.p2.deux && state.p2.adresse)) return [];
+  const bloc = h(
+    'fieldset',
+    { class: 'fr-fieldset', id: 'c-second', hidden: true, 'aria-labelledby': 'legend-second' },
+    h('legend', { class: 'fr-fieldset__legend', id: 'legend-second' }, h('span', { class: 'fr-h6' }, 'Second responsable')),
+    P2_CREATION.filter(([cle2]) => state.p2[cle2]).map(([cle2, label]) =>
+      h(
+        'div',
+        { class: 'fr-fieldset__element' },
+        h(
+          'div',
+          { class: 'fr-input-group' },
+          h('label', { class: 'fr-label', for: `c-p2-${cle2}` }, label, cle2 === 'adresse' && ADRESSE_SUGGESTIONS ? h('span', { class: 'fr-hint-text' }, 'Suggestions de la Base Adresse Nationale (IGN) : le texte saisi ici est envoyé à ce service public.') : null),
+          h('input', { class: 'fr-input', id: `c-p2-${cle2}`, type: cle2 === 'tel' ? 'tel' : cle2 === 'courriel' ? 'email' : 'text', autocomplete: 'off', maxlength: cle2 === 'cp' ? 5 : null }),
+        ),
+      ),
+    ),
+  );
+  const coche = h('input', { type: 'checkbox', id: 'c-deux', onchange: (e) => { bloc.hidden = !e.target.checked; } });
+  return [h('div', { class: 'fr-checkbox-group fr-mb-2w' }, coche, h('label', { class: 'fr-label', for: 'c-deux' }, 'Les parents ont deux adresses différentes')), bloc];
+}
+
+function attachAdresseSecond() {
+  const champ = $('#c-p2-adresse');
+  if (!ADRESSE_SUGGESTIONS || !champ) return;
+  attachSuggest(champ, {
+    minChars: 4,
+    delay: 350,
+    fetchItems: async (query, signal) => {
+      const r = await fetch(banUrl(query), { signal, credentials: 'omit', referrerPolicy: 'no-referrer', headers: { accept: 'application/json' } });
+      if (!r.ok) throw new Error(`BAN : HTTP ${r.status}`);
+      return parseBan(await r.json());
+    },
+    onPick: (a) => {
+      champ.value = a.adresse;
+      const cp = $('#c-p2-cp');
+      const commune = $('#c-p2-commune');
+      if (cp) cp.value = a.cp;
+      if (commune) commune.value = a.commune;
+    },
+  });
+}
+
+/** Valeurs du second responsable si la case est cochée ({} sinon) ; null (erreur signalée) si une saisie est invalide. */
+function collectSecond() {
+  if (!$('#c-deux')?.checked) return {};
+  const out = { [state.p2.deux]: true };
+  let ok = true;
+  const erreur = (el, message) => {
+    setFieldError(el.id, message);
+    ok = false;
+  };
+  for (const [cle2] of P2_CREATION) {
+    const el = $(`#c-p2-${cle2}`);
+    if (!el) continue;
+    let v = el.value.trim().replace(/\s+/g, ' ');
+    if (cle2 === 'commune') v = v.toUpperCase();
+    if (cle2 === 'adresse' && !v) erreur(el, "Saisissez l'adresse du second responsable, ou décochez « deux adresses ».");
+    else if (!v) continue;
+    else if (cle2 === 'cp' && !/^\d{5}$/.test(v)) erreur(el, 'Un code postal compte 5 chiffres.');
+    else if (cle2 === 'tel' && !telValide(v)) erreur(el, MSG_TEL);
+    else if (cle2 === 'courriel' && !RE_COURRIEL.test(v)) erreur(el, MSG_COURRIEL);
+    else out[state.p2[cle2]] = v;
+  }
+  return ok ? out : null;
 }
 
 /** Suggestions d'adresses sur le champ adresse ; le choix remplit aussi le code postal et la commune s'ils existent. */
@@ -1677,7 +1760,8 @@ $('#form-create').addEventListener('submit', async (e) => {
     ok = false;
   }
   const manuel = collectManual();
-  if (!manuel) ok = false;
+  const second = collectSecond();
+  if (!manuel || !second) ok = false;
   if (!ok) {
     form.querySelector('[aria-invalid]')?.focus();
     return;
@@ -1697,7 +1781,7 @@ $('#form-create').addEventListener('submit', async (e) => {
       try {
         viderCache();
         const res = await grist.docApi.applyUserActions([
-          ['AddRecord', T_INDIVIDUS, null, { ...manuel, Nom: nom, Prenom: prenom, Date_de_naissance: isoToSec(iso) }],
+          ['AddRecord', T_INDIVIDUS, null, { ...manuel, ...second, Nom: nom, Prenom: prenom, Date_de_naissance: isoToSec(iso) }],
         ]);
         const id = res.retValues[0];
         await refreshIndividus();
@@ -4195,7 +4279,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261127d';
+const VERSION_APP = '20261127e';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 
