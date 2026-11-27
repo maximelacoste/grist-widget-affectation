@@ -1,7 +1,7 @@
-import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127c';
-import { attachSuggest } from './suggest.js?v=20261127c';
-import { initAccessibilite } from './accessibilite.js?v=20261127c';
-import { activerCalendriers } from './calendrier.js?v=20261127c';
+import { statutsEleves, banUrl, cellText, cle, filterOptions, formatDateFr, isInvalidCell, isFormulaError, elevesExclus, isoToSec, ligneActuelle, niveauxPour, typeEtab, libelleEtab, norm, normSearch, parseBan, searchIndividus, rechercheLibre, libelleEleve, secToIso, tableToRows, toIndividus, elevesDuDispositif, trierEleves, effectifsParEtab, alerteFinDroits, libelleAlerteFin, infosManquantes, occupation } from './lib.js?v=20261127d';
+import { attachSuggest } from './suggest.js?v=20261127d';
+import { initAccessibilite } from './accessibilite.js?v=20261127d';
+import { activerCalendriers } from './calendrier.js?v=20261127d';
 document.documentElement.dataset.pret = '1'; // modules chargés : sinon index.html affiche un message d'aide
 
 activerCalendriers(); // clic n'importe où dans un champ date : calendrier intégré (showPicker est refusé dans l'iframe Grist)
@@ -38,7 +38,10 @@ const NIVEAUX_PAR_TYPE = {
 const LIBELLE_TYPE = { ECO: 'une école', CLG: 'un collège', LYC: 'un lycée' };
 const MANUEL_TYPES = ['Text', 'Date', 'Int', 'Numeric', 'Bool', 'Choice']; // types de colonnes `*_manuel` gérés
 // Ordre d'affichage des champs facultatifs (les autres colonnes `*_manuel` suivent, dans l'ordre du tableau).
-const MANUEL_ORDRE = [/debut/i, /fin/i, /repr|legal/i, /adresse/i, /^cp|postal/i, /commune/i];
+// Contacts du responsable : reconnus au début de l'identifiant (`Telephone_manuel`, `Email_manuel`, `Courriel_manuel`).
+const RE_COL_TEL = /^t[eé]l/i;
+const RE_COL_COURRIEL = /^(e_?mail|mail|courriel)/i;
+const MANUEL_ORDRE = [/debut/i, /fin/i, /repr|legal/i, /adresse/i, /^cp|postal/i, /commune/i, RE_COL_TEL, RE_COL_COURRIEL];
 const rangManuel = (c) => {
   const i = MANUEL_ORDRE.findIndex((r) => r.test(c.colId));
   return i < 0 ? MANUEL_ORDRE.length : i;
@@ -53,6 +56,8 @@ const P2_COLONNES = {
   cp: /^(cp|code_?postal).*parent2/i,
   commune: /^commune.*parent2/i,
   rep: /^repr.*parent2/i,
+  tel: /^t[eé]l.*parent2/i,
+  courriel: /^(e_?mail|mail|courriel).*parent2/i,
 };
 // Suggestions d'adresses normées (Base Adresse Nationale, Géoplateforme de l'IGN). Le texte tapé dans le champ
 // adresse est envoyé à ce service public : passer à `false` pour désactiver sans toucher au reste.
@@ -795,6 +800,10 @@ function listeInfos(infos) {
  */
 const RE_COURRIEL = /^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 const RE_TEL = /^\+?\d{9,15}$/;
+const telValide = (v) => RE_TEL.test(v.replace(/[\s.\-()]/g, ''));
+const MSG_TEL = 'Numéro de téléphone non reconnu (un seul numéro, par exemple 06 12 34 56 78).';
+const MSG_COURRIEL = 'Adresse électronique non reconnue (une seule, par exemple nom@domaine.fr).';
+
 function lienContact(libelle, valeur) {
   if (!valeur || typeof valeur !== 'string') return valeur;
   const courriel = /courriel|mail/i.test(libelle);
@@ -886,6 +895,10 @@ function champsDossier(row, ind) {
     cp: manuel(/^cp|postal/i, ['Text', 'Int', 'Numeric'], 'Code postal', 'text', cpVille[1] || '', { cp: true }),
     commune: manuel(/commune/i, ['Text'], 'Commune', 'text', (cpVille[2] || '').trim(), { commune: true, normalise: (v) => v.toUpperCase() }),
     rep: manuel(/repr|legal/i, ['Text'], 'Représentant(s) légal(aux)', 'text', ind.representants),
+    tel: manuel(RE_COL_TEL, ['Text'], 'Téléphone', 'text', '', { tel: true }),
+    courriel: manuel(RE_COL_COURRIEL, ['Text'], 'Courriel', 'text', '', { courriel: true }),
+    tel2: second('tel', 'Téléphone (second responsable)', { tel: true }),
+    courriel2: second('courriel', 'Courriel (second responsable)', { courriel: true }),
     debut: manuel(/debut/i, ['Date'], 'Début de la dernière notification', 'date', secToIso(ind.debut)),
     fin: manuel(/^fin/i, ['Date'], 'Fin de droits', 'date', secToIso(ind.fin)),
   };
@@ -931,7 +944,7 @@ function entrerEdition(ctx) {
         const input = h('input', {
           class: 'fr-input',
           id,
-          type: c.type === 'date' ? 'date' : 'text',
+          type: c.type === 'date' ? 'date' : c.tel ? 'tel' : c.courriel ? 'email' : 'text',
           autocomplete: 'off',
           value: c.valeur || '',
           inputmode: c.cp ? 'numeric' : null,
@@ -1068,6 +1081,12 @@ function validerEdition(ctx) {
       }
     } else if (c.cp && v && !/^\d{5}$/.test(v)) {
       setFieldError(id, 'Un code postal compte 5 chiffres.');
+      ok = false;
+    } else if (c.tel && v && !telValide(v)) {
+      setFieldError(id, MSG_TEL);
+      ok = false;
+    } else if (c.courriel && v && !RE_COURRIEL.test(v)) {
+      setFieldError(id, MSG_COURRIEL);
       ok = false;
     } else if (c.requis && c.type === 'text' && norm(v).length === 0) {
       setFieldError(id, 'Saisissez au moins une lettre.');
@@ -1402,6 +1421,10 @@ async function openDossier(row, origine = 2) {
       ligneModifiable('Représentant(s) légal(aux)', ind.representants, [ch.rep], ctx),
       ligneModifiable('Adresse', ind.adresse, [ch.adr], ctx),
       ligneModifiable('Code postal et commune', ind.cpVille, ch.cp && ch.commune ? [ch.cp, ch.commune] : [], ctx),
+      // Contacts : saisie manuelle seule, affichés même sans « deux adresses » (deux parents sous le même toit).
+      ...[ch.tel, ch.courriel, ch.tel2, ch.courriel2]
+        .filter(Boolean)
+        .map((c) => ligneModifiable(c.label, lienContact(c.label, c.valeur), [c], ctx)),
       ...(ch.deux ? [ligneModifiable('Parents séparés (deux adresses)', ind.deux ? 'Oui' : 'Non', [ch.deux], ctx)] : []),
     ]),
     construireSecond(),
@@ -1545,7 +1568,7 @@ function renderManualFields() {
     if (f.type === 'Text' && MANUEL_MULTILIGNE.test(f.colId)) el = h('textarea', { class: 'fr-input', id, rows: 2 });
     else if (f.type === 'Date') el = h('input', { class: 'fr-input', id, type: 'date' });
     else if (f.type === 'Int' || f.type === 'Numeric') el = h('input', { class: 'fr-input', id, type: 'number', step: f.type === 'Int' ? '1' : 'any' });
-    else el = h('input', { class: 'fr-input', id, type: 'text', autocomplete: 'off' });
+    else el = h('input', { class: 'fr-input', id, type: RE_COL_TEL.test(f.colId) ? 'tel' : RE_COL_COURRIEL.test(f.colId) ? 'email' : 'text', autocomplete: 'off' });
     const hint = ADRESSE_SUGGESTIONS && f.type === 'Text' && /adresse/i.test(f.colId) ? 'Suggestions de la Base Adresse Nationale (IGN) : le texte saisi ici est envoyé à ce service public.' : '';
     return h('div', { class: 'fr-input-group' }, h('label', { class: 'fr-label', for: id }, f.label, hint ? h('span', { class: 'fr-hint-text' }, hint) : null), el);
   };
@@ -1614,6 +1637,12 @@ function collectManual() {
         setFieldError(el.id, 'Saisissez un nombre.');
         ok = false;
       } else out[f.colId] = n;
+    } else if (RE_COL_TEL.test(f.colId) && !telValide(v)) {
+      setFieldError(el.id, MSG_TEL);
+      ok = false;
+    } else if (RE_COL_COURRIEL.test(f.colId) && !RE_COURRIEL.test(v)) {
+      setFieldError(el.id, MSG_COURRIEL);
+      ok = false;
     } else out[f.colId] = v;
   });
   return ok ? out : null;
@@ -4166,7 +4195,7 @@ function lectureSeule() {
  * Gros bandeau d'avertissement sur une copie de test, pour ne pas y saisir de données réelles : le nom du document contient
  * « test », ou l'adresse du widget porte `?test=1`. Le nom du document vient de Grist ; rien n'est lu ni écrit.
  */
-const VERSION_APP = '20261127c';
+const VERSION_APP = '20261127d';
 // getDocName renvoie l'identifiant du document (pas son titre) : on reconnaît donc les copies de test par leur identifiant
 const DOCS_TEST = ['1MPYgKupd8VcTMBQr2DtdJ'];
 

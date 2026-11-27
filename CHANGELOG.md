@@ -2,6 +2,7 @@
 
 ## [Non publié]
 
+- Fiche élève, « Coordonnées » : téléphone et courriel des deux responsables, affichés (liens d'appel et de mail) et modifiables. Colonnes Texte d'Individus : `Telephone_manuel`, `Email_manuel`, `Telephone_parent2_manuel`, `Email_parent2_manuel`. Les deux premières sont aussi proposées à la création d'un élève. Format contrôlé à la saisie.
 - Fiche élève, mode Modifier : les champs du second responsable s'appellent « Code postal » et « Commune » (sans la mention entre parenthèses).
 - Fiche élève, « Coordonnées » : le représentant légal passe avant l'adresse, pour le premier comme pour le second responsable.
 - Fiche élève : second responsable (parents séparés, deux adresses). Case « Les parents ont deux adresses différentes » en mode Modifier ; cochée, elle fait apparaître un bloc « Second responsable » (adresse avec suggestions BAN, code postal, commune, représentant). Colonnes d'Individus reconnues : `Deux_adresses_manuelle` (Case à cocher), `Adresse_parent2_manuelle`, `CP_parent2_manuelle`, `Commune_parent2_manuelle`, `Representant_parent2_manuel` (Texte). Case cochée sans adresse : refus. Ces colonnes ne sont pas proposées à la création d'un élève et n'interfèrent plus avec les champs du premier responsable.
